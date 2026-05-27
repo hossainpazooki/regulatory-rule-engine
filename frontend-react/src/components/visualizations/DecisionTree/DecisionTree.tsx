@@ -163,6 +163,7 @@ export function DecisionTree({
       const scale = 0.9 / Math.max(dx / innerWidth, dy / innerHeight)
       const translate: [number, number] = [innerWidth / 2 - scale * x + margin.left, innerHeight / 2 - scale * y + margin.top]
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       svg.call(zoom.transform as any, d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale))
     }
   }, [data, width, height, highlightedPath, getNodeColor, isHighlighted, onNodeClick])

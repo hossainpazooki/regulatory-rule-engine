@@ -239,8 +239,8 @@ function normalizeGraphData(data: unknown): GraphData {
   const obj = data as Record<string, unknown>
 
   // Handle different possible formats
-  let nodes = (obj.nodes || []) as Array<Record<string, unknown>>
-  let links = (obj.links || obj.edges || []) as Array<Record<string, unknown>>
+  const nodes = (obj.nodes || []) as Array<Record<string, unknown>>
+  const links = (obj.links || obj.edges || []) as Array<Record<string, unknown>>
 
   const normalizedNodes = nodes.map((node) => ({
     id: String(node.id || node.node_id || node.rule_id),

@@ -10,6 +10,7 @@ import {
   ChartBarIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  DocumentArrowUpIcon,
 } from '@heroicons/react/24/outline'
 import { useWorkbenchStore } from '@/store'
 
@@ -22,6 +23,7 @@ const navItems = [
   { to: '/similarity', icon: MagnifyingGlassIcon, label: 'Similarity' },
   { to: '/graph', icon: ShareIcon, label: 'Graph' },
   { to: '/analytics', icon: ChartBarIcon, label: 'Analytics' },
+  { to: '/documents', icon: DocumentArrowUpIcon, label: 'Document Ingestion' },
 ]
 
 export function Sidebar() {

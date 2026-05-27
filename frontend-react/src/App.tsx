@@ -8,6 +8,7 @@ import { EmbeddingExplorer } from './pages/EmbeddingExplorer'
 import { SimilaritySearch } from './pages/SimilaritySearch'
 import { GraphVisualizer } from './pages/GraphVisualizer'
 import { AnalyticsDashboard } from './pages/AnalyticsDashboard'
+import { DocumentIngestion } from './pages/DocumentIngestion'
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/similarity" element={<SimilaritySearch />} />
         <Route path="/graph" element={<GraphVisualizer />} />
         <Route path="/analytics" element={<AnalyticsDashboard />} />
+        <Route path="/documents" element={<DocumentIngestion />} />
       </Routes>
     </Layout>
   )

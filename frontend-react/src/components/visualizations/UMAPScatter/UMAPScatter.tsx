@@ -175,6 +175,7 @@ export function UMAPScatter({
           })
           onBrushEnd(selected)
           // Clear brush
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           g.select('.brush').call(brush.move as any, null)
         })
 
@@ -206,6 +207,7 @@ export function UMAPScatter({
 
     // Double-click to reset zoom
     svg.on('dblclick.zoom', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       svg.transition().duration(500).call(zoom.transform as any, d3.zoomIdentity)
     })
   }, [data, width, height, colorBy, selectedPoint, highlightedCluster, getPointColor, onPointClick, onPointHover, onBrushEnd])

@@ -5,7 +5,34 @@ import { LoadingOverlay, ErrorMessage, StatusBadge } from '@/components/common'
 import { DecisionTree } from '@/components/visualizations'
 import type { RuleInfo, DecideRequest, TreeNode } from '@/types'
 
+// Mock legal analysis data
+const MOCK_LEGAL_ANALYSIS = {
+  regulatory_flags: [
+    { flag: 'MiCA Article 16 - Reserve requirements not met', severity: 'high' },
+    { flag: 'Cross-border passport notification pending', severity: 'medium' },
+    { flag: 'ESMA reporting deadline approaching (30 days)', severity: 'low' },
+  ],
+  covenant_issues: [
+    { issue: 'Debt-to-equity ratio exceeds 4:1 threshold', section: 'Section 7.2(a)' },
+    { issue: 'Material adverse change clause triggered', section: 'Section 9.1(c)' },
+    { issue: 'Information covenants - quarterly reporting overdue', section: 'Section 6.3' },
+  ],
+  jurisdiction_risks: [
+    { jurisdiction: 'EU', risk: 'Pending MiCA transitional provisions expire Q3 2026', level: 'medium' },
+    { jurisdiction: 'UK', risk: 'FCA crypto registration renewal required', level: 'high' },
+    { jurisdiction: 'US', risk: 'State-by-state MSB licensing gaps in 3 states', level: 'medium' },
+  ],
+  citations: [
+    { source: 'MiCA Regulation (EU) 2023/1114, Art. 16', text: 'Reserve of assets requirements for issuers of asset-referenced tokens' },
+    { source: 'FCA PS22/10, Section 4.3', text: 'Cryptoasset registration and ongoing obligations' },
+    { source: 'Basel III Framework, CRE 20.4', text: 'Credit risk exposure classification for digital assets' },
+  ],
+}
+
+type WorkbenchTab = 'rules' | 'legal'
+
 export function KEWorkbench() {
+  const [activeTab, setActiveTab] = useState<WorkbenchTab>('rules')
   const { data: rulesData, isLoading: rulesLoading, error: rulesError } = useRules()
   const { selectedRule, setSelectedRule, trace, setTrace, setLastDecision, highlightedNodes, setHighlightedNodes } = useWorkbenchStore()
   const { data: ruleDetail } = useRule(selectedRule?.rule_id || '')
@@ -68,7 +95,102 @@ export function KEWorkbench() {
         <p className="text-slate-400">Verify and review rules with decision tree visualization</p>
       </div>
 
+      {/* Tab bar */}
+      <div className="border-b border-slate-700">
+        <nav className="flex gap-4">
+          {([
+            { key: 'rules' as const, label: 'Rules & Trace' },
+            { key: 'legal' as const, label: 'Legal Analysis' },
+          ]).map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`py-3 border-b-2 font-medium transition-colors ${
+                activeTab === tab.key
+                  ? 'border-primary-500 text-primary-400'
+                  : 'border-transparent text-slate-400 hover:text-white'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Legal Analysis Tab */}
+      {activeTab === 'legal' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Regulatory Flags */}
+          <div className="card">
+            <h2 className="text-lg font-semibold text-white mb-4">Regulatory Flags</h2>
+            <div className="space-y-3">
+              {MOCK_LEGAL_ANALYSIS.regulatory_flags.map((item, idx) => (
+                <div key={idx} className="p-3 bg-slate-700 rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <StatusBadge
+                      status={
+                        item.severity === 'high' ? 'error' : item.severity === 'medium' ? 'warning' : 'info'
+                      }
+                      label={item.severity}
+                      size="sm"
+                    />
+                  </div>
+                  <p className="text-sm text-slate-200">{item.flag}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Covenant Issues */}
+          <div className="card">
+            <h2 className="text-lg font-semibold text-white mb-4">Covenant Issues</h2>
+            <div className="space-y-3">
+              {MOCK_LEGAL_ANALYSIS.covenant_issues.map((item, idx) => (
+                <div key={idx} className="p-3 bg-slate-700 rounded-lg">
+                  <p className="text-sm text-slate-200">{item.issue}</p>
+                  <p className="text-xs text-slate-500 mt-1">{item.section}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Jurisdiction Risks */}
+          <div className="card">
+            <h2 className="text-lg font-semibold text-white mb-4">Jurisdiction Risks</h2>
+            <div className="space-y-3">
+              {MOCK_LEGAL_ANALYSIS.jurisdiction_risks.map((item, idx) => (
+                <div key={idx} className="p-3 bg-slate-700 rounded-lg">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-white">{item.jurisdiction}</span>
+                    <StatusBadge
+                      status={item.level === 'high' ? 'error' : item.level === 'medium' ? 'warning' : 'info'}
+                      label={item.level}
+                      size="sm"
+                    />
+                  </div>
+                  <p className="text-sm text-slate-300">{item.risk}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Citations */}
+          <div className="card lg:col-span-3">
+            <h2 className="text-lg font-semibold text-white mb-4">Citations</h2>
+            <div className="space-y-3">
+              {MOCK_LEGAL_ANALYSIS.citations.map((cite, idx) => (
+                <div key={idx} className="p-3 bg-slate-700 rounded-lg">
+                  <p className="text-sm font-medium text-primary-400">{cite.source}</p>
+                  <p className="text-sm text-slate-300 mt-1">{cite.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tri-pane layout */}
+      {activeTab === 'rules' && (
       <div className="grid grid-cols-12 gap-6">
         {/* Left Panel: Rule List */}
         <div className="col-span-3">
@@ -227,6 +349,7 @@ export function KEWorkbench() {
           </div>
         </div>
       </div>
+      )}
     </div>
   )
 }
@@ -335,7 +458,7 @@ function buildTreeFromNodes(nodes: Array<Record<string, unknown>>): TreeNode | n
 
     // Track child IDs
     if (node.children && Array.isArray(node.children)) {
-      ;(node.children as string[]).forEach((childId) => childIds.add(String(childId)))
+      (node.children as string[]).forEach((childId) => childIds.add(String(childId)))
     }
   })
 
