@@ -46,7 +46,11 @@ Authoritative spec: `docs/spec/ke-workbench-rust-migration-spec-v3.1.md`.
   - **WRONG:** `Edit A + Edit B + Write C` in parallel.
   - **CORRECT:** `Edit A` → wait → `Edit B` → wait → `Write C`.
 - Safe to parallelize: `Grep`, `Glob`, `Read`, read-only `Bash`, web fetches.
-- **Plan Mode is required for any change touching ≥ 2 files.**
+- **Plan Mode is required for design or architectural changes that touch
+  ≥ 2 files** (new modules, schema changes, refactors, gate-scope decisions).
+  Mechanical multi-file edits that must move together — version bumps, pin
+  updates, dependency renames, CI-failure fixes, doc cross-link updates —
+  may proceed without Plan Mode.
 
 ### `fixtures/` is read-only inside ordinary sessions
 
