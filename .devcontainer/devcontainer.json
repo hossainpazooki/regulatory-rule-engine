@@ -14,9 +14,9 @@
       ]
     }
   },
-  "updateContentCommand": "cd frontend-react && npm install",
+  "updateContentCommand": "cd frontend && npm install",
   "postAttachCommand": {
-    "frontend": "cd frontend-react && npm run dev"
+    "frontend": "cd frontend && npm run dev"
   },
   "portsAttributes": {
     "5173": {

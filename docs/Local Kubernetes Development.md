@@ -55,7 +55,7 @@ minikube start --driver=docker
 # 4. Build images inside minikube
 docker build -t legal-compliance-api:local .
 docker build -t legal-compliance-worker:local -f Dockerfile.worker .
-docker build -t legal-compliance-frontend:local frontend-react/
+docker build -t legal-compliance-frontend:local .
 
 # 5. Deploy with kustomize
 kubectl apply -k kube/overlays/local
@@ -137,7 +137,7 @@ mkdir() "/var/cache/nginx/client_temp" failed (13: Permission denied)
 
 **Cause:** Base nginx image requires root to create cache directories. Kubernetes runs containers as non-root (UID 1000).
 
-**Solution:** Changed `frontend-react/Dockerfile` to use `nginxinc/nginx-unprivileged:alpine`:
+**Solution:** Changed `Dockerfile` (now at repo root) to use `nginxinc/nginx-unprivileged:alpine`:
 
 ```dockerfile
 FROM nginxinc/nginx-unprivileged:alpine
@@ -158,7 +158,7 @@ Also updated `nginx.conf` to listen on port 8080 (unprivileged port).
 **Solution:** Force rebuild without cache:
 
 ```powershell
-docker build --no-cache -t legal-compliance-frontend:local frontend-react/
+docker build --no-cache -t legal-compliance-frontend:local .
 ```
 
 ### 3. ServiceAccount not found
@@ -534,14 +534,14 @@ minikube start --driver=docker
 
 ### Rebuild after nginx.conf changes
 
-After modifying `frontend-react/nginx.conf`, rebuild and redeploy:
+After modifying `nginx.conf` (now at repo root), rebuild and redeploy:
 
 ```powershell
 # Ensure using minikube's Docker
 & minikube -p minikube docker-env --shell powershell | Invoke-Expression
 
 # Rebuild frontend image (--no-cache ensures nginx.conf changes are picked up)
-docker build --no-cache -t legal-compliance-frontend:local frontend-react/
+docker build --no-cache -t legal-compliance-frontend:local .
 
 # Restart frontend deployment
 kubectl rollout restart deployment/frontend -n legal-compliance

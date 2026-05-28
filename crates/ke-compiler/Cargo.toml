@@ -1,0 +1,16 @@
+[package]
+name = "ke-compiler"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+description = "YAML parser, AST→IR lowering, and T0/T1/T4 verification passes"
+
+[dependencies]
+ke-core = { path = "../ke-core" }
+serde = { workspace = true }
+serde_yaml = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }

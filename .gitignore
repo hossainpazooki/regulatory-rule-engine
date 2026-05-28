@@ -30,9 +30,12 @@ NUL
 
 # Claude Code
 .claude/
-CLAUDE.md
 
 # Backup/duplicate files
 *copy*
 *.bak
 ~*
+
+# Rust
+target/
+

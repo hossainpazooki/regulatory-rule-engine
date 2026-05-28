@@ -1,0 +1,32 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/ke-core",
+    "crates/ke-compiler",
+    "crates/ke-runtime",
+    "crates/ke-artifact",
+    "crates/ke-cli",
+    "crates/ke-wasm",
+]
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.84"
+license = "Proprietary"
+authors = ["ke-workbench contributors"]
+publish = false
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+postcard = { version = "1", features = ["use-std"] }
+blake3 = "1"
+ed25519-dalek = "2"
+thiserror = "1"
+tracing = "0.1"
+anyhow = "1"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

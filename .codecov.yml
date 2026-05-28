@@ -12,7 +12,7 @@ coverage:
     project:
       frontend:
         paths:
-          - "frontend-react/src/**"
+          - "frontend/src/**"
         target: auto
         threshold: 5%
         informational: true
@@ -27,8 +27,8 @@ coverage:
 
 # Ignore certain paths from coverage
 ignore:
-  - "frontend-react/src/main.tsx"
-  - "frontend-react/src/vite-env.d.ts"
+  - "frontend/src/main.tsx"
+  - "frontend/src/vite-env.d.ts"
   - "**/*.d.ts"
   - "**/*.test.ts"
   - "**/*.test.tsx"
@@ -47,5 +47,5 @@ comment:
 flags:
   frontend:
     paths:
-      - frontend-react/src/
+      - frontend/src/
     carryforward: true
