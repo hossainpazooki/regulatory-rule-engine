@@ -39,7 +39,8 @@ jobs:
       - name: Build and push Frontend image
         uses: docker/build-push-action@v5
         with:
-          context: ./frontend-react
+          context: .
+          file: Dockerfile
           push: true
           tags: |
             ${{ steps.ecr.outputs.registry }}/legal-compliance-frontend:${{ github.sha }}

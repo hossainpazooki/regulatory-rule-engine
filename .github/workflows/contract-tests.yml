@@ -1,0 +1,26 @@
+name: Contract Tests (stub)
+
+# Stub workflow for Gate 0 — only proves the path/structure exists.
+# Cross-language artifact contract tests (Rust ↔ Python) land in Gate 4
+# (see docs/spec/ke-workbench-rust-migration-spec-v3.1.md § 14, § 19 Gate 4).
+
+on:
+  push:
+    branches: [main, "migration/**"]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: contract-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  noop:
+    name: Contract stub
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm fixtures directory exists
+        run: test -d fixtures/artifacts
+      - name: Note
+        run: echo "Cross-language Rust ↔ Python contract tests wired in Gate 4."

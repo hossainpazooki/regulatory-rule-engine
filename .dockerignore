@@ -1,0 +1,35 @@
+# Frontend build artifacts
+frontend/node_modules
+frontend/dist
+frontend/dist-ssr
+frontend/coverage
+**/*.tsbuildinfo
+
+# Rust build artifacts
+target
+crates/**/target
+
+# Git, IDE, OS
+.git
+.github
+.vscode
+.idea
+.DS_Store
+
+# Docs and infra not needed in image
+docs
+kube
+scripts
+fixtures
+crates
+crates-deferred
+*.md
+!frontend/**/*.md
+
+# Python venvs (if present)
+.venv
+venv
+__pycache__
+
+# Logs
+*.log

@@ -1,0 +1,25 @@
+name: WASM Build (stub)
+
+# Stub workflow for Gate 0 — only proves the path/structure exists.
+# Real wasm-bindgen build lands in Gate 5 (see docs/spec/ke-workbench-rust-migration-spec-v3.1.md § 19 Gate 5).
+
+on:
+  push:
+    branches: [main, "migration/**"]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: wasm-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  noop:
+    name: WASM stub
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm ke-wasm crate exists
+        run: test -f crates/ke-wasm/Cargo.toml
+      - name: Note
+        run: echo "wasm-bindgen build wired in Gate 5; this is a structure check only."
