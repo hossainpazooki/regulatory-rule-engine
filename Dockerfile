@@ -3,14 +3,14 @@ FROM node:20-alpine as build
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy frontend package files
+COPY frontend/package*.json ./
 
 # Install dependencies
 RUN npm ci
 
-# Copy source code
-COPY . .
+# Copy frontend source
+COPY frontend/ ./
 
 # Build the application (VITE_BASE_PATH configures subpath for deployment)
 ARG VITE_BASE_PATH=/
