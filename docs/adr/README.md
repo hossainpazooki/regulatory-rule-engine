@@ -35,6 +35,12 @@ that `docs/canonical-encoding.md` documents in prose:
 - [0002 Canonical wire codec — postcard](0002-canonical-codec-postcard.md) — spec § 8
 - [0003 Decimal scalar representation — mantissa/scale](0003-decimal-scalar-representation.md) — spec § 8
 
+Gate 2:
+
+- [0004 Source-span coverage policy (T1) and span/provenance separation](0004-source-span-coverage-policy.md) — spec § 11 — **Accepted**
+- [0005 T4 conflict classes and severities for Gate 2](0005-t4-conflict-classes-gate-2.md) — spec § 12 — **Proposed** (needs domain sign-off)
+- [0006 `effective_window` is optional (amends Gate 1 IR)](0006-effective-window-optional.md) — spec § 8.4 — **Accepted**
+
 Anticipated (later gates — numbers assigned when authored):
 
 - Registry persistence model — S3 manifest layout (spec § 21 resolved) — Gate 4
