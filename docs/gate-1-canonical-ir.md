@@ -1,9 +1,20 @@
 # Gate 1 — Canonical IR and artifact foundation
 
-**Status:** brief (no implementation yet).
+**Status:** implemented in `crates/ke-core/` — see
+[`gate-1-implementation-log.md`](gate-1-implementation-log.md) for the
+phase-by-phase record and verification evidence. Pending Hossain's review/merge.
 **Authoritative spec sections:** § 5, § 6, § 8, § 8.3, § 8.4, § 11, § 19 (Gate 1), § 22 (Gate 1 brief outline).
 **Predecessor:** Gate 0 (repo synthesis) — green pending CI confirmation.
 **Successor:** Gate 2 (parser, compiler, T0/T1/T4 verification).
+
+> **Implementation note (2026-05-30):** The IR was ported from the platform's
+> *authoring tree* in `src/rules/service.py` (`Rule`, `ConditionGroupSpec`,
+> `DecisionNode`, `DecisionLeaf`, …), not the flattened jump-table `RuleIR` in
+> `src/production/schemas.py`. The flattening in `compiler.py` is Gate 2's
+> AST→IR lowering (a Gate 1 non-goal), so Gate 1 freezes the un-lowered tree
+> shapes. Golden fixtures are synthetic (Rust-authored); the platform-driven
+> cross-corpus path is deferred until `fixtures/rules/SOURCE.md`'s recorded SHA
+> (`f73b940`) is reconciled with the platform `HEAD`.
 
 This brief defines the contract Gate 1 implementation must honour. No compiler
 behaviour, runtime, signing, or platform binding is built here. Gate 1

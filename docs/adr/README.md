@@ -26,12 +26,20 @@ What follows from the decision — both desirable and undesirable.
 What else was on the table and why those options lost.
 ```
 
-ADRs likely to land first (post Gate 0):
+## Index
 
-- 0001 Canonical encoding profile (paired with `docs/canonical-encoding.md`)
-- 0002 Registry persistence model — S3 manifest layout (spec § 21 resolved)
-- 0003 `ke-artifact-py` S3-backed PEP 503 index layout (spec § 21 resolved)
-- 0004 Expert key authority (spec § 21.1)
-- 0005 Trusted timestamp authority (spec § 21.5)
-- 0006 T2/T3 sidecar deployment (spec § 21.3)
-- 0007 Package-manager choice (spec § 21.9) — only if pnpm is later adopted
+Accepted (Gate 1) — together these three form the canonical encoding profile
+that `docs/canonical-encoding.md` documents in prose:
+
+- [0001 Jurisdiction time-zone representation](0001-jurisdiction-time-zone.md) — spec § 8.4
+- [0002 Canonical wire codec — postcard](0002-canonical-codec-postcard.md) — spec § 8
+- [0003 Decimal scalar representation — mantissa/scale](0003-decimal-scalar-representation.md) — spec § 8
+
+Anticipated (later gates — numbers assigned when authored):
+
+- Registry persistence model — S3 manifest layout (spec § 21 resolved) — Gate 4
+- `ke-artifact-py` S3-backed PEP 503 index layout (spec § 21 resolved) — Gate 4
+- Expert key authority (spec § 21.1) — Gate 4
+- Trusted timestamp authority (spec § 21.5) — Gate 4
+- T2/T3 sidecar deployment (spec § 21.3) — Gate 4
+- Package-manager choice (spec § 21.9) — only if pnpm is later adopted
