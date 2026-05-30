@@ -11,6 +11,13 @@ description = "YAML parser, AST→IR lowering, and T0/T1/T4 verification passes"
 [dependencies]
 ke-core = { path = "../ke-core" }
 serde = { workspace = true }
-serde_yaml = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+# Span-tracking YAML parser (Gate 2). Values are parsed explicitly to avoid
+# f64 coercion, so serde_yaml is intentionally not a dependency.
+marked-yaml = "0.7"
+
+[[bin]]
+name = "ke-compile"
+path = "src/bin/ke-compile.rs"
