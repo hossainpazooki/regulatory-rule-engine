@@ -172,7 +172,7 @@ fn reserve_assets() -> RuleIR {
             "Article 38 requires ART issuers to maintain a reserve of assets at all times."
                 .to_string(),
         ),
-        effective_window: window(JurisdictionDate::new(2024, 6, 30)),
+        effective_window: Some(window(JurisdictionDate::new(2024, 6, 30))),
         provenance: ProvenanceMarker::StructurallyVerified,
     }
 }
@@ -226,7 +226,7 @@ fn significant_thresholds() -> RuleIR {
         obligations: Vec::new(),
         source: doc("mica_2023", "45", &[72, 73]),
         interpretation_notes: None,
-        effective_window: window(JurisdictionDate::new(2024, 6, 30)),
+        effective_window: Some(window(JurisdictionDate::new(2024, 6, 30))),
         provenance: ProvenanceMarker::Candidate {
             proposal_id: Some("prop-0001".to_string()),
         },

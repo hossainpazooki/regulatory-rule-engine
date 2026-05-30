@@ -44,11 +44,14 @@ pub struct CodecVersion(pub String);
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CanonicalizationVersion(pub String);
 
-/// Pinned IR schema version for Gate 1.
-pub const IR_SCHEMA_VERSION: SchemaVersion = SchemaVersion::new(0, 1, 0);
+/// Pinned IR schema version. Bumped to 0.2.0 in Gate 2 when
+/// `RuleIR.effective_window` became optional (ADR 0006).
+pub const IR_SCHEMA_VERSION: SchemaVersion = SchemaVersion::new(0, 2, 0);
 
 /// Pinned codec version. See ADR 0002 (`docs/adr/0002-canonical-codec-postcard.md`).
 pub const CODEC_VERSION: &str = "postcard-1";
 
-/// Pinned canonicalization-profile version. See `docs/canonical-encoding.md`.
-pub const CANONICALIZATION_VERSION: &str = "ke-canon-1";
+/// Pinned canonicalization-profile version. Bumped to `ke-canon-2` in Gate 2
+/// (ADR 0006 changed the `effective_window` byte layout). See
+/// `docs/canonical-encoding.md`.
+pub const CANONICALIZATION_VERSION: &str = "ke-canon-2";

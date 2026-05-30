@@ -17,6 +17,7 @@
 
 use ke_core::canonical::{decode_policy, decode_rule, encode_policy, encode_rule};
 use ke_core::examples;
+use ke_core::ir::JurisdictionDate;
 use ke_core::manifest::{ArtifactKind, Manifest};
 use ke_core::version::{CANONICALIZATION_VERSION, CODEC_VERSION, IR_SCHEMA_VERSION};
 use std::fs;
@@ -76,10 +77,15 @@ fn main() -> std::io::Result<()> {
     for (id, rule) in examples::rules() {
         let canonical = encode_rule(&rule).expect("example rule encodes");
         let decoded = decode_rule(&canonical).expect("example rule round-trips");
+        let effective_from = rule
+            .effective_window
+            .as_ref()
+            .map(|w| w.effective_from)
+            .unwrap_or_else(|| JurisdictionDate::new(1900, 1, 1));
         let manifest = examples::synthetic_manifest(
             ArtifactKind::RegimePack,
             "mica_2023",
-            rule.effective_window.effective_from,
+            effective_from,
             &canonical,
         );
         write_triple(

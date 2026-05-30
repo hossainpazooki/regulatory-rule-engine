@@ -38,7 +38,9 @@ pub fn validate_rule(r: &RuleIR) -> Result<(), CanonicalDecodeError> {
         validate_obligation(o)?;
     }
     validate_doc_ref(&r.source)?;
-    validate_window(&r.effective_window)?;
+    if let Some(window) = &r.effective_window {
+        validate_window(window)?;
+    }
     validate_provenance(&r.provenance)?;
     Ok(())
 }
