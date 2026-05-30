@@ -1,0 +1,136 @@
+{
+  "rule_id": "mica_art38_reserve_assets",
+  "rule_version": "1.0",
+  "description": "Reserve asset requirements for ARTs under MiCA Article 38.",
+  "tags": [
+    "art",
+    "mica",
+    "reserves",
+    "stablecoin"
+  ],
+  "applies_if": {
+    "all": [
+      {
+        "Condition": {
+          "field": "instrument_type",
+          "operator": "in",
+          "value": {
+            "List": [
+              {
+                "Str": "art"
+              },
+              {
+                "Str": "stablecoin"
+              }
+            ]
+          },
+          "description": null
+        }
+      },
+      {
+        "Condition": {
+          "field": "jurisdiction",
+          "operator": "==",
+          "value": {
+            "Str": "EU"
+          },
+          "description": null
+        }
+      }
+    ],
+    "any": null
+  },
+  "decision_tree": {
+    "Node": {
+      "node_id": "check_reserve_exists",
+      "condition": {
+        "field": "has_reserve",
+        "operator": "==",
+        "value": {
+          "Bool": true
+        },
+        "description": null
+      },
+      "true_branch": {
+        "Node": {
+          "node_id": "check_reserve_custody",
+          "condition": {
+            "field": "reserve_custodian_authorized",
+            "operator": "==",
+            "value": {
+              "Bool": true
+            },
+            "description": null
+          },
+          "true_branch": {
+            "Leaf": {
+              "result": "compliant",
+              "obligations": null,
+              "notes": "Reserve requirements satisfied",
+              "source_span": null
+            }
+          },
+          "false_branch": {
+            "Leaf": {
+              "result": "non_compliant",
+              "obligations": [
+                {
+                  "id": "appoint_custodian_art37",
+                  "description": "Appoint authorized custodian for reserve assets per Article 37",
+                  "deadline": null,
+                  "source_span": null
+                }
+              ],
+              "notes": null,
+              "source_span": null
+            }
+          },
+          "source_span": null
+        }
+      },
+      "false_branch": {
+        "Leaf": {
+          "result": "non_compliant",
+          "obligations": [
+            {
+              "id": "establish_reserve_art38",
+              "description": "Establish reserve of assets per Article 38",
+              "deadline": null,
+              "source_span": null
+            }
+          ],
+          "notes": null,
+          "source_span": null
+        }
+      },
+      "source_span": null
+    }
+  },
+  "obligations": [],
+  "source": {
+    "document_id": "mica_2023",
+    "article": "38",
+    "section": null,
+    "paragraphs": [],
+    "pages": [
+      67,
+      68
+    ],
+    "url": null
+  },
+  "interpretation_notes": "Article 38 requires ART issuers to maintain a reserve of assets at all times.",
+  "effective_window": {
+    "effective_from": {
+      "year": 2024,
+      "month": 6,
+      "day": 30
+    },
+    "effective_to": null,
+    "jurisdiction_time_zone": {
+      "name": "Europe/Brussels",
+      "tz_data_version": "2025a"
+    },
+    "effective_time_policy": null
+  },
+  "provenance": "StructurallyVerified"
+}

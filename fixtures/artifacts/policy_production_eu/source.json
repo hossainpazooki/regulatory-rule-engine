@@ -1,0 +1,34 @@
+{
+  "environment": "production-eu",
+  "verification_policy": {
+    "t2_t3_mode": "ReviewOverride",
+    "required_attestation_types": [
+      "SourceFidelity",
+      "PublicationApproval"
+    ],
+    "minimum_attestation_count_per_type": [
+      {
+        "attestation_type": "SourceFidelity",
+        "count": 1
+      },
+      {
+        "attestation_type": "PublicationApproval",
+        "count": 1
+      }
+    ]
+  },
+  "revocation_policy": "FinishPinnedNoNew",
+  "effective_window": {
+    "effective_from": {
+      "year": 2024,
+      "month": 6,
+      "day": 30
+    },
+    "effective_to": null,
+    "jurisdiction_time_zone": {
+      "name": "Europe/Brussels",
+      "tz_data_version": "2025a"
+    },
+    "effective_time_policy": null
+  }
+}

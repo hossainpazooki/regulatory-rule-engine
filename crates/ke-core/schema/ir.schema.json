@@ -1,0 +1,1070 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ke-workbench.dev/schema/ir/0.1.0/ir.schema.json",
+  "title": "ke-workbench RuleIR",
+  "description": "Canonical intermediate-representation schema for ke-workbench rule artifacts. The root document is a RuleIR. Authoritative for downstream model generation (platform Pydantic/msgspec, frontend types). See docs/canonical-encoding.md and the Gate 1 brief.",
+  "type": "object",
+  "properties": {
+    "rule_id": {
+      "type": "string"
+    },
+    "rule_version": {
+      "type": "string"
+    },
+    "description": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "tags": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "applies_if": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ConditionGroupSpec"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "decision_tree": {
+      "$ref": "#/$defs/DecisionEntry"
+    },
+    "obligations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ObligationSpec"
+      }
+    },
+    "source": {
+      "$ref": "#/$defs/DocumentRef"
+    },
+    "interpretation_notes": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "effective_window": {
+      "$ref": "#/$defs/EffectiveWindow"
+    },
+    "provenance": {
+      "$ref": "#/$defs/ProvenanceMarker"
+    }
+  },
+  "required": [
+    "rule_id",
+    "rule_version",
+    "decision_tree",
+    "obligations",
+    "source",
+    "effective_window",
+    "provenance"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "ArtifactKind": {
+      "enum": [
+        "RegimePack",
+        "EquivalenceMatrix",
+        "TestCorpus",
+        "PolicyBundle"
+      ]
+    },
+    "AttestationCount": {
+      "type": "object",
+      "properties": {
+        "attestation_type": {
+          "$ref": "#/$defs/AttestationType"
+        },
+        "count": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "attestation_type",
+        "count"
+      ],
+      "additionalProperties": false
+    },
+    "AttestationType": {
+      "enum": [
+        "SourceFidelity",
+        "Interpretation",
+        "ScenarioCoverage",
+        "EquivalenceClaim",
+        "PublicationApproval"
+      ]
+    },
+    "ByteRange": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "integer"
+        },
+        "end": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "additionalProperties": false
+    },
+    "CompiledCheck": {
+      "type": "object",
+      "properties": {
+        "index": {
+          "type": "integer"
+        },
+        "field": {
+          "type": "string"
+        },
+        "operator": {
+          "$ref": "#/$defs/Operator"
+        },
+        "value": {
+          "$ref": "#/$defs/ScalarValue"
+        }
+      },
+      "required": [
+        "index",
+        "field",
+        "operator",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "Condition": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "operator": {
+          "$ref": "#/$defs/Operator"
+        },
+        "value": {
+          "$ref": "#/$defs/ScalarValue"
+        },
+        "description": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "field",
+        "operator",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "ConditionGroupSpec": {
+      "type": "object",
+      "properties": {
+        "all": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ConditionOrGroup"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "any": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ConditionOrGroup"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "ConditionOrGroup": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Condition": {
+              "$ref": "#/$defs/Condition"
+            }
+          },
+          "required": [
+            "Condition"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Group": {
+              "$ref": "#/$defs/ConditionGroupSpec"
+            }
+          },
+          "required": [
+            "Group"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "DecisionEntry": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Node": {
+              "$ref": "#/$defs/DecisionNode"
+            }
+          },
+          "required": [
+            "Node"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Leaf": {
+              "$ref": "#/$defs/DecisionLeaf"
+            }
+          },
+          "required": [
+            "Leaf"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "DecisionLeaf": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "type": "string"
+        },
+        "obligations": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ObligationSpec"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "notes": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/SourceSpan"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "DecisionNode": {
+      "type": "object",
+      "properties": {
+        "node_id": {
+          "type": "string"
+        },
+        "condition": {
+          "$ref": "#/$defs/Condition"
+        },
+        "true_branch": {
+          "$ref": "#/$defs/DecisionEntry"
+        },
+        "false_branch": {
+          "$ref": "#/$defs/DecisionEntry"
+        },
+        "source_span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/SourceSpan"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "node_id",
+        "condition",
+        "true_branch",
+        "false_branch"
+      ],
+      "additionalProperties": false
+    },
+    "DocumentRef": {
+      "type": "object",
+      "properties": {
+        "document_id": {
+          "type": "string"
+        },
+        "article": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "section": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "paragraphs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pages": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "url": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "document_id",
+        "paragraphs",
+        "pages"
+      ],
+      "additionalProperties": false
+    },
+    "EffectiveTimePolicy": {
+      "enum": [
+        "MidnightLocal"
+      ]
+    },
+    "EffectiveWindow": {
+      "type": "object",
+      "properties": {
+        "effective_from": {
+          "$ref": "#/$defs/JurisdictionDate"
+        },
+        "effective_to": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/JurisdictionDate"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "jurisdiction_time_zone": {
+          "$ref": "#/$defs/TimeZone"
+        },
+        "effective_time_policy": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/EffectiveTimePolicy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "effective_from",
+        "jurisdiction_time_zone"
+      ],
+      "additionalProperties": false
+    },
+    "JurisdictionDate": {
+      "type": "object",
+      "properties": {
+        "year": {
+          "type": "integer"
+        },
+        "month": {
+          "type": "integer"
+        },
+        "day": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "year",
+        "month",
+        "day"
+      ],
+      "additionalProperties": false
+    },
+    "Manifest": {
+      "type": "object",
+      "properties": {
+        "artifact_kind": {
+          "$ref": "#/$defs/ArtifactKind"
+        },
+        "artifact_hash": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 32,
+          "maxItems": 32
+        },
+        "regime_id": {
+          "type": "string"
+        },
+        "effective_from": {
+          "$ref": "#/$defs/JurisdictionDate"
+        },
+        "effective_to": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/JurisdictionDate"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "compiler_version": {
+          "$ref": "#/$defs/SemVer"
+        },
+        "compiler_build_hash": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 32,
+          "maxItems": 32
+        },
+        "ir_schema_version": {
+          "$ref": "#/$defs/SchemaVersion"
+        },
+        "codec_version": {
+          "type": "string"
+        },
+        "canonicalization_version": {
+          "type": "string"
+        },
+        "corpus_root_hash": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 32,
+          "maxItems": 32
+        },
+        "source_corpus_hash": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 32,
+          "maxItems": 32
+        },
+        "attestation_policy_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_kind",
+        "artifact_hash",
+        "regime_id",
+        "effective_from",
+        "compiler_version",
+        "compiler_build_hash",
+        "ir_schema_version",
+        "codec_version",
+        "canonicalization_version",
+        "corpus_root_hash",
+        "source_corpus_hash",
+        "attestation_policy_version"
+      ],
+      "additionalProperties": false
+    },
+    "ObligationSpec": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "description": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deadline": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/SourceSpan"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "Operator": {
+      "enum": [
+        "==",
+        "!=",
+        "in",
+        "not_in",
+        ">",
+        "<",
+        ">=",
+        "<=",
+        "exists"
+      ]
+    },
+    "PolicyBundle": {
+      "type": "object",
+      "properties": {
+        "environment": {
+          "type": "string"
+        },
+        "verification_policy": {
+          "$ref": "#/$defs/VerificationPolicy"
+        },
+        "revocation_policy": {
+          "$ref": "#/$defs/RevocationPolicy"
+        },
+        "effective_window": {
+          "$ref": "#/$defs/EffectiveWindow"
+        }
+      },
+      "required": [
+        "environment",
+        "verification_policy",
+        "revocation_policy",
+        "effective_window"
+      ],
+      "additionalProperties": false
+    },
+    "ProvenanceMarker": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Candidate": {
+              "type": "object",
+              "properties": {
+                "proposal_id": {
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Candidate"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "const": "StructurallyVerified"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "MlChecked": {
+              "type": "object",
+              "properties": {
+                "policy_version": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "policy_version"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "MlChecked"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ExpertAttested": {
+              "type": "object",
+              "properties": {
+                "attestation_count": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "attestation_count"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "ExpertAttested"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Published": {
+              "type": "object",
+              "properties": {
+                "environment": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "environment"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Published"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "const": "Deprecated"
+        },
+        {
+          "const": "Revoked"
+        }
+      ]
+    },
+    "RevocationPolicy": {
+      "enum": [
+        "HaltImmediately",
+        "FinishPinnedThenHalt",
+        "FinishPinnedNoNew"
+      ]
+    },
+    "RuleIR": {
+      "type": "object",
+      "properties": {
+        "rule_id": {
+          "type": "string"
+        },
+        "rule_version": {
+          "type": "string"
+        },
+        "description": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tags": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "applies_if": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ConditionGroupSpec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decision_tree": {
+          "$ref": "#/$defs/DecisionEntry"
+        },
+        "obligations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObligationSpec"
+          }
+        },
+        "source": {
+          "$ref": "#/$defs/DocumentRef"
+        },
+        "interpretation_notes": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "effective_window": {
+          "$ref": "#/$defs/EffectiveWindow"
+        },
+        "provenance": {
+          "$ref": "#/$defs/ProvenanceMarker"
+        }
+      },
+      "required": [
+        "rule_id",
+        "rule_version",
+        "decision_tree",
+        "obligations",
+        "source",
+        "effective_window",
+        "provenance"
+      ],
+      "additionalProperties": false
+    },
+    "ScalarValue": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Str": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Str"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Bool": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "Bool"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Decimal": {
+              "type": "object",
+              "properties": {
+                "mantissa": {
+                  "type": "integer"
+                },
+                "scale": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "mantissa",
+                "scale"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "Decimal"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "List": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ScalarValue"
+              }
+            }
+          },
+          "required": [
+            "List"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "SchemaVersion": {
+      "type": "object",
+      "properties": {
+        "major": {
+          "type": "integer"
+        },
+        "minor": {
+          "type": "integer"
+        },
+        "patch": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "major",
+        "minor",
+        "patch"
+      ],
+      "additionalProperties": false
+    },
+    "SemVer": {
+      "type": "object",
+      "properties": {
+        "major": {
+          "type": "integer"
+        },
+        "minor": {
+          "type": "integer"
+        },
+        "patch": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "major",
+        "minor",
+        "patch"
+      ],
+      "additionalProperties": false
+    },
+    "SourceSpan": {
+      "type": "object",
+      "properties": {
+        "document_id": {
+          "type": "string"
+        },
+        "article": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "section": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "paragraph": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pages": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "byte_range": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ByteRange"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text_hash": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 32,
+              "maxItems": 32
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "document_id"
+      ],
+      "additionalProperties": false
+    },
+    "T2T3Mode": {
+      "enum": [
+        "Strict",
+        "ReviewOverride",
+        "Advisory",
+        "Disabled"
+      ]
+    },
+    "TimeZone": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "tz_data_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "tz_data_version"
+      ],
+      "additionalProperties": false
+    },
+    "VerificationPolicy": {
+      "type": "object",
+      "properties": {
+        "t2_t3_mode": {
+          "$ref": "#/$defs/T2T3Mode"
+        },
+        "required_attestation_types": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AttestationType"
+          }
+        },
+        "minimum_attestation_count_per_type": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AttestationCount"
+          }
+        }
+      },
+      "required": [
+        "t2_t3_mode",
+        "required_attestation_types",
+        "minimum_attestation_count_per_type"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

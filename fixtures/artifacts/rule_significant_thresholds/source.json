@@ -1,0 +1,111 @@
+{
+  "rule_id": "mica_art45_significant_thresholds",
+  "rule_version": "1.0",
+  "description": "Significant-ART thresholds under MiCA Article 45.",
+  "tags": [
+    "mica",
+    "significant"
+  ],
+  "applies_if": {
+    "all": null,
+    "any": [
+      {
+        "Condition": {
+          "field": "market_cap_eur",
+          "operator": ">",
+          "value": {
+            "Decimal": {
+              "mantissa": 5000000000,
+              "scale": 0
+            }
+          },
+          "description": null
+        }
+      },
+      {
+        "Condition": {
+          "field": "holders",
+          "operator": ">",
+          "value": {
+            "Decimal": {
+              "mantissa": 10000000,
+              "scale": 0
+            }
+          },
+          "description": null
+        }
+      }
+    ]
+  },
+  "decision_tree": {
+    "Node": {
+      "node_id": "check_fee",
+      "condition": {
+        "field": "redemption_fee_percentage",
+        "operator": "<=",
+        "value": {
+          "Decimal": {
+            "mantissa": 2,
+            "scale": 1
+          }
+        },
+        "description": null
+      },
+      "true_branch": {
+        "Leaf": {
+          "result": "compliant",
+          "obligations": null,
+          "notes": "Fee within bound",
+          "source_span": null
+        }
+      },
+      "false_branch": {
+        "Leaf": {
+          "result": "non_compliant",
+          "obligations": [
+            {
+              "id": "higher_own_funds_art45",
+              "description": "Maintain higher own funds per Article 45(5)",
+              "deadline": null,
+              "source_span": null
+            }
+          ],
+          "notes": null,
+          "source_span": null
+        }
+      },
+      "source_span": null
+    }
+  },
+  "obligations": [],
+  "source": {
+    "document_id": "mica_2023",
+    "article": "45",
+    "section": null,
+    "paragraphs": [],
+    "pages": [
+      72,
+      73
+    ],
+    "url": null
+  },
+  "interpretation_notes": null,
+  "effective_window": {
+    "effective_from": {
+      "year": 2024,
+      "month": 6,
+      "day": 30
+    },
+    "effective_to": null,
+    "jurisdiction_time_zone": {
+      "name": "Europe/Brussels",
+      "tz_data_version": "2025a"
+    },
+    "effective_time_policy": null
+  },
+  "provenance": {
+    "Candidate": {
+      "proposal_id": "prop-0001"
+    }
+  }
+}

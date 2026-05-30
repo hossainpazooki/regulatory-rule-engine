@@ -21,3 +21,11 @@ Open decisions blocking authorship of this document:
 - Expert key authority (spec § 21.1)
 - Trusted timestamp authority selection (spec § 21.5)
 - T2/T3 sidecar deployment shape (spec § 21.3)
+
+**Gate 1 note:** the *enum* shapes this document will bind are already frozen in
+`ke-core`: `AttestationType` (the five kinds above), `T2T3Mode`,
+`RevocationPolicy`, and the `PolicyBundle` carrier (see
+`crates/ke-core/src/manifest.rs` and the JSON Schema at
+`crates/ke-core/schema/ir.schema.json`). Gate 1 only froze the *shapes* so
+canonical encoding can round-trip them; the binding fields, signature scheme,
+and rejection rules remain Gate 4 work gated on the decisions above.

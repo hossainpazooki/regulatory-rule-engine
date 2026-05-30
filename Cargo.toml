@@ -26,6 +26,7 @@ ed25519-dalek = "2"
 thiserror = "1"
 tracing = "0.1"
 anyhow = "1"
+unicode-normalization = "0.1"
 
 [profile.release]
 lto = "thin"
