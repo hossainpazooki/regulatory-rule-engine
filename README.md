@@ -38,10 +38,12 @@ behavior.
 
 | Gate | State | Notes |
 |------|-------|-------|
-| **Gate 0 — Repo synthesis** | Complete locally, on `migration/gate-0-repo-synthesis` | Rename to `ke-workbench`, Rust workspace scaffold, frontend relocated to `frontend/`, CI/CD wired, fixtures snapshotted from platform repo. Awaiting review/merge to `main`. |
-| **Gate 1 — Canonical IR** | Brief authored — see [`docs/gate-1-canonical-ir.md`](docs/gate-1-canonical-ir.md) | Begins after Gate 0 merge. Defines IR types, canonical encoding profile, JSON Schema emission, and golden fixtures. Authoritative plan: [spec v3.1](docs/spec/ke-workbench-rust-migration-spec-v3.1.md). |
+| **Gate 0 — Repo synthesis** | Complete, on `migration/gate-0-repo-synthesis` | Rename to `ke-workbench`, Rust workspace scaffold, frontend relocated to `frontend/`, CI/CD wired, fixtures snapshotted from platform repo. Awaiting merge to `main`. |
+| **Gate 1 — Canonical IR** | Complete — log: [`docs/gate-1-implementation-log.md`](docs/gate-1-implementation-log.md) | `ke-core` IR types, canonical (postcard) encoding + strict decoder, deterministic JSON Schema, golden fixtures. 19 tests green. ADRs 0001–0003. |
+| **Gate 2 — Parser, compiler, T0/T1/T4** | Implementation green; acceptance pending — log: [`docs/gate-2-implementation-log.md`](docs/gate-2-implementation-log.md) | `ke-compiler` `marked-yaml` parser → AST → `RuleIR` lowering, semantic normal form + differential harness, T0/T1/T4. All corpus rules compile; 23 test suites green. **Full acceptance still needs the live Rust↔Python differential run** at the recorded SOURCE.md SHA, plus ADR 0005 (T4 severities) sign-off. ADRs 0004–0006. |
 
-Rust crates under `crates/` are scaffolded but not yet functional. The
+`ke-core` and `ke-compiler` are functional (Gates 1–2). `ke-runtime`,
+`ke-artifact`, `ke-cli`, and `ke-wasm` are scaffolds, filled in Gates 3–5. The
 frontend continues to consume an external backend via `VITE_API_URL` and is
 preserved through Gate 4 (see [CLAUDE.md](CLAUDE.md)).
 
@@ -130,15 +132,18 @@ ke-workbench/
 │   ├── rules/                   # YAML corpus snapshot + SOURCE.md
 │   ├── traces/                  # Python runtime traces (Gate 3+)
 │   └── artifacts/               # golden artifact bytes (Gate 1+)
+├── dev/briefs/                  # per-gate Claude Code session briefs (Gate 2+)
 ├── docs/
 │   ├── spec/                    # ke-workbench-rust-migration-spec-v3.1.md
-│   ├── gate-1-canonical-ir.md   # Gate 1 implementation brief
-│   ├── canonical-encoding.md    # filled in during Gate 1
+│   ├── gate-1-*.md, gate-2-*.md # gate briefs + implementation logs
+│   ├── canonical-encoding.md    # authoritative encoding profile (Gate 1)
+│   ├── dsl-gap-review-gate-2.md # regime coverage walk (Gate 2)
 │   ├── attestation-schema.md    # filled in pre-Gate 4
-│   └── adr/                     # architecture decision records
+│   └── adr/                     # architecture decision records (0001–0006)
 ├── scripts/
 │   ├── bootstrap.sh             # snapshot platform rules → fixtures/rules/
-│   ├── differential-test.sh     # (Gate 2)
+│   ├── generate-golden-fixtures.sh # Gate 1 golden fixtures (synthetic mode)
+│   ├── differential-test.sh     # Gate 2: Rust↔Python parity (SHA-gated)
 │   └── equivalence-harness.sh   # (Gate 3)
 ├── kube/                        # Kubernetes manifests (frontend)
 └── .github/workflows/           # rust-ci, frontend-ci, wasm-build, contract-tests, cd-*
@@ -164,16 +169,33 @@ Set `VITE_API_URL` to point at a running backend instance, or use the default
 consume the external backend API until Gate 5 rewires it to local Rust
 surfaces (REST + WASM) behind feature flags.
 
-### Rust workspace (scaffolds only)
+### Rust workspace
+
+Toolchain is pinned to Rust 1.85.0 (`rust-toolchain.toml`).
 
 ```bash
-cargo check --workspace        # currently passes against empty crates
+cargo test --workspace                                  # Gates 1–2 are implemented + tested
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
+
+# regenerate the committed JSON Schema / golden fixtures (must be byte-stable)
+cargo run -p ke-core --bin emit-schema
+cargo run -p ke-core --bin gen-fixtures
+
+# compile a rule file and emit its semantic normal form
+cargo run -p ke-compiler --bin ke-compile -- compile fixtures/rules/mica_stablecoin.yaml
 ```
 
-Gate 1 onwards fills in real implementations. See the [Gate 1 brief](docs/gate-1-canonical-ir.md)
-and the [migration roadmap](#migration-roadmap) below.
+The **Rust↔Python differential** (Gate 2 acceptance) requires the platform repo
+checked out at the SHA recorded in [`fixtures/rules/SOURCE.md`](fixtures/rules/SOURCE.md):
+
+```bash
+git -C ../institutional-defi-platform-api checkout <recorded-SOURCE.md-SHA>
+./scripts/differential-test.sh        # fails fast unless the SHA matches
+```
+
+See the [Gate 2 brief](dev/briefs/gate-2-parser-compiler-verification.md) and the
+[migration roadmap](#migration-roadmap) below.
 
 ### Platform fixtures
 
@@ -195,8 +217,8 @@ The script expects `institutional-defi-platform-api` as a sibling of
 | Gate | Scope | Status |
 |------|-------|--------|
 | **0** | Repo synthesis: rename, restructure, Rust scaffold, CLAUDE.md, CI | **complete (awaiting merge)** |
-| **1** | Canonical IR, artifact bytes, golden fixtures, JSON Schema | brief authored |
-| **2** | YAML parser, compiler, T0/T1/T4 verification + conflict taxonomy | pending |
+| **1** | Canonical IR, artifact bytes, golden fixtures, JSON Schema | **complete** |
+| **2** | YAML parser, compiler, T0/T1/T4 verification + conflict taxonomy | **implementation green; acceptance pending live differential + ADR 0005 sign-off** |
 | **3** | Rust preview runtime + fuzzed equivalence vs Python `RuleRuntime` | pending |
 | **4** | `ke-artifact` canonical encoding + signing + `ke-artifact-py` PyO3 wheel + registry; platform unblock | pending |
 | **5** | `ke-cli serve` (REST + WS), WASM bindings, page-by-page frontend rewire | pending |
@@ -271,10 +293,12 @@ See spec § 5, § 10, § 13.
 ## Further reading
 
 - [Migration spec v3.1](docs/spec/ke-workbench-rust-migration-spec-v3.1.md) — authoritative plan, acceptance criteria, open decisions
-- [Gate 1 brief](docs/gate-1-canonical-ir.md) — canonical IR design and exit checks
-- [Canonical encoding profile](docs/canonical-encoding.md) — filled in during Gate 1
+- [Gate 1 brief](docs/gate-1-canonical-ir.md) · [Gate 1 log](docs/gate-1-implementation-log.md) — canonical IR design + what landed
+- [Gate 2 brief](dev/briefs/gate-2-parser-compiler-verification.md) · [Gate 2 log](docs/gate-2-implementation-log.md) — parser/compiler/verification + what landed
+- [Canonical encoding profile](docs/canonical-encoding.md) — authoritative encoding rules (Gate 1; version `0.2.0` / `ke-canon-2`)
+- [DSL gap review](docs/dsl-gap-review-gate-2.md) — regime coverage walk (Gate 2)
 - [Attestation schema](docs/attestation-schema.md) — filled in pre-Gate 4
-- [ADRs](docs/adr/) — architecture decision records
+- [ADRs](docs/adr/) — architecture decision records (0001–0006)
 - [CLAUDE.md](CLAUDE.md) — session discipline and hard invariants
 
 ---

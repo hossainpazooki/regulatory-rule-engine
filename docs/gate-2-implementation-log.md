@@ -10,7 +10,16 @@ doc-each-phase convention so Hossain's manual gate review is fast and auditable.
 **Locked decisions:** tree IR + semantic normal form (no flattened IR);
 differential pinned to the recorded SOURCE.md SHA
 (`f73b9403c88a7ab5d741b351dce085b6988b6ba7`), fail-fast; `marked-yaml` spans kept
-separate from legal `SourceSpan`; T4 = four accepted classes.
+separate from legal `SourceSpan`; T4 = four **provisional implemented** classes
+(ADR 0005 still **Proposed**, pending Hossain sign-off).
+
+**Gate 2 status:** implementation and tests are **green** (fmt/clippy clean, full
+workspace test suite passing). Full Gate 2 **acceptance is not yet met** — it
+depends on the **live Rust↔Python differential run** against
+`../institutional-defi-platform-api` at the recorded SOURCE.md SHA
+`f73b9403c88a7ab5d741b351dce085b6988b6ba7` (and on the ADR 0005 sign-off for the
+T4 severity policy). The harness is complete and SHA-gated; only the cross-repo
+run remains.
 
 ---
 
@@ -26,13 +35,19 @@ separate from legal `SourceSpan`; T4 = four accepted classes.
   Blocking, `overlapping_scope` / `temporal_overlap` Review-required,
   `duplicate_rule` Advisory).
 - `docs/dsl-gap-review-gate-2.md` — walked MiCA / GENIUS / FCA / FINMA / MAS /
-  RWA: **no DSL/IR extension required**; the §20 ontology mismatch is handled by
-  externalizing standards as boolean facts + interpretation notes. §20 checkpoint
-  cleared without touching Gate-1-frozen `ke-core`.
-- `docs/adr/README.md` index updated (0004, 0005).
+  RWA. Conclusion (as later corrected): **no operator/DSL-syntax extension is
+  required** — the §20 ontology mismatch is handled by externalizing standards as
+  boolean facts + interpretation notes. The §20 *operator* checkpoint is clear
+  without new DSL constructs. **However, one IR-contract amendment was discovered
+  later** during Phase-1 lowering (`effective_window` must be optional — ADR
+  0006); that touched Gate-1-frozen `ke-core`. So: no DSL/operator extension, but
+  one IR-shape amendment. (The gap-review doc carries this same correction.)
+- `docs/adr/README.md` index updated (0004, 0005; 0006 added with the amendment).
 
-**Sign-off needed from Hossain before Phase 3 hardens:** ADR 0005 T4 classes +
-severities (domain-reviewer acceptance, per spec §23).
+**Sign-off still required from Hossain:** ADR 0005's T4 classes + severities
+(domain-reviewer acceptance, per spec §23). The Phase-3 T4 verifier is already
+implemented against these classes, but the class→severity policy is
+**provisional** until that sign-off (see C3 and Phase 3).
 
 **Verification:** docs only; no code yet. `cargo check --workspace` unchanged
 from Gate 1 (green).
@@ -70,8 +85,9 @@ fixtures idempotent.
 - `value.rs` — YAML scalar → `ScalarValue`, decimals as mantissa/scale (no
   floats), quoted scalars stay strings (`may_coerce`), matching `yaml.safe_load`.
 - `lower.rs` — AST → `ke_core::ir::RuleIR`; operator map mirrors the platform
-  `OPERATOR_MAP`; ISO-date parsing; `None` window for date-less rules; UTC tz
-  placeholder.
+  `OPERATOR_MAP`; ISO-date parsing; `None` window for date-less rules; for
+  date-bearing rules the YAML-absent time zone defaults to `UTC` (see the
+  Timezone note below).
 - `error.rs` — `CompileError` with optional `(line, column)`.
 - `bin/ke-compile.rs` — `compile <file>` dev command (Phase 2 adds `diff` /
   `--emit semantic-json`).
@@ -80,6 +96,30 @@ fixtures idempotent.
 with no errors — no further IR gaps beyond the effective-window one. `cargo fmt`
 + `cargo clippy --workspace --all-targets -D warnings` clean; `cargo test
 --workspace` green (incl. 2 `value.rs` unit tests).
+
+### Timezone handling — non-authoritative compatibility metadata (follow-up flagged)
+
+The corpus YAML is **date-only**: no rule carries a time zone. But the Gate-1
+`EffectiveWindow` requires a `jurisdiction_time_zone`. So for a rule that *does*
+have effective dates, lowering synthesizes `jurisdiction_time_zone = "UTC"`.
+
+Honest statement of where this lands:
+
+- It **is not** derived from source and **does not** invent regulatory meaning:
+  the semantic normal form **drops the zone entirely**, so it never participates
+  in Rust↔Python equivalence or in T4 reasoning. No decision, applicability, or
+  conflict depends on it.
+- It **does** enter the **canonical IR bytes** (and therefore a future content
+  hash) for date-bearing rules, as **non-authoritative compatibility metadata**
+  required only to satisfy the current `EffectiveWindow` shape. `UTC` is a
+  placeholder, not a claim that an EU rule is UTC-effective.
+- **Follow-up (flagged, not silently accepted):** Gate 3 owns real
+  jurisdiction→zone resolution (ADR 0001). Before any artifact is *published*
+  (Gate 4), the placeholder must be resolved one of two ways — derive the zone
+  from jurisdiction, **or** make `jurisdiction_time_zone` optional (a small
+  follow-up amendment, mirroring ADR 0006's `effective_window` change) so a
+  date-only rule carries no invented zone in canonical bytes. Tracked as a Gate-3
+  prerequisite; not changed in Gate 2 to avoid an unrequested second IR amendment.
 
 ---
 
