@@ -1,6 +1,10 @@
 # Gate 2 — Parser, compiler, structural verification (brief)
 
-**Status:** brief (implementation in progress on `migration/gate-2-parser-compiler`).
+**Status:** implemented on `migration/gate-2-parser-compiler` — parser, lowering,
+semantic form + differential harness, and T0/T1/T4 complete; see
+[`docs/gate-2-implementation-log.md`](../../docs/gate-2-implementation-log.md).
+Remaining for full acceptance: ADR 0005 T4 sign-off and the live differential run
+(platform at `f73b940`). Pending Hossain review/merge.
 **Authoritative spec sections:** §6 (crate layout), §11 (verification model),
 §12 (T4 taxonomy), §19 (Gate 2), §20 (DSL ontology mismatch), §22 (Gate 2 outline).
 **Predecessor:** Gate 1 (canonical IR) — committed; acceptance green.
