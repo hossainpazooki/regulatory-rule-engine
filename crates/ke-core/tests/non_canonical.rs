@@ -38,7 +38,7 @@ fn minimal_valid_rule() -> RuleIR {
             url: None,
         },
         interpretation_notes: None,
-        effective_window: EffectiveWindow {
+        effective_window: Some(EffectiveWindow {
             effective_from: JurisdictionDate::new(2024, 1, 1),
             effective_to: None,
             jurisdiction_time_zone: TimeZone {
@@ -46,7 +46,7 @@ fn minimal_valid_rule() -> RuleIR {
                 tz_data_version: "2025a".to_string(),
             },
             effective_time_policy: None,
-        },
+        }),
         provenance: ProvenanceMarker::StructurallyVerified,
     }
 }
@@ -97,7 +97,7 @@ fn non_nfc_string_is_rejected() {
 #[test]
 fn out_of_range_date_is_rejected() {
     let mut rule = minimal_valid_rule();
-    rule.effective_window.effective_from = JurisdictionDate::new(2024, 13, 1);
+    rule.effective_window.as_mut().unwrap().effective_from = JurisdictionDate::new(2024, 13, 1);
     assert!(matches!(
         decode_rule(&raw(&rule)),
         Err(CanonicalDecodeError::InvalidDate { month: 13, .. })
@@ -132,7 +132,11 @@ fn non_canonical_decimal_is_rejected() {
 #[test]
 fn unknown_time_zone_is_rejected() {
     let mut rule = minimal_valid_rule();
-    rule.effective_window.jurisdiction_time_zone.name = "Mars/Phobos".to_string();
+    rule.effective_window
+        .as_mut()
+        .unwrap()
+        .jurisdiction_time_zone
+        .name = "Mars/Phobos".to_string();
     assert!(matches!(
         decode_rule(&raw(&rule)),
         Err(CanonicalDecodeError::UnknownTimeZone(_))

@@ -40,7 +40,7 @@ behavior.
 |------|-------|-------|
 | **Gate 0 — Repo synthesis** | Complete, on `migration/gate-0-repo-synthesis` | Rename to `ke-workbench`, Rust workspace scaffold, frontend relocated to `frontend/`, CI/CD wired, fixtures snapshotted from platform repo. Awaiting merge to `main`. |
 | **Gate 1 — Canonical IR** | Complete — log: [`docs/gate-1-implementation-log.md`](docs/gate-1-implementation-log.md) | `ke-core` IR types, canonical (postcard) encoding + strict decoder, deterministic JSON Schema, golden fixtures. 19 tests green. ADRs 0001–0003. |
-| **Gate 2 — Parser, compiler, T0/T1/T4** | Implementation green; acceptance pending — log: [`docs/gate-2-implementation-log.md`](docs/gate-2-implementation-log.md) | `ke-compiler` `marked-yaml` parser → AST → `RuleIR` lowering, semantic normal form + differential harness, T0/T1/T4. All corpus rules compile; 23 test suites green. **Full acceptance still needs the live Rust↔Python differential run** at the recorded SOURCE.md SHA, plus ADR 0005 (T4 severities) sign-off. ADRs 0004–0006. |
+| **Gate 2 — Parser, compiler, T0/T1/T4** | **Accepted (2026-05-30)** — log: [`docs/gate-2-implementation-log.md`](docs/gate-2-implementation-log.md) | `ke-compiler` `marked-yaml` parser → AST → `RuleIR` lowering, semantic normal form + differential harness, T0/T1/T4. 23 test suites green; **live Rust↔Python differential PASS over all 7 corpus files** (platform @ recorded SOURCE.md SHA); ADR 0005 (T4 severities) signed off. ADRs 0004–0006. Ready to merge (PR #5). |
 
 `ke-core` and `ke-compiler` are functional (Gates 1–2). `ke-runtime`,
 `ke-artifact`, `ke-cli`, and `ke-wasm` are scaffolds, filled in Gates 3–5. The
@@ -171,7 +171,13 @@ surfaces (REST + WASM) behind feature flags.
 
 ### Rust workspace
 
-Toolchain is pinned to Rust 1.85.0 (`rust-toolchain.toml`).
+Toolchain is pinned to Rust 1.85.0 (`rust-toolchain.toml`). Install via
+[rustup](https://rustup.rs/); `rustup` puts `cargo` under `~/.cargo/bin`, which
+a fresh shell (e.g. MINGW64 / Git Bash) may not have on `PATH`:
+
+```bash
+source "$HOME/.cargo/env"        # or: export PATH="$HOME/.cargo/bin:$PATH"
+```
 
 ```bash
 cargo test --workspace                                  # Gates 1–2 are implemented + tested
@@ -218,7 +224,7 @@ The script expects `institutional-defi-platform-api` as a sibling of
 |------|-------|--------|
 | **0** | Repo synthesis: rename, restructure, Rust scaffold, CLAUDE.md, CI | **complete (awaiting merge)** |
 | **1** | Canonical IR, artifact bytes, golden fixtures, JSON Schema | **complete** |
-| **2** | YAML parser, compiler, T0/T1/T4 verification + conflict taxonomy | **implementation green; acceptance pending live differential + ADR 0005 sign-off** |
+| **2** | YAML parser, compiler, T0/T1/T4 verification + conflict taxonomy | **accepted** (live differential PASS + ADR 0005 signed) |
 | **3** | Rust preview runtime + fuzzed equivalence vs Python `RuleRuntime` | pending |
 | **4** | `ke-artifact` canonical encoding + signing + `ke-artifact-py` PyO3 wheel + registry; platform unblock | pending |
 | **5** | `ke-cli serve` (REST + WS), WASM bindings, page-by-page frontend rewire | pending |

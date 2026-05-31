@@ -129,7 +129,7 @@ pub(crate) fn rule_ir() -> Value {
             ("obligations", s_array(s_ref("ObligationSpec"))),
             ("source", s_ref("DocumentRef")),
             ("interpretation_notes", s_nullable(s_string())),
-            ("effective_window", s_ref("EffectiveWindow")),
+            ("effective_window", s_nullable(s_ref("EffectiveWindow"))),
             ("provenance", s_ref("ProvenanceMarker")),
         ],
         vec![
@@ -138,7 +138,6 @@ pub(crate) fn rule_ir() -> Value {
             "decision_tree",
             "obligations",
             "source",
-            "effective_window",
             "provenance",
         ],
     )

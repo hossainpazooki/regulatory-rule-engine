@@ -23,11 +23,11 @@ Implementation: `crates/ke-core/src/canonical/` (`encode.rs` normalizes,
 Reproduced in the manifest (§ 8.1) and in every decode error so a mismatch is
 immediately diagnosable. Defined in `crates/ke-core/src/version.rs`:
 
-| Field | Gate 1 value | Meaning |
-| ----- | ------------ | ------- |
-| `ir_schema_version` | `0.1.0` | IR shape version (semver). |
+| Field | Value | Meaning |
+| ----- | ----- | ------- |
+| `ir_schema_version` | `0.2.0` | IR shape version (semver). Bumped from `0.1.0` in Gate 2 — ADR 0006 made `effective_window` optional. |
 | `codec_version` | `postcard-1` | Wire codec (ADR 0002). |
-| `canonicalization_version` | `ke-canon-1` | This profile's version. |
+| `canonicalization_version` | `ke-canon-2` | This profile's version. Bumped from `ke-canon-1` in Gate 2 (ADR 0006 changed the `effective_window` byte layout). |
 
 **Any change to the byte layout — including reordering a struct field — is a
 breaking change that requires bumping `canonicalization_version`.**

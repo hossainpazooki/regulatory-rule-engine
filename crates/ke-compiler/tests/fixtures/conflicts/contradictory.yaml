@@ -1,0 +1,24 @@
+# T4 fixture — contradictory_outcome (Blocking).
+# Same applicability scope (jurisdiction == EU); a shared scenario yields
+# incompatible decisions (authorized vs prohibited).
+- rule_id: contra_a
+  applies_if:
+    all:
+      - field: jurisdiction
+        operator: "=="
+        value: EU
+  decision_tree:
+    result: authorized
+  source:
+    document_id: doc_a
+
+- rule_id: contra_b
+  applies_if:
+    all:
+      - field: jurisdiction
+        operator: "=="
+        value: EU
+  decision_tree:
+    result: prohibited
+  source:
+    document_id: doc_b

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ke-workbench.dev/schema/ir/0.1.0/ir.schema.json",
+  "$id": "https://ke-workbench.dev/schema/ir/0.2.0/ir.schema.json",
   "title": "ke-workbench RuleIR",
   "description": "Canonical intermediate-representation schema for ke-workbench rule artifacts. The root document is a RuleIR. Authoritative for downstream model generation (platform Pydantic/msgspec, frontend types). See docs/canonical-encoding.md and the Gate 1 brief.",
   "type": "object",
@@ -67,7 +67,14 @@
       ]
     },
     "effective_window": {
-      "$ref": "#/$defs/EffectiveWindow"
+      "oneOf": [
+        {
+          "$ref": "#/$defs/EffectiveWindow"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "provenance": {
       "$ref": "#/$defs/ProvenanceMarker"
@@ -79,7 +86,6 @@
     "decision_tree",
     "obligations",
     "source",
-    "effective_window",
     "provenance"
   ],
   "additionalProperties": false,
@@ -811,7 +817,14 @@
           ]
         },
         "effective_window": {
-          "$ref": "#/$defs/EffectiveWindow"
+          "oneOf": [
+            {
+              "$ref": "#/$defs/EffectiveWindow"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "provenance": {
           "$ref": "#/$defs/ProvenanceMarker"
@@ -823,7 +836,6 @@
         "decision_tree",
         "obligations",
         "source",
-        "effective_window",
         "provenance"
       ],
       "additionalProperties": false

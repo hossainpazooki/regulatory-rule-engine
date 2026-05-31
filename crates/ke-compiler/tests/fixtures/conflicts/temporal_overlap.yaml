@@ -1,0 +1,33 @@
+# T4 fixture — temporal_overlap (Review-required).
+# Overlapping scope AND explicitly overlapping effective windows
+# (2024-01-01..2025-01-01 and 2024-06-01..2025-06-01). Applicability differs
+# (scope_b adds an instrument premise) so this is not a duplicate; outcomes
+# agree so it is not a contradiction.
+- rule_id: temp_a
+  effective_from: 2024-01-01
+  effective_to: 2025-01-01
+  applies_if:
+    all:
+      - field: jurisdiction
+        operator: "=="
+        value: EU
+  decision_tree:
+    result: compliant
+  source:
+    document_id: doc_a
+
+- rule_id: temp_b
+  effective_from: 2024-06-01
+  effective_to: 2025-06-01
+  applies_if:
+    all:
+      - field: jurisdiction
+        operator: "=="
+        value: EU
+      - field: instrument
+        operator: "=="
+        value: art
+  decision_tree:
+    result: compliant
+  source:
+    document_id: doc_b

@@ -37,7 +37,9 @@ pub fn canonicalize_rule(r: &mut RuleIR) -> Result<(), CanonicalError> {
         canonicalize_obligation(o)?;
     }
     canonicalize_doc_ref(&mut r.source)?;
-    canonicalize_window(&mut r.effective_window)?;
+    if let Some(window) = &mut r.effective_window {
+        canonicalize_window(window)?;
+    }
     canonicalize_provenance(&mut r.provenance)?;
     Ok(())
 }

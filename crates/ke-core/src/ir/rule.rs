@@ -39,6 +39,8 @@ pub struct RuleIR {
     pub obligations: Vec<ObligationSpec>,
     pub source: DocumentRef,
     pub interpretation_notes: Option<String>,
-    pub effective_window: EffectiveWindow,
+    /// `None` means the rule declares no effective window (always effective).
+    /// See ADR 0006.
+    pub effective_window: Option<EffectiveWindow>,
     pub provenance: ProvenanceMarker,
 }

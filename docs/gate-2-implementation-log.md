@@ -10,16 +10,19 @@ doc-each-phase convention so Hossain's manual gate review is fast and auditable.
 **Locked decisions:** tree IR + semantic normal form (no flattened IR);
 differential pinned to the recorded SOURCE.md SHA
 (`f73b9403c88a7ab5d741b351dce085b6988b6ba7`), fail-fast; `marked-yaml` spans kept
-separate from legal `SourceSpan`; T4 = four **provisional implemented** classes
-(ADR 0005 still **Proposed**, pending Hossain sign-off).
+separate from legal `SourceSpan`; T4 = four classes (ADR 0005, **Accepted**).
 
-**Gate 2 status:** implementation and tests are **green** (fmt/clippy clean, full
-workspace test suite passing). Full Gate 2 **acceptance is not yet met** — it
-depends on the **live Rust↔Python differential run** against
-`../institutional-defi-platform-api` at the recorded SOURCE.md SHA
-`f73b9403c88a7ab5d741b351dce085b6988b6ba7` (and on the ADR 0005 sign-off for the
-T4 severity policy). The harness is complete and SHA-gated; only the cross-repo
-run remains.
+**Gate 2 status: ✅ ACCEPTED (2026-05-30).** Both acceptance criteria are met:
+
+1. The **live Rust↔Python differential is green** — `scripts/differential-test.sh`
+   against `../institutional-defi-platform-api` at the recorded SOURCE.md SHA
+   `f73b9403c88a7ab5d741b351dce085b6988b6ba7` reported *"checked 7 rule file(s);
+   0 with divergence(s) — PASS: Rust ≡ Python over the whole corpus"* (spec §19
+   Gate 2 differential criterion).
+2. **ADR 0005** (T4 class→severity policy) is **signed off** by Hossain.
+
+Implementation and tests are green (fmt/clippy clean, full workspace suite
+passing). Gate 2 is ready to merge (PR #5).
 
 ---
 
@@ -30,8 +33,8 @@ run remains.
 - `docs/adr/0004-source-span-coverage-policy.md` (**Accepted**) — distinguishes
   YAML parse spans (`YamlSpan`, parser-local) from legal `SourceSpan`, and sets
   the T1 coverage-by-inheritance rule + the interpretation-notes requirement.
-- `docs/adr/0005-t4-conflict-classes-gate-2.md` (**Proposed — needs domain
-  sign-off**) — the four T4 classes + severities (`contradictory_outcome`
+- `docs/adr/0005-t4-conflict-classes-gate-2.md` (**Accepted**, signed off
+  2026-05-30) — the four T4 classes + severities (`contradictory_outcome`
   Blocking, `overlapping_scope` / `temporal_overlap` Review-required,
   `duplicate_rule` Advisory).
 - `docs/dsl-gap-review-gate-2.md` — walked MiCA / GENIUS / FCA / FINMA / MAS /
@@ -44,10 +47,9 @@ run remains.
   one IR-shape amendment. (The gap-review doc carries this same correction.)
 - `docs/adr/README.md` index updated (0004, 0005; 0006 added with the amendment).
 
-**Sign-off still required from Hossain:** ADR 0005's T4 classes + severities
-(domain-reviewer acceptance, per spec §23). The Phase-3 T4 verifier is already
-implemented against these classes, but the class→severity policy is
-**provisional** until that sign-off (see C3 and Phase 3).
+**Sign-off complete (Hossain, 2026-05-30):** ADR 0005's T4 classes + severities
+are **Accepted** (domain-reviewer acceptance, per spec §23). The Phase-3 T4
+verifier implements this accepted policy (see C3 and Phase 3).
 
 **Verification:** docs only; no code yet. `cargo check --workspace` unchanged
 from Gate 1 (green).
@@ -160,17 +162,18 @@ The boundary is hard and must not erode:
   → **Phase 3 (T1) obligation;** Phase 2 semantic form keys provenance off
   `DocumentRef`, not `YamlSpan`.
 
-### C3 — ADR 0005 T4 severities are PROVISIONAL (pending Hossain sign-off)
+### C3 — ADR 0005 T4 severities live in one reviewable place (now Accepted)
 
-ADR 0005's four T4 classes and their severities are **provisional** until the
-domain reviewer (Hossain) signs off. The Phase 3 T4 verifier must:
+ADR 0005's four T4 classes and their severities were provisional through
+implementation and were **signed off by Hossain on 2026-05-30 (Accepted)**. The
+Phase 3 T4 verifier keeps the policy reviewable and overridable:
 
-- keep the class→severity mapping in **one easy-to-review place** (a single
+- the class→severity mapping is in **one easy-to-review place** (a single
   `default_severity(class)` function / table), not scattered or inlined;
-- carry a doc comment flagging the mapping as provisional + ADR-0005-pending;
-- make the severities trivially adjustable (and, later, overridable by a
-  `PolicyBundle` per environment — Gate 4).
-  → **Phase 3 (T4) obligation.**
+- its doc comment cites **ADR 0005 (Accepted)**;
+- the severities stay trivially adjustable and will be overridable by a
+  `PolicyBundle` per environment in Gate 4.
+  → **Satisfied in Phase 3 (T4).**
 
 ---
 
@@ -201,9 +204,9 @@ domain reviewer (Hossain) signs off. The Phase 3 T4 verifier must:
 - `differential-test.sh` correctly **fails fast** (platform at `224dcab` ≠
   recorded `f73b940`) with the exact `git checkout` instruction.
 - `cargo fmt`/`clippy -D warnings` clean; `cargo test --workspace` green.
-- **Pending (user environment):** the live Rust↔Python parity run needs
-  `../institutional-defi-platform-api` checked out at `f73b940` with its Python
-  deps installed.
+- **Live parity run — ✅ PASS (2026-05-30):** `differential-test.sh` against the
+  platform at `f73b940` reported 7/7 files, 0 divergences (see Acceptance status
+  below).
 
 ---
 
@@ -224,8 +227,8 @@ domain reviewer (Hossain) signs off. The Phase 3 T4 verifier must:
   different results; duplicate via semantic-form logic equality; temporal via
   overlapping `[from,to)` windows (both present) + scope overlap.
   - **C3:** the class→severity policy lives in the single
-    `conflict::default_severity()` function, doc-flagged **PROVISIONAL pending
-    ADR-0005 sign-off**, and is the only place to adjust.
+    `conflict::default_severity()` function (the only place to adjust),
+    doc-flagged **Accepted (ADR 0005)**.
 
 ## Phase 4 — tests + docs ✅
 
@@ -252,6 +255,7 @@ domain reviewer (Hossain) signs off. The Phase 3 T4 verifier must:
 | `cargo check -p ke-core --target wasm32` | green |
 | `ke-compile` on the corpus | 34 rules, 0 errors |
 | `differential-test.sh` (wrong-SHA) | fails fast with checkout instruction |
+| **`differential-test.sh` live (platform @ `f73b940`)** | **✅ PASS — 7/7 files, 0 divergences (2026-05-30)** |
 
 ### Review-constraint confirmation (C1–C3)
 
@@ -264,12 +268,17 @@ domain reviewer (Hossain) signs off. The Phase 3 T4 verifier must:
   lowering, and is absent from `ke-core`/canonical IR. Legal coverage (T1) and
   semantic provenance key off `DocumentRef`, never YAML lines.
 - **C3** — T4 severities are in the single `conflict::default_severity()` table,
-  doc-flagged provisional (ADR 0005 still **Proposed**, awaiting Hossain's
-  sign-off); `t4_conflicts.rs` asserts the provisional mapping.
+  doc-flagged **Accepted (ADR 0005, signed 2026-05-30)**; `t4_conflicts.rs`
+  asserts the mapping.
 
-### Still pending (user environment)
+### Acceptance status — ✅ Gate 2 ACCEPTED (2026-05-30)
 
-The live Rust↔Python differential (`scripts/differential-test.sh`) needs
-`../institutional-defi-platform-api` checked out at `f73b940` with Python deps.
-The harness, adapter, and semantic form are complete and unit-validated; only the
-cross-repo run is gated on that checkout.
+- **Live Rust↔Python differential — ✅ PASS (2026-05-30).**
+  `scripts/differential-test.sh` against the platform at SOURCE.md SHA
+  `f73b9403c88a7ab5d741b351dce085b6988b6ba7`: 7/7 corpus files, 0 divergences.
+  (The script was also hardened for bash/MINGW64 — cygpath path translation,
+  `PYTHONPATH`, cargo-on-PATH resolution.)
+- **ADR 0005 T4 severity sign-off — ✅ Accepted (Hossain, 2026-05-30).**
+
+Both spec §19 Gate 2 acceptance criteria are met. Gate 2 is **accepted** and
+ready to merge (PR #5).
