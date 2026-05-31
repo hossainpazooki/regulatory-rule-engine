@@ -1,6 +1,6 @@
 # 0005. T4 conflict classes and severities for Gate 2
 
-**Status:** Proposed (needs domain-reviewer sign-off per spec §23 "Before Gate 2")
+**Status:** Accepted (domain-reviewer sign-off by Hossain, 2026-05-30)
 **Date:** 2026-05-30
 **Spec references:** §11 (T4), §12 (T4 taxonomy), §19 (Gate 2)
 **Brief references:** `dev/briefs/gate-2-parser-compiler-verification.md`
@@ -13,7 +13,12 @@ subset** (spec §19 "conflict taxonomy initial classes") without `ke-search` and
 without a runtime, so classes requiring corpus indexing, source-text comparison,
 or scenario execution are deferred. The spec's readiness checklist requires the
 chosen classes and severities to be accepted by a domain reviewer before Gate 2
-hardens; this ADR records the proposal for that sign-off.
+hardens; this ADR records that **accepted** policy.
+
+**Sign-off rationale (Hossain, 2026-05-30):** contradictory executable outcomes
+must block; scope/temporal overlap without encoded precedence requires review;
+semantic duplicates are advisory hygiene unless they produce divergent behavior.
+The future `PolicyBundle` per-environment override path (Gate 4) is retained.
 
 ## Decision
 

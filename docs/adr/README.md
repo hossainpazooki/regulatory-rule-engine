@@ -38,7 +38,7 @@ that `docs/canonical-encoding.md` documents in prose:
 Gate 2:
 
 - [0004 Source-span coverage policy (T1) and span/provenance separation](0004-source-span-coverage-policy.md) — spec § 11 — **Accepted**
-- [0005 T4 conflict classes and severities for Gate 2](0005-t4-conflict-classes-gate-2.md) — spec § 12 — **Proposed** (needs domain sign-off)
+- [0005 T4 conflict classes and severities for Gate 2](0005-t4-conflict-classes-gate-2.md) — spec § 12 — **Accepted**
 - [0006 `effective_window` is optional (amends Gate 1 IR)](0006-effective-window-optional.md) — spec § 8.4 — **Accepted**
 
 Anticipated (later gates — numbers assigned when authored):

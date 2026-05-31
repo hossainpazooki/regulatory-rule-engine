@@ -25,10 +25,9 @@ pub enum Severity {
     Advisory,
 }
 
-/// PROVISIONAL class→severity policy — **pending Hossain's domain-review
-/// sign-off (ADR 0005, status: Proposed)**. This is the single place the policy
-/// lives; keep it here and easy to adjust. Gate 4 will let a `PolicyBundle`
-/// override it per environment.
+/// The class→severity policy, **Accepted (ADR 0005, signed off 2026-05-30)**.
+/// This is the single place the policy lives; keep it here and easy to adjust.
+/// Gate 4 will let a `PolicyBundle` override it per environment.
 pub fn default_severity(class: ConflictClass) -> Severity {
     match class {
         ConflictClass::ContradictoryOutcome => Severity::Blocking,
