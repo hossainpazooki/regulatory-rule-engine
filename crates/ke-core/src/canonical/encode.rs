@@ -181,7 +181,11 @@ fn canonicalize_window(w: &mut EffectiveWindow) -> Result<(), CanonicalError> {
     if let Some(to) = &w.effective_to {
         ordering::ensure_date(to.year, to.month, to.day)?;
     }
-    canonicalize_time_zone(&mut w.jurisdiction_time_zone)
+    // Optional zone (ADR 0007): a date-only rule carries `None`.
+    if let Some(tz) = &mut w.jurisdiction_time_zone {
+        canonicalize_time_zone(tz)?;
+    }
+    Ok(())
 }
 
 fn canonicalize_time_zone(tz: &mut TimeZone) -> Result<(), CanonicalError> {

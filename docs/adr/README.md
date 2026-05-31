@@ -41,6 +41,11 @@ Gate 2:
 - [0005 T4 conflict classes and severities for Gate 2](0005-t4-conflict-classes-gate-2.md) — spec § 12 — **Accepted**
 - [0006 `effective_window` is optional (amends Gate 1 IR)](0006-effective-window-optional.md) — spec § 8.4 — **Accepted**
 
+Gate 3:
+
+- [0007 Effective windows in the preview runtime (tz optional; `[from,to)` preview-only)](0007-effective-window-preview-runtime.md) — spec § 8.4 — **Accepted**
+- [0008 Execution equivalence boundary and `FactValue` representation](0008-execution-equivalence-boundary.md) — spec § 20 — **Accepted**
+
 Anticipated (later gates — numbers assigned when authored):
 
 - Registry persistence model — S3 manifest layout (spec § 21 resolved) — Gate 4

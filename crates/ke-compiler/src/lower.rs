@@ -3,9 +3,9 @@
 //! Lowering validates and reshapes the spanned AST into the canonical IR,
 //! dropping `YamlSpan`s (legal provenance comes from the rule's `source:`, not
 //! YAML positions — ADR 0004). Rules with no effective dates lower to
-//! `effective_window: None` (ADR 0006); when dates are present the
-//! YAML-absent time zone defaults to `UTC` as a Gate-2 placeholder
-//! (jurisdiction→zone resolution is Gate 3).
+//! `effective_window: None` (ADR 0006); a date-bearing rule lowers to a window
+//! with `jurisdiction_time_zone: None` (ADR 0007) — no zone is invented from
+//! date-only YAML, so none enters canonical bytes.
 
 use crate::ast::{
     AstCondition, AstDecision, AstGroup, AstGroupItem, AstLeaf, AstNode, AstObligation, AstRule,
@@ -15,11 +15,8 @@ use crate::error::CompileError;
 use ke_core::ir::{
     Condition, ConditionGroupSpec, ConditionOrGroup, DecisionEntry, DecisionLeaf, DecisionNode,
     DocumentRef, EffectiveWindow, JurisdictionDate, ObligationSpec, Operator, ProvenanceMarker,
-    RuleIR, TimeZone,
+    RuleIR,
 };
-
-/// Placeholder tz-data version for the Gate-2 default `UTC` zone (ADR 0006).
-const DEFAULT_TZ_DATA_VERSION: &str = "2025a";
 
 /// Lower one parsed rule into the canonical IR.
 pub fn lower_rule(ast: &AstRule) -> Result<RuleIR, CompileError> {
@@ -189,10 +186,8 @@ fn lower_window(ast: &AstRule) -> Result<Option<EffectiveWindow>, CompileError> 
     Ok(Some(EffectiveWindow {
         effective_from,
         effective_to,
-        jurisdiction_time_zone: TimeZone {
-            name: "UTC".to_string(),
-            tz_data_version: DEFAULT_TZ_DATA_VERSION.to_string(),
-        },
+        // ADR 0007: date-only YAML carries no authored zone → `None`.
+        jurisdiction_time_zone: None,
         effective_time_policy: None,
     }))
 }

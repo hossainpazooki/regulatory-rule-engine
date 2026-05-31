@@ -45,13 +45,14 @@ pub struct CodecVersion(pub String);
 pub struct CanonicalizationVersion(pub String);
 
 /// Pinned IR schema version. Bumped to 0.2.0 in Gate 2 when
-/// `RuleIR.effective_window` became optional (ADR 0006).
-pub const IR_SCHEMA_VERSION: SchemaVersion = SchemaVersion::new(0, 2, 0);
+/// `RuleIR.effective_window` became optional (ADR 0006); to 0.3.0 in Gate 3 when
+/// `EffectiveWindow.jurisdiction_time_zone` became optional (ADR 0007).
+pub const IR_SCHEMA_VERSION: SchemaVersion = SchemaVersion::new(0, 3, 0);
 
 /// Pinned codec version. See ADR 0002 (`docs/adr/0002-canonical-codec-postcard.md`).
 pub const CODEC_VERSION: &str = "postcard-1";
 
-/// Pinned canonicalization-profile version. Bumped to `ke-canon-2` in Gate 2
-/// (ADR 0006 changed the `effective_window` byte layout). See
-/// `docs/canonical-encoding.md`.
-pub const CANONICALIZATION_VERSION: &str = "ke-canon-2";
+/// Pinned canonicalization-profile version. `ke-canon-2` in Gate 2 (ADR 0006);
+/// `ke-canon-3` in Gate 3 (ADR 0007 made `jurisdiction_time_zone` optional,
+/// adding an `Option` presence byte). See `docs/canonical-encoding.md`.
+pub const CANONICALIZATION_VERSION: &str = "ke-canon-3";

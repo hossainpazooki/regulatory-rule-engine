@@ -9,8 +9,36 @@ publish.workspace = true
 description = "Preview executor and scenario/trace harness (preview-only; production uses Python RuleRuntime)"
 
 [dependencies]
+# The executor lib depends ONLY on ke-core so it stays wasm-clean for the Gate 5
+# browser dry-run (spec §6: ke-runtime is wasm32 ✓). Native tooling that lowers
+# YAML lives behind the default `tools` feature; wasm consumers disable it.
 ke-core = { path = "../ke-core" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+
+# Native-only tooling deps (behind `tools`): the bins lower corpus YAML via the
+# compiler and use anyhow for error plumbing.
+ke-compiler = { path = "../ke-compiler", optional = true }
+anyhow = { workspace = true, optional = true }
+
+# Note: no `proptest`. The `windows-gnu` toolchain in this repo cannot build
+# `getrandom 0.3` (raw-dylib import libs via a broken self-contained `dlltool`),
+# which proptest pulls in transitively. Property/metamorphic tests instead use a
+# small self-contained deterministic PRNG (see `scenario.rs`), which also gives
+# the equivalence harness reproducible seeds. See the gate-3 log + ADR 0008.
+
+[features]
+default = ["tools"]
+# Native developer tooling: the ke-eval / gen-scenarios binaries. Disabled for
+# the wasm preview target, which only needs the executor lib.
+tools = ["dep:ke-compiler", "dep:anyhow"]
+
+[[bin]]
+name = "ke-eval"
+required-features = ["tools"]
+
+[[bin]]
+name = "gen-scenarios"
+required-features = ["tools"]

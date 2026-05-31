@@ -1,0 +1,1395 @@
+[
+  {
+    "facts": {
+      "__irrelevant_a": true,
+      "__irrelevant_b": "noise",
+      "activity": "financial_promotion",
+      "instrument_type": "crypto_asset",
+      "is_fca_authorized": true,
+      "is_mlr_registered": true,
+      "promotion_approved_by_authorized": true,
+      "target_jurisdiction": "UK"
+    },
+    "label": "irrelevant_facts",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "in",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "target_jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "permitted",
+      "decision_path": [
+        {
+          "field": "is_fca_authorized",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "obligations": []
+    },
+    "rule_id": "fca_crypto_promotion_authorization"
+  },
+  {
+    "facts": {
+      "activity": "financial_promotion",
+      "is_fca_authorized": true,
+      "is_mlr_registered": true,
+      "promotion_approved_by_authorized": true,
+      "target_jurisdiction": "UK"
+    },
+    "label": "missing:instrument_type",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "in",
+          "result": false
+        }
+      ],
+      "applicable": false,
+      "decision": null,
+      "decision_path": [],
+      "obligations": []
+    },
+    "rule_id": "fca_crypto_promotion_authorization"
+  },
+  {
+    "facts": {
+      "instrument_type": "__NOT_IN_SET__"
+    },
+    "label": "not_applicable",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "in",
+          "result": false
+        }
+      ],
+      "applicable": false,
+      "decision": null,
+      "decision_path": [],
+      "obligations": []
+    },
+    "rule_id": "fca_crypto_promotion_authorization"
+  },
+  {
+    "facts": {
+      "activity": "financial_promotion",
+      "instrument_type": "crypto_asset",
+      "is_fca_authorized": true,
+      "target_jurisdiction": "UK"
+    },
+    "label": "path#0",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "in",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "target_jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "permitted",
+      "decision_path": [
+        {
+          "field": "is_fca_authorized",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "obligations": []
+    },
+    "rule_id": "fca_crypto_promotion_authorization"
+  },
+  {
+    "facts": {
+      "activity": "financial_promotion",
+      "instrument_type": "crypto_asset",
+      "is_fca_authorized": false,
+      "promotion_approved_by_authorized": true,
+      "target_jurisdiction": "UK"
+    },
+    "label": "path#1",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "in",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "target_jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "permitted",
+      "decision_path": [
+        {
+          "field": "is_fca_authorized",
+          "operator": "==",
+          "result": false
+        },
+        {
+          "field": "promotion_approved_by_authorized",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "obligations": [
+        "maintain_approval_records"
+      ]
+    },
+    "rule_id": "fca_crypto_promotion_authorization"
+  },
+  {
+    "facts": {
+      "activity": "financial_promotion",
+      "instrument_type": "crypto_asset",
+      "is_fca_authorized": false,
+      "is_mlr_registered": true,
+      "promotion_approved_by_authorized": false,
+      "target_jurisdiction": "UK"
+    },
+    "label": "path#2",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "in",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "target_jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "permitted",
+      "decision_path": [
+        {
+          "field": "is_fca_authorized",
+          "operator": "==",
+          "result": false
+        },
+        {
+          "field": "promotion_approved_by_authorized",
+          "operator": "==",
+          "result": false
+        },
+        {
+          "field": "is_mlr_registered",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "obligations": [
+        "mlr_registration_check"
+      ]
+    },
+    "rule_id": "fca_crypto_promotion_authorization"
+  },
+  {
+    "facts": {
+      "activity": "financial_promotion",
+      "instrument_type": "crypto_asset",
+      "is_fca_authorized": false,
+      "is_mlr_registered": false,
+      "promotion_approved_by_authorized": false,
+      "target_jurisdiction": "UK"
+    },
+    "label": "path#3",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "in",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "target_jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "prohibited",
+      "decision_path": [
+        {
+          "field": "is_fca_authorized",
+          "operator": "==",
+          "result": false
+        },
+        {
+          "field": "promotion_approved_by_authorized",
+          "operator": "==",
+          "result": false
+        },
+        {
+          "field": "is_mlr_registered",
+          "operator": "==",
+          "result": false
+        }
+      ],
+      "obligations": [
+        "obtain_fca_authorization"
+      ]
+    },
+    "rule_id": "fca_crypto_promotion_authorization"
+  },
+  {
+    "facts": {
+      "activity": "financial_promotion",
+      "instrument_type": true,
+      "is_fca_authorized": true,
+      "is_mlr_registered": true,
+      "promotion_approved_by_authorized": true,
+      "target_jurisdiction": "UK"
+    },
+    "label": "wrong_type:instrument_type",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "in",
+          "result": false
+        }
+      ],
+      "applicable": false,
+      "decision": null,
+      "decision_path": [],
+      "obligations": []
+    },
+    "rule_id": "fca_crypto_promotion_authorization"
+  },
+  {
+    "facts": {
+      "__irrelevant_a": true,
+      "__irrelevant_b": "noise",
+      "activity": "public_offer",
+      "has_reserve": true,
+      "instrument_type": "art",
+      "jurisdiction": "EU",
+      "reserve_custodian_authorized": true
+    },
+    "label": "irrelevant_facts",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "in",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "in",
+          "result": true
+        },
+        {
+          "field": "jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "compliant",
+      "decision_path": [
+        {
+          "field": "has_reserve",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "reserve_custodian_authorized",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "obligations": []
+    },
+    "rule_id": "mica_art38_reserve_assets"
+  },
+  {
+    "facts": {
+      "activity": "public_offer",
+      "has_reserve": true,
+      "jurisdiction": "EU",
+      "reserve_custodian_authorized": true
+    },
+    "label": "missing:instrument_type",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "in",
+          "result": false
+        }
+      ],
+      "applicable": false,
+      "decision": null,
+      "decision_path": [],
+      "obligations": []
+    },
+    "rule_id": "mica_art38_reserve_assets"
+  },
+  {
+    "facts": {
+      "instrument_type": "__NOT_IN_SET__"
+    },
+    "label": "not_applicable",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "in",
+          "result": false
+        }
+      ],
+      "applicable": false,
+      "decision": null,
+      "decision_path": [],
+      "obligations": []
+    },
+    "rule_id": "mica_art38_reserve_assets"
+  },
+  {
+    "facts": {
+      "activity": "public_offer",
+      "has_reserve": true,
+      "instrument_type": "art",
+      "jurisdiction": "EU",
+      "reserve_custodian_authorized": true
+    },
+    "label": "path#0",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "in",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "in",
+          "result": true
+        },
+        {
+          "field": "jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "compliant",
+      "decision_path": [
+        {
+          "field": "has_reserve",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "reserve_custodian_authorized",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "obligations": []
+    },
+    "rule_id": "mica_art38_reserve_assets"
+  },
+  {
+    "facts": {
+      "activity": "public_offer",
+      "has_reserve": true,
+      "instrument_type": "art",
+      "jurisdiction": "EU",
+      "reserve_custodian_authorized": false
+    },
+    "label": "path#1",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "in",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "in",
+          "result": true
+        },
+        {
+          "field": "jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "non_compliant",
+      "decision_path": [
+        {
+          "field": "has_reserve",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "reserve_custodian_authorized",
+          "operator": "==",
+          "result": false
+        }
+      ],
+      "obligations": [
+        "appoint_custodian_art37"
+      ]
+    },
+    "rule_id": "mica_art38_reserve_assets"
+  },
+  {
+    "facts": {
+      "activity": "public_offer",
+      "has_reserve": false,
+      "instrument_type": "art",
+      "jurisdiction": "EU"
+    },
+    "label": "path#2",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "in",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "in",
+          "result": true
+        },
+        {
+          "field": "jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "non_compliant",
+      "decision_path": [
+        {
+          "field": "has_reserve",
+          "operator": "==",
+          "result": false
+        }
+      ],
+      "obligations": [
+        "appoint_custodian_art37",
+        "establish_reserve_art38"
+      ]
+    },
+    "rule_id": "mica_art38_reserve_assets"
+  },
+  {
+    "facts": {
+      "activity": "public_offer",
+      "has_reserve": true,
+      "instrument_type": true,
+      "jurisdiction": "EU",
+      "reserve_custodian_authorized": true
+    },
+    "label": "wrong_type:instrument_type",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "in",
+          "result": false
+        }
+      ],
+      "applicable": false,
+      "decision": null,
+      "decision_path": [],
+      "obligations": []
+    },
+    "rule_id": "mica_art38_reserve_assets"
+  },
+  {
+    "facts": {
+      "activity": "redemption",
+      "fee_reflects_costs": true,
+      "instrument_type": "emt",
+      "jurisdiction": "EU",
+      "redemption_at_par": true,
+      "redemption_fee_percentage": 1,
+      "redemption_requested": true
+    },
+    "label": "boundary:redemption_fee_percentage:above",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "compliant",
+      "decision_path": [
+        {
+          "field": "redemption_requested",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "redemption_at_par",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "redemption_fee_percentage",
+          "operator": "<=",
+          "result": false
+        },
+        {
+          "field": "fee_reflects_costs",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "obligations": []
+    },
+    "rule_id": "mica_art54_emt_redemption"
+  },
+  {
+    "facts": {
+      "activity": "redemption",
+      "fee_reflects_costs": true,
+      "instrument_type": "emt",
+      "jurisdiction": "EU",
+      "redemption_at_par": true,
+      "redemption_fee_percentage": 0,
+      "redemption_requested": true
+    },
+    "label": "boundary:redemption_fee_percentage:at",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "compliant",
+      "decision_path": [
+        {
+          "field": "redemption_requested",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "redemption_at_par",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "redemption_fee_percentage",
+          "operator": "<=",
+          "result": true
+        }
+      ],
+      "obligations": []
+    },
+    "rule_id": "mica_art54_emt_redemption"
+  },
+  {
+    "facts": {
+      "activity": "redemption",
+      "fee_reflects_costs": true,
+      "instrument_type": "emt",
+      "jurisdiction": "EU",
+      "redemption_at_par": true,
+      "redemption_fee_percentage": -1,
+      "redemption_requested": true
+    },
+    "label": "boundary:redemption_fee_percentage:below",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "compliant",
+      "decision_path": [
+        {
+          "field": "redemption_requested",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "redemption_at_par",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "redemption_fee_percentage",
+          "operator": "<=",
+          "result": true
+        }
+      ],
+      "obligations": []
+    },
+    "rule_id": "mica_art54_emt_redemption"
+  },
+  {
+    "facts": {
+      "__irrelevant_a": true,
+      "__irrelevant_b": "noise",
+      "activity": "redemption",
+      "fee_reflects_costs": true,
+      "instrument_type": "emt",
+      "jurisdiction": "EU",
+      "redemption_at_par": true,
+      "redemption_fee_percentage": 0,
+      "redemption_requested": true
+    },
+    "label": "irrelevant_facts",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "compliant",
+      "decision_path": [
+        {
+          "field": "redemption_requested",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "redemption_at_par",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "redemption_fee_percentage",
+          "operator": "<=",
+          "result": true
+        }
+      ],
+      "obligations": []
+    },
+    "rule_id": "mica_art54_emt_redemption"
+  },
+  {
+    "facts": {
+      "activity": "redemption",
+      "fee_reflects_costs": true,
+      "jurisdiction": "EU",
+      "redemption_at_par": true,
+      "redemption_fee_percentage": 0,
+      "redemption_requested": true
+    },
+    "label": "missing:instrument_type",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "==",
+          "result": false
+        }
+      ],
+      "applicable": false,
+      "decision": null,
+      "decision_path": [],
+      "obligations": []
+    },
+    "rule_id": "mica_art54_emt_redemption"
+  },
+  {
+    "facts": {
+      "instrument_type": "emt__NOMATCH"
+    },
+    "label": "not_applicable",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "==",
+          "result": false
+        }
+      ],
+      "applicable": false,
+      "decision": null,
+      "decision_path": [],
+      "obligations": []
+    },
+    "rule_id": "mica_art54_emt_redemption"
+  },
+  {
+    "facts": {
+      "activity": "redemption",
+      "instrument_type": "emt",
+      "jurisdiction": "EU",
+      "redemption_at_par": true,
+      "redemption_fee_percentage": 0,
+      "redemption_requested": true
+    },
+    "label": "path#0",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "compliant",
+      "decision_path": [
+        {
+          "field": "redemption_requested",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "redemption_at_par",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "redemption_fee_percentage",
+          "operator": "<=",
+          "result": true
+        }
+      ],
+      "obligations": []
+    },
+    "rule_id": "mica_art54_emt_redemption"
+  },
+  {
+    "facts": {
+      "activity": "redemption",
+      "fee_reflects_costs": true,
+      "instrument_type": "emt",
+      "jurisdiction": "EU",
+      "redemption_at_par": true,
+      "redemption_fee_percentage": 1,
+      "redemption_requested": true
+    },
+    "label": "path#1",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "compliant",
+      "decision_path": [
+        {
+          "field": "redemption_requested",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "redemption_at_par",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "redemption_fee_percentage",
+          "operator": "<=",
+          "result": false
+        },
+        {
+          "field": "fee_reflects_costs",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "obligations": []
+    },
+    "rule_id": "mica_art54_emt_redemption"
+  },
+  {
+    "facts": {
+      "activity": "redemption",
+      "fee_reflects_costs": false,
+      "instrument_type": "emt",
+      "jurisdiction": "EU",
+      "redemption_at_par": true,
+      "redemption_fee_percentage": 1,
+      "redemption_requested": true
+    },
+    "label": "path#2",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "non_compliant",
+      "decision_path": [
+        {
+          "field": "redemption_requested",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "redemption_at_par",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "redemption_fee_percentage",
+          "operator": "<=",
+          "result": false
+        },
+        {
+          "field": "fee_reflects_costs",
+          "operator": "==",
+          "result": false
+        }
+      ],
+      "obligations": [
+        "remove_excess_fee"
+      ]
+    },
+    "rule_id": "mica_art54_emt_redemption"
+  },
+  {
+    "facts": {
+      "activity": "redemption",
+      "instrument_type": "emt",
+      "jurisdiction": "EU",
+      "redemption_at_par": false,
+      "redemption_requested": true
+    },
+    "label": "path#3",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "non_compliant",
+      "decision_path": [
+        {
+          "field": "redemption_requested",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "redemption_at_par",
+          "operator": "==",
+          "result": false
+        }
+      ],
+      "obligations": [
+        "redeem_at_par"
+      ]
+    },
+    "rule_id": "mica_art54_emt_redemption"
+  },
+  {
+    "facts": {
+      "activity": "redemption",
+      "instrument_type": "emt",
+      "jurisdiction": "EU",
+      "redemption_requested": false
+    },
+    "label": "path#4",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "pending",
+      "decision_path": [
+        {
+          "field": "redemption_requested",
+          "operator": "==",
+          "result": false
+        }
+      ],
+      "obligations": []
+    },
+    "rule_id": "mica_art54_emt_redemption"
+  },
+  {
+    "facts": {
+      "activity": "redemption",
+      "fee_reflects_costs": true,
+      "instrument_type": true,
+      "jurisdiction": "EU",
+      "redemption_at_par": true,
+      "redemption_fee_percentage": 0,
+      "redemption_requested": true
+    },
+    "label": "wrong_type:instrument_type",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "instrument_type",
+          "operator": "==",
+          "result": false
+        }
+      ],
+      "applicable": false,
+      "decision": null,
+      "decision_path": [],
+      "obligations": []
+    },
+    "rule_id": "mica_art54_emt_redemption"
+  },
+  {
+    "facts": {
+      "__irrelevant_a": true,
+      "__irrelevant_b": "noise",
+      "activity": "custody",
+      "casp_authorized": true,
+      "entity_type": "casp",
+      "is_credit_institution": true,
+      "is_investment_firm": true,
+      "jurisdiction": "EU"
+    },
+    "label": "irrelevant_facts",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "entity_type",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "in",
+          "result": true
+        },
+        {
+          "field": "jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "authorized",
+      "decision_path": [
+        {
+          "field": "is_credit_institution",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "obligations": []
+    },
+    "rule_id": "mica_art59_casp_authorization"
+  },
+  {
+    "facts": {
+      "activity": "custody",
+      "casp_authorized": true,
+      "is_credit_institution": true,
+      "is_investment_firm": true,
+      "jurisdiction": "EU"
+    },
+    "label": "missing:entity_type",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "entity_type",
+          "operator": "==",
+          "result": false
+        }
+      ],
+      "applicable": false,
+      "decision": null,
+      "decision_path": [],
+      "obligations": []
+    },
+    "rule_id": "mica_art59_casp_authorization"
+  },
+  {
+    "facts": {
+      "entity_type": "casp__NOMATCH"
+    },
+    "label": "not_applicable",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "entity_type",
+          "operator": "==",
+          "result": false
+        }
+      ],
+      "applicable": false,
+      "decision": null,
+      "decision_path": [],
+      "obligations": []
+    },
+    "rule_id": "mica_art59_casp_authorization"
+  },
+  {
+    "facts": {
+      "activity": "custody",
+      "entity_type": "casp",
+      "is_credit_institution": true,
+      "jurisdiction": "EU"
+    },
+    "label": "path#0",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "entity_type",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "in",
+          "result": true
+        },
+        {
+          "field": "jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "authorized",
+      "decision_path": [
+        {
+          "field": "is_credit_institution",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "obligations": []
+    },
+    "rule_id": "mica_art59_casp_authorization"
+  },
+  {
+    "facts": {
+      "activity": "custody",
+      "entity_type": "casp",
+      "is_credit_institution": false,
+      "is_investment_firm": true,
+      "jurisdiction": "EU"
+    },
+    "label": "path#1",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "entity_type",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "in",
+          "result": true
+        },
+        {
+          "field": "jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "authorized",
+      "decision_path": [
+        {
+          "field": "is_credit_institution",
+          "operator": "==",
+          "result": false
+        },
+        {
+          "field": "is_investment_firm",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "obligations": []
+    },
+    "rule_id": "mica_art59_casp_authorization"
+  },
+  {
+    "facts": {
+      "activity": "custody",
+      "casp_authorized": true,
+      "entity_type": "casp",
+      "is_credit_institution": false,
+      "is_investment_firm": false,
+      "jurisdiction": "EU"
+    },
+    "label": "path#2",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "entity_type",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "in",
+          "result": true
+        },
+        {
+          "field": "jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "authorized",
+      "decision_path": [
+        {
+          "field": "is_credit_institution",
+          "operator": "==",
+          "result": false
+        },
+        {
+          "field": "is_investment_firm",
+          "operator": "==",
+          "result": false
+        },
+        {
+          "field": "casp_authorized",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "obligations": []
+    },
+    "rule_id": "mica_art59_casp_authorization"
+  },
+  {
+    "facts": {
+      "activity": "custody",
+      "casp_authorized": false,
+      "entity_type": "casp",
+      "is_credit_institution": false,
+      "is_investment_firm": false,
+      "jurisdiction": "EU"
+    },
+    "label": "path#3",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "entity_type",
+          "operator": "==",
+          "result": true
+        },
+        {
+          "field": "activity",
+          "operator": "in",
+          "result": true
+        },
+        {
+          "field": "jurisdiction",
+          "operator": "==",
+          "result": true
+        }
+      ],
+      "applicable": true,
+      "decision": "not_authorized",
+      "decision_path": [
+        {
+          "field": "is_credit_institution",
+          "operator": "==",
+          "result": false
+        },
+        {
+          "field": "is_investment_firm",
+          "operator": "==",
+          "result": false
+        },
+        {
+          "field": "casp_authorized",
+          "operator": "==",
+          "result": false
+        }
+      ],
+      "obligations": [
+        "apply_casp_authorization",
+        "establish_governance",
+        "meet_prudential_requirements"
+      ]
+    },
+    "rule_id": "mica_art59_casp_authorization"
+  },
+  {
+    "facts": {
+      "activity": "custody",
+      "casp_authorized": true,
+      "entity_type": true,
+      "is_credit_institution": true,
+      "is_investment_firm": true,
+      "jurisdiction": "EU"
+    },
+    "label": "wrong_type:entity_type",
+    "normalized": {
+      "applicability_steps": [
+        {
+          "field": "entity_type",
+          "operator": "==",
+          "result": false
+        }
+      ],
+      "applicable": false,
+      "decision": null,
+      "decision_path": [],
+      "obligations": []
+    },
+    "rule_id": "mica_art59_casp_authorization"
+  }
+]

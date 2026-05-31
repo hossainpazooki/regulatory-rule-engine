@@ -25,9 +25,9 @@ immediately diagnosable. Defined in `crates/ke-core/src/version.rs`:
 
 | Field | Value | Meaning |
 | ----- | ----- | ------- |
-| `ir_schema_version` | `0.2.0` | IR shape version (semver). Bumped from `0.1.0` in Gate 2 — ADR 0006 made `effective_window` optional. |
+| `ir_schema_version` | `0.3.0` | IR shape version (semver). `0.1.0`→`0.2.0` in Gate 2 (ADR 0006 made `effective_window` optional); `0.2.0`→`0.3.0` in Gate 3 (ADR 0007 made `EffectiveWindow.jurisdiction_time_zone` optional). |
 | `codec_version` | `postcard-1` | Wire codec (ADR 0002). |
-| `canonicalization_version` | `ke-canon-2` | This profile's version. Bumped from `ke-canon-1` in Gate 2 (ADR 0006 changed the `effective_window` byte layout). |
+| `canonicalization_version` | `ke-canon-3` | This profile's version. `ke-canon-1`→`ke-canon-2` in Gate 2 (ADR 0006 changed the `effective_window` byte layout); `ke-canon-2`→`ke-canon-3` in Gate 3 (ADR 0007 added an `Option` presence byte for `jurisdiction_time_zone`). |
 
 **Any change to the byte layout — including reordering a struct field — is a
 breaking change that requires bumping `canonicalization_version`.**
@@ -81,10 +81,11 @@ the decoder rejects non-NFC bytes.
 ### Dates and jurisdiction time (§ 4.8, ADR 0001)
 `JurisdictionDate { year: i16, month: u8, day: u8 }` — no timestamps in the IR.
 Structural validation only: month 1–12, day 1–31, year ≥ 1900 (calendar
-correctness and the closed-open `[from, to)` window are Gate 3 runtime
-concerns). Time zone is an IANA name + pinned `tz_data_version` on
-`EffectiveWindow`; the encoder rejects zones outside its allow-list (seeded
-from the corpus; widened in Gate 3 against a pinned tz-data snapshot).
+correctness is a runtime concern; the closed-open `[from, to)` window is
+implemented in the Gate 3 preview runtime, `ke_runtime::effective`). Time zone is
+an **optional** IANA name + pinned `tz_data_version` on `EffectiveWindow`
+(ADR 0007 — a date-only rule carries `None`, so no zone enters canonical bytes);
+when present, the encoder rejects zones outside its allow-list.
 
 ## Decoding and rejection of non-canonical bytes (§ 8.3)
 

@@ -41,10 +41,10 @@ fn minimal_valid_rule() -> RuleIR {
         effective_window: Some(EffectiveWindow {
             effective_from: JurisdictionDate::new(2024, 1, 1),
             effective_to: None,
-            jurisdiction_time_zone: TimeZone {
+            jurisdiction_time_zone: Some(TimeZone {
                 name: "UTC".to_string(),
                 tz_data_version: "2025a".to_string(),
-            },
+            }),
             effective_time_policy: None,
         }),
         provenance: ProvenanceMarker::StructurallyVerified,
@@ -136,6 +136,8 @@ fn unknown_time_zone_is_rejected() {
         .as_mut()
         .unwrap()
         .jurisdiction_time_zone
+        .as_mut()
+        .unwrap()
         .name = "Mars/Phobos".to_string();
     assert!(matches!(
         decode_rule(&raw(&rule)),
