@@ -57,6 +57,20 @@ fi
 
 # --- build the Rust dev tool ----------------------------------------------
 
+# rustup installs cargo to ~/.cargo/bin, which is not always on PATH (e.g. a
+# fresh MINGW64 shell or CI). Resolve it before building.
+if ! command -v cargo >/dev/null 2>&1; then
+  if [ -f "${HOME}/.cargo/env" ]; then
+    # shellcheck disable=SC1091
+    . "${HOME}/.cargo/env"
+  fi
+  export PATH="${HOME}/.cargo/bin:${PATH}"
+fi
+if ! command -v cargo >/dev/null 2>&1; then
+  echo "FATAL: cargo not found — install rustup or add ~/.cargo/bin to PATH" >&2
+  exit 1
+fi
+
 ( cd "${repo_root}" && cargo build -q -p ke-compiler )
 ke_compile="${repo_root}/target/debug/ke-compile"
 

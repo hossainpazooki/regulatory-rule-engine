@@ -171,7 +171,13 @@ surfaces (REST + WASM) behind feature flags.
 
 ### Rust workspace
 
-Toolchain is pinned to Rust 1.85.0 (`rust-toolchain.toml`).
+Toolchain is pinned to Rust 1.85.0 (`rust-toolchain.toml`). Install via
+[rustup](https://rustup.rs/); `rustup` puts `cargo` under `~/.cargo/bin`, which
+a fresh shell (e.g. MINGW64 / Git Bash) may not have on `PATH`:
+
+```bash
+source "$HOME/.cargo/env"        # or: export PATH="$HOME/.cargo/bin:$PATH"
+```
 
 ```bash
 cargo test --workspace                                  # Gates 1–2 are implemented + tested
