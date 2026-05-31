@@ -1,0 +1,24 @@
+# T4 fixture — duplicate_rule (Advisory).
+# Two rules with identical applicability + decision logic, differing only in
+# rule_id and source attribution.
+- rule_id: dup_a
+  applies_if:
+    all:
+      - field: jurisdiction
+        operator: "=="
+        value: EU
+  decision_tree:
+    result: compliant
+  source:
+    document_id: doc_a
+
+- rule_id: dup_b
+  applies_if:
+    all:
+      - field: jurisdiction
+        operator: "=="
+        value: EU
+  decision_tree:
+    result: compliant
+  source:
+    document_id: doc_b

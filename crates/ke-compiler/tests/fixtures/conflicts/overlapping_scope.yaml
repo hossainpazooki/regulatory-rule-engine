@@ -1,0 +1,47 @@
+# T4 fixture — overlapping_scope (Review-required).
+# Scopes overlap (both require jurisdiction == EU; the other premises are
+# compatible, not disjoint) with no encoded precedence. Outcomes agree, so this
+# is not a contradiction; no effective windows, so not a temporal overlap.
+- rule_id: scope_a
+  applies_if:
+    all:
+      - field: jurisdiction
+        operator: "=="
+        value: EU
+      - field: instrument
+        operator: "=="
+        value: art
+  decision_tree:
+    node_id: n
+    condition:
+      field: licensed
+      operator: "=="
+      value: true
+    true_branch:
+      result: compliant
+    false_branch:
+      result: needs_review
+  source:
+    document_id: doc_a
+
+- rule_id: scope_b
+  applies_if:
+    all:
+      - field: jurisdiction
+        operator: "=="
+        value: EU
+      - field: activity
+        operator: "=="
+        value: trading
+  decision_tree:
+    node_id: m
+    condition:
+      field: licensed
+      operator: "=="
+      value: true
+    true_branch:
+      result: compliant
+    false_branch:
+      result: needs_review
+  source:
+    document_id: doc_b

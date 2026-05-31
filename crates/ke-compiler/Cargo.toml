@@ -18,6 +18,9 @@ tracing = { workspace = true }
 # f64 coercion, so serde_yaml is intentionally not a dependency.
 marked-yaml = "0.7"
 
+[dev-dependencies]
+serde_json = { workspace = true }
+
 [[bin]]
 name = "ke-compile"
 path = "src/bin/ke-compile.rs"
