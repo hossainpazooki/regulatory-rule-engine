@@ -38,15 +38,18 @@ behavior.
 
 | Gate | State | Notes |
 |------|-------|-------|
-| **Gate 0 — Repo synthesis** | Complete, on `migration/gate-0-repo-synthesis` | Rename to `ke-workbench`, Rust workspace scaffold, frontend relocated to `frontend/`, CI/CD wired, fixtures snapshotted from platform repo. Awaiting merge to `main`. |
+| **Gate 0 — Repo synthesis** | **Merged (PR #3)** | Rename to `ke-workbench`, Rust workspace scaffold, frontend relocated to `frontend/`, CI/CD wired, fixtures snapshotted from platform repo. |
 | **Gate 1 — Canonical IR** | Complete — log: [`docs/gate-1-implementation-log.md`](docs/gate-1-implementation-log.md) | `ke-core` IR types, canonical (postcard) encoding + strict decoder, deterministic JSON Schema, golden fixtures. 19 tests green. ADRs 0001–0003. |
-| **Gate 2 — Parser, compiler, T0/T1/T4** | **Accepted (2026-05-30)** — log: [`docs/gate-2-implementation-log.md`](docs/gate-2-implementation-log.md) | `ke-compiler` `marked-yaml` parser → AST → `RuleIR` lowering, semantic normal form + differential harness, T0/T1/T4. 23 test suites green; **live Rust↔Python differential PASS over all 7 corpus files** (platform @ recorded SOURCE.md SHA); ADR 0005 (T4 severities) signed off. ADRs 0004–0006. Ready to merge (PR #5). |
-| **Gate 3 — Preview runtime + equivalence harness** | **Complete — ready for review** on `migration/gate-3-preview-runtime` — log: [`docs/gate-3-implementation-log.md`](docs/gate-3-implementation-log.md) | `ke-runtime` tree-walk preview executor mirroring the Python `RuleRuntime` (CPython-faithful operators, normalized trace), deterministic scenario generator, property/metamorphic tests. **Live Rust↔Python equivalence PASS over 1326 generated scenarios** (platform @ recorded SOURCE.md SHA); 35 golden trace fixtures. tz-optional IR amendment (ADR 0007) — Gate 2 differential still 7/7. ADRs 0007–0008. 71 tests across 28 suites. |
+| **Gate 2 — Parser, compiler, T0/T1/T4** | **Accepted (2026-05-30)** — log: [`docs/gate-2-implementation-log.md`](docs/gate-2-implementation-log.md) | `ke-compiler` `marked-yaml` parser → AST → `RuleIR` lowering, semantic normal form + differential harness, T0/T1/T4. 23 test suites green; **live Rust↔Python differential PASS over all 7 corpus files** (platform @ recorded SOURCE.md SHA); ADR 0005 (T4 severities) signed off. ADRs 0004–0006. **Merged (PR #5)**. |
+| **Gate 3 — Preview runtime + equivalence harness** | **Merged 2026-05-31 (PR #6)** — log: [`docs/gate-3-implementation-log.md`](docs/gate-3-implementation-log.md) | `ke-runtime` tree-walk preview executor mirroring the Python `RuleRuntime` (CPython-faithful operators, normalized trace), deterministic scenario generator, property/metamorphic tests. **Live Rust↔Python equivalence PASS over 1326 generated scenarios** (platform @ recorded SOURCE.md SHA); 35 golden trace fixtures. tz-optional IR amendment (ADR 0007) — Gate 2 differential still 7/7. ADRs 0007–0008. 71 tests across 28 suites. |
+| **Gate 4 — Artifact, registry, attestation** | **Next — brief authored; blocked on §21 prerequisites** — brief: [`dev/briefs/gate-4-artifact-registry-attestation.md`](dev/briefs/gate-4-artifact-registry-attestation.md) | `ke-artifact` canonical encoding + BLAKE3 content addressing + ed25519 compiler signature, typed expert attestations + rejection rules, the §9 registry state machine over an S3 v1 model, and the `ke-artifact-py` PyO3 wheel (S3 PEP 503 index). Carries forward the ADR 0007/0008 Gate-4 readiness decisions. **Blocked on** key-authority + revocation, timestamp-authority, and T2/T3 policy/sidecar decisions (spec §21) — resolved as ADRs 0009+ before Phase 1. |
 
-`ke-core`, `ke-compiler`, and `ke-runtime` are functional (Gates 1–3).
-`ke-artifact`, `ke-cli`, and `ke-wasm` are scaffolds, filled in Gates 4–5. The
-`ke-runtime` executor lib is wasm-clean (Gate 5 will wrap it for browser
-dry-run). The frontend continues to consume an external backend via
+Gates 1–3 are **merged to `main`**; `ke-core`, `ke-compiler`, and `ke-runtime`
+are functional. `ke-artifact`, `ke-cli`, and `ke-wasm` are scaffolds — Gate 4
+fills `ke-artifact` (+ the registry inside `ke-cli`); `ke-cli serve` and
+`ke-wasm` land in Gate 5. The `ke-runtime` executor lib is wasm-clean (Gate 5
+will wrap it for browser dry-run). The frontend continues to consume an external
+backend via
 `VITE_API_URL` and is preserved through Gate 4 (see [CLAUDE.md](CLAUDE.md)).
 
 ---
@@ -224,11 +227,11 @@ The script expects `institutional-defi-platform-api` as a sibling of
 
 | Gate | Scope | Status |
 |------|-------|--------|
-| **0** | Repo synthesis: rename, restructure, Rust scaffold, CLAUDE.md, CI | **complete (awaiting merge)** |
+| **0** | Repo synthesis: rename, restructure, Rust scaffold, CLAUDE.md, CI | **merged (PR #3)** |
 | **1** | Canonical IR, artifact bytes, golden fixtures, JSON Schema | **complete** |
 | **2** | YAML parser, compiler, T0/T1/T4 verification + conflict taxonomy | **accepted** (live differential PASS + ADR 0005 signed) |
-| **3** | Rust preview runtime + fuzzed equivalence vs Python `RuleRuntime` | **complete — ready for review** (live equivalence PASS over 1326 scenarios; ADRs 0007–0008, incl. Gate-4 readiness decisions) |
-| **4** | `ke-artifact` canonical encoding + signing + `ke-artifact-py` PyO3 wheel + registry; platform unblock | pending |
+| **3** | Rust preview runtime + fuzzed equivalence vs Python `RuleRuntime` | **merged (PR #6)** — live equivalence PASS over 1326 scenarios; ADRs 0007–0008 (incl. Gate-4 readiness decisions) |
+| **4** | `ke-artifact` canonical encoding + signing + `ke-artifact-py` PyO3 wheel + registry; platform unblock | **next** — [brief](dev/briefs/gate-4-artifact-registry-attestation.md) authored; blocked on §21 prerequisites (key authority, TSA, T2/T3 policy/sidecar) → ADRs 0009+ |
 | **5** | `ke-cli serve` (REST + WS), WASM bindings, page-by-page frontend rewire | pending |
 | **6** | Platform cutover: Temporal artifact pinning, removal of Python KE module | pending |
 
