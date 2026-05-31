@@ -50,7 +50,8 @@ pub fn scalar_to_value(node: &MarkedScalarNode) -> ScalarValue {
 /// Parse an integer or fixed-point decimal literal into `ScalarValue::Decimal`.
 /// Returns `None` for anything that is not a plain `[-]?digits(.digits)?`
 /// (e.g. scientific notation, hex, or non-numeric strings — those stay strings).
-fn parse_decimal(s: &str) -> Option<ScalarValue> {
+/// Shared with `python_import` (which feeds it the JSON literal of a number).
+pub(crate) fn parse_decimal(s: &str) -> Option<ScalarValue> {
     let t = s.trim();
     if t.is_empty() {
         return None;

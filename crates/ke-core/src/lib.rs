@@ -24,6 +24,7 @@ pub mod examples;
 pub mod ir;
 pub mod manifest;
 pub mod schema;
+pub mod semantic;
 pub mod version;
 
 pub use version::{

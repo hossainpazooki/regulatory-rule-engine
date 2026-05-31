@@ -84,9 +84,9 @@ fn lower_condition(c: &AstCondition) -> Result<Condition, CompileError> {
 }
 
 /// Map a YAML operator string to the closed `Operator` enum. Mirrors the
-/// platform `OPERATOR_MAP`.
-fn lower_operator(op: &Spanned<String>) -> Result<Operator, CompileError> {
-    Ok(match op.value.as_str() {
+/// platform `OPERATOR_MAP`. Shared with `python_import`.
+pub(crate) fn operator_from_str(s: &str) -> Option<Operator> {
+    Some(match s {
         "==" | "=" => Operator::Eq,
         "!=" | "<>" => Operator::NotEq,
         "in" => Operator::In,
@@ -96,13 +96,13 @@ fn lower_operator(op: &Spanned<String>) -> Result<Operator, CompileError> {
         ">=" => Operator::Gte,
         "<=" => Operator::Lte,
         "exists" => Operator::Exists,
-        other => {
-            return Err(CompileError::new(
-                format!("unknown operator `{other}`"),
-                op.span,
-            ))
-        }
+        _ => return None,
     })
+}
+
+fn lower_operator(op: &Spanned<String>) -> Result<Operator, CompileError> {
+    operator_from_str(&op.value)
+        .ok_or_else(|| CompileError::new(format!("unknown operator `{}`", op.value), op.span))
 }
 
 fn lower_decision(d: &Spanned<AstDecision>) -> Result<DecisionEntry, CompileError> {

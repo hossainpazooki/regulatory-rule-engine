@@ -15,10 +15,13 @@ pub mod ast;
 pub mod error;
 pub mod lower;
 pub mod parser;
+pub mod python_import;
 pub mod value;
+pub mod verify;
 
 pub use error::CompileError;
 use ke_core::ir::RuleIR;
+use ke_core::semantic::SemanticRule;
 
 /// Parse and lower a YAML document into one or more canonical rules.
 pub fn compile_rules(source: &str) -> Result<Vec<RuleIR>, CompileError> {
@@ -26,4 +29,12 @@ pub fn compile_rules(source: &str) -> Result<Vec<RuleIR>, CompileError> {
         .iter()
         .map(lower::lower_rule)
         .collect()
+}
+
+/// Compile a YAML document straight to semantic normal forms (one per rule).
+pub fn compile_to_semantic(source: &str) -> Result<Vec<SemanticRule>, CompileError> {
+    Ok(compile_rules(source)?
+        .iter()
+        .map(SemanticRule::from_rule)
+        .collect())
 }
