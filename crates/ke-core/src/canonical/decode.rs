@@ -178,7 +178,11 @@ fn validate_window(w: &EffectiveWindow) -> Result<(), CanonicalDecodeError> {
     if let Some(to) = &w.effective_to {
         ordering::check_date(to.year, to.month, to.day)?;
     }
-    validate_time_zone(&w.jurisdiction_time_zone)
+    // Optional zone (ADR 0007).
+    if let Some(tz) = &w.jurisdiction_time_zone {
+        validate_time_zone(tz)?;
+    }
+    Ok(())
 }
 
 fn validate_time_zone(tz: &TimeZone) -> Result<(), CanonicalDecodeError> {

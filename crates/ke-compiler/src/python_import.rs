@@ -12,11 +12,9 @@ use crate::value::parse_decimal;
 use ke_core::ir::{
     Condition, ConditionGroupSpec, ConditionOrGroup, DecisionEntry, DecisionLeaf, DecisionNode,
     DocumentRef, EffectiveWindow, JurisdictionDate, ObligationSpec, ProvenanceMarker, RuleIR,
-    ScalarValue, TimeZone,
+    ScalarValue,
 };
 use serde_json::Value;
-
-const DEFAULT_TZ_DATA_VERSION: &str = "2025a";
 
 /// Import one rule, or a JSON array of rules.
 pub fn import_rules(v: &Value) -> Result<Vec<RuleIR>, CompileError> {
@@ -250,10 +248,8 @@ fn import_window(
             Some(s) => Some(parse_date(&s)?),
             None => None,
         },
-        jurisdiction_time_zone: TimeZone {
-            name: "UTC".to_string(),
-            tz_data_version: DEFAULT_TZ_DATA_VERSION.to_string(),
-        },
+        // ADR 0007: the platform rule carries no authored zone → `None`.
+        jurisdiction_time_zone: None,
         effective_time_policy: None,
     }))
 }

@@ -100,7 +100,9 @@ fn window(from: JurisdictionDate) -> EffectiveWindow {
     EffectiveWindow {
         effective_from: from,
         effective_to: None,
-        jurisdiction_time_zone: tz(),
+        // Example keeps a zone (ADR 0007 made it optional); the corpus None path
+        // is exercised by the ke-compiler lowering/round-trip tests.
+        jurisdiction_time_zone: Some(tz()),
         effective_time_policy: None,
     }
 }

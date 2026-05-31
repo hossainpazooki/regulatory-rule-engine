@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ke-workbench.dev/schema/ir/0.2.0/ir.schema.json",
+  "$id": "https://ke-workbench.dev/schema/ir/0.3.0/ir.schema.json",
   "title": "ke-workbench RuleIR",
   "description": "Canonical intermediate-representation schema for ke-workbench rule artifacts. The root document is a RuleIR. Authoritative for downstream model generation (platform Pydantic/msgspec, frontend types). See docs/canonical-encoding.md and the Gate 1 brief.",
   "type": "object",
@@ -439,7 +439,14 @@
           ]
         },
         "jurisdiction_time_zone": {
-          "$ref": "#/$defs/TimeZone"
+          "oneOf": [
+            {
+              "$ref": "#/$defs/TimeZone"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "effective_time_policy": {
           "oneOf": [
@@ -453,8 +460,7 @@
         }
       },
       "required": [
-        "effective_from",
-        "jurisdiction_time_zone"
+        "effective_from"
       ],
       "additionalProperties": false
     },

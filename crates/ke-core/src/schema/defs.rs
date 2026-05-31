@@ -311,13 +311,14 @@ fn effective_window() -> Value {
         vec![
             ("effective_from", s_ref("JurisdictionDate")),
             ("effective_to", s_nullable(s_ref("JurisdictionDate"))),
-            ("jurisdiction_time_zone", s_ref("TimeZone")),
+            // Optional zone (ADR 0007): nullable, not required.
+            ("jurisdiction_time_zone", s_nullable(s_ref("TimeZone"))),
             (
                 "effective_time_policy",
                 s_nullable(s_ref("EffectiveTimePolicy")),
             ),
         ],
-        vec!["effective_from", "jurisdiction_time_zone"],
+        vec!["effective_from"],
     )
 }
 

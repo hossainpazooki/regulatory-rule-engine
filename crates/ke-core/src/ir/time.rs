@@ -48,12 +48,17 @@ pub enum EffectiveTimePolicy {
     MidnightLocal,
 }
 
-/// A legal effective window. Closed-open semantics `[from, to)` are enforced at
-/// runtime (Gate 3); Gate 1 stores the fields and validates structure.
+/// A legal effective window. Closed-open semantics `[from, to)` are enforced in
+/// the Gate 3 preview runtime (`ke_runtime::effective`).
+///
+/// `jurisdiction_time_zone` is **optional** (ADR 0007): a date-only rule (the
+/// corpus case) carries `None` — no invented zone enters canonical bytes. When a
+/// zone is authored/derived (Gate 4 publish-time), `Some(tz)` is unchanged. This
+/// refines ADR 0001 (zone present *when authored*, not *always present*).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EffectiveWindow {
     pub effective_from: JurisdictionDate,
     pub effective_to: Option<JurisdictionDate>,
-    pub jurisdiction_time_zone: TimeZone,
+    pub jurisdiction_time_zone: Option<TimeZone>,
     pub effective_time_policy: Option<EffectiveTimePolicy>,
 }
