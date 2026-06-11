@@ -132,12 +132,40 @@ fn stringify(v: &ScalarValue) -> String {
 
 // --- contradiction --------------------------------------------------------
 
-/// If some path of `a` and some path of `b` are mutually consistent (no shared
-/// condition assigned both ways) but reach different results, return that pair.
+/// If some path of `a` and some path of `b` describe a **shared scenario** (ADR
+/// 0005) yet reach different results, return that pair.
+///
+/// "Shared scenario" is the load-bearing notion. The caller has already
+/// established that the two rules' *applicability* scopes overlap
+/// (`scopes_overlap`). On top of that, a contradiction requires the two decision
+/// **paths** to be (a) mutually consistent — no branch condition assigned both
+/// ways — *and* (b) genuinely co-extensive: they must pin down the same scenario,
+/// not merely answer different questions that happen to share a broad
+/// applicability premise. Co-extensive means the paths share at least one
+/// decision-branch variable, or both rules are leaf-only (so the shared
+/// applicability scope alone fixes the scenario — the `contradictory.yaml` case).
+///
+/// Without (b), two rules that only coincide on a broad premise like
+/// `jurisdiction == UK` but branch on disjoint variables (e.g. one on
+/// `risk_warning_present`, the other on `investor_type`) were reported as
+/// `ContradictoryOutcome` purely because their result *vocabularies* differ —
+/// the compiler asserting legal incompatibility between rules answering unrelated
+/// questions. That is a legal judgment the compiler must not make (CLAUDE.md:
+/// "structural validity only; never legal truth"), and it contradicts ADR 0005's
+/// own definition ("incompatible decision results *for a shared scenario*").
+///
+/// Bounded-detection trade-off (ADR 0005 §Consequences): requiring a shared
+/// branch variable can miss a contradiction between a leaf-only rule and a
+/// branched rule over the same scope. Such cases are left to Gate-3 counterexample
+/// generation; pairs that lose `ContradictoryOutcome` still surface as
+/// `OverlappingScope` (Review-required).
 fn contradiction(a: &SemanticRule, b: &SemanticRule) -> Option<(String, String)> {
     for pa in &a.decision_paths {
         for pb in &b.decision_paths {
-            if paths_consistent(pa, pb) && pa.outcome.result != pb.outcome.result {
+            if pa.outcome.result != pb.outcome.result
+                && paths_consistent(pa, pb)
+                && shared_scenario(pa, pb)
+            {
                 return Some((pa.outcome.result.clone(), pb.outcome.result.clone()));
             }
         }
@@ -145,6 +173,9 @@ fn contradiction(a: &SemanticRule, b: &SemanticRule) -> Option<(String, String)>
     None
 }
 
+/// Two paths are mutually consistent if no shared branch condition is assigned
+/// both `true` and `false` (a necessary, not sufficient, condition for a shared
+/// scenario).
 fn paths_consistent(pa: &SemPath, pb: &SemPath) -> bool {
     let mut assign: BTreeMap<&SemCond, bool> = BTreeMap::new();
     for br in &pa.branches {
@@ -158,6 +189,28 @@ fn paths_consistent(pa: &SemPath, pb: &SemPath) -> bool {
         }
     }
     true
+}
+
+/// Whether two consistent paths describe the *same* scenario rather than answering
+/// orthogonal questions: they must constrain a common decision variable, or both
+/// be leaf-only (in which case the caller-verified applicability overlap fixes the
+/// scenario). See [`contradiction`] for why vacuous "no shared condition" is not
+/// enough.
+fn shared_scenario(pa: &SemPath, pb: &SemPath) -> bool {
+    let fa: BTreeSet<&str> = pa
+        .branches
+        .iter()
+        .map(|br| br.cond.field.as_str())
+        .collect();
+    let fb: BTreeSet<&str> = pb
+        .branches
+        .iter()
+        .map(|br| br.cond.field.as_str())
+        .collect();
+    if !fa.is_disjoint(&fb) {
+        return true; // the paths pin a common decision variable
+    }
+    fa.is_empty() && fb.is_empty() // both leaf-only: shared applicability scope is the scenario
 }
 
 // --- temporal -------------------------------------------------------------
