@@ -46,11 +46,16 @@ Gate 3:
 - [0007 Effective windows in the preview runtime (tz optional; `[from,to)` preview-only)](0007-effective-window-preview-runtime.md) — spec § 8.4 — **Accepted**
 - [0008 Execution equivalence boundary and `FactValue` representation](0008-execution-equivalence-boundary.md) — spec § 20 — **Accepted**
 
+Gate 4 (prerequisites — **Proposed**, pending Hossain + security/domain sign-off
+before Phase 1; see `dev/briefs/gate-4-artifact-registry-attestation.md` §2):
+
+- [0009 Expert key authority, key lifecycle, and revocation behavior](0009-expert-key-authority-and-revocation.md) — spec § 21.1, § 21.6, § 20 — **Proposed**
+- [0010 Trusted timestamp authority for typed attestations](0010-trusted-timestamp-authority.md) — spec § 21.5, § 10 — **Proposed**
+- [0011 T2/T3 publication policy + sidecar deployment](0011-t2t3-publication-policy-and-sidecar-deployment.md) — spec § 21.2, § 21.3, § 11 — **Proposed**
+- [0012 S3 registry layout + PEP 503 package index layout](0012-s3-registry-and-pep503-index-layout.md) — spec § 21 (resolved persistence), § 14 — **Proposed**
+- [0013 Revocation policy reconciliation (§15) + rollback-target eligibility](0013-revocation-policy-reconciliation.md) — spec § 15 — **Proposed** (canon bump 0.3.0→0.4.0 if accepted)
+- [0014 Audit/observability contract (§18) ownership + pre-freeze field model](0014-audit-contract-ownership.md) — spec § 18 — **Proposed**
+
 Anticipated (later gates — numbers assigned when authored):
 
-- Registry persistence model — S3 manifest layout (spec § 21 resolved) — Gate 4
-- `ke-artifact-py` S3-backed PEP 503 index layout (spec § 21 resolved) — Gate 4
-- Expert key authority (spec § 21.1) — Gate 4
-- Trusted timestamp authority (spec § 21.5) — Gate 4
-- T2/T3 sidecar deployment (spec § 21.3) — Gate 4
 - Package-manager choice (spec § 21.9) — only if pnpm is later adopted

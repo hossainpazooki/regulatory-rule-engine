@@ -125,10 +125,25 @@ These Gate-3 "Gate-4 readiness decisions" are inputs to this gate, not open:
 Phased to keep the doc-each-phase convention; sequenced so each phase is
 independently verifiable.
 
-- **Phase 0 — prerequisite ADRs + attestation schema.** The §2 ADRs (0009–0012);
-  finalize the typed attestation schema (§10 bound fields) in
-  `docs/attestation-schema.md`; author/seed the **platform-repo brief** (separate
-  repo). *No code.*
+- **Phase 0 — prerequisite ADRs + attestation schema.** The §2 ADRs (0009–0012)
+  **plus ADR 0013** (revocation-policy reconciliation — the only canon-bumping
+  prerequisite, sequence first) and **ADR 0014** (§18 audit-contract ownership +
+  pre-freeze field model). All six are drafted **Proposed** and need Hossain +
+  security/domain sign-off before Phase 1. Finalize the typed attestation schema
+  (§10 bound fields) in `docs/attestation-schema.md` (done — Proposed). Author the
+  **platform-repo brief** (separate repo) against
+  `dev/briefs/gate-4-platform-consumption-OUTLINE.md`. *No code.*
+  - **Hard prerequisite, not in the original §23 checklist:** the T4
+    `contradictory_outcome` detector must first be fixed so `verify()` over the
+    clean corpus yields `has_blocking() == false` (done — Gate-2 remediation, ADR
+    0005 amendment + `crates/ke-compiler/tests/t4_corpus.rs`). Until that landed,
+    no artifact could reach `draft → structurally_verified` (§9) and Gate 4 had
+    nothing to attest.
+  - **Sequencing:** ADR 0013's canon bump (`0.3.0/ke-canon-3 → 0.4.0/ke-canon-4`)
+    is absorbed in a single Phase-1 "canon-4 landing" so the corpus regenerates
+    once; ADRs 0009/0011/schema bind to the post-0013 `RevocationPolicy` names.
+    ADR 0014's static-field decision must be settled before the attestation schema
+    freezes (else a post-freeze §18 retrofit forces re-attestation).
 - **Phase 1 — `ke-artifact` core encoding + content addressing + signature.**
   - `crates/ke-artifact/src/artifact.rs` — the `Artifact` assembly (§8.1):
     `manifest`, `compiled_ir`, `source_span_index`, `consistency_block`,
