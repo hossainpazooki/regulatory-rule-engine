@@ -359,6 +359,7 @@ version = "0.0.0"
 dependencies = [
  "blake3",
  "ed25519-dalek",
+ "ke-artifact",
  "ke-core",
  "postcard",
  "serde",

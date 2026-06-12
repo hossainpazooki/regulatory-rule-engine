@@ -12,6 +12,12 @@ description = "Canonical encoding, BLAKE3 content addressing, ed25519 signatures
 default = []
 # Enable PyO3 bindings used by ke-artifact-py (see spec § 14).
 pyo3 = []
+# Fixed-seed deterministic test keys (`sign::test_keys`). Gate 4 plan Rev 2
+# correction #2: `cfg(test)` is invisible to bin targets, so the fixed-seed
+# module is feature-gated instead. Never enable in production builds; every
+# signature produced with these keys carries `key_id = "test-fixed-seed-1"`.
+# NEVER use OsRng/getrandom for keys (windows-gnu toolchain, brief § 3.3).
+test-keys = []
 
 [dependencies]
 ke-core = { path = "../ke-core" }
@@ -20,3 +26,15 @@ postcard = { workspace = true }
 blake3 = { workspace = true }
 ed25519-dalek = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+# Self-dependency so integration tests under tests/ see `sign::test_keys`:
+# `cfg(test)` applies only to unit tests, not to the library as compiled for
+# integration-test targets. Feature unification enables `test-keys` for all
+# test builds of this crate while `cargo build -p ke-artifact` stays clean.
+ke-artifact = { path = ".", features = ["test-keys"] }
+
+[[bin]]
+name = "gen-golden-artifacts"
+path = "src/bin/gen-golden-artifacts.rs"
+required-features = ["test-keys"]
