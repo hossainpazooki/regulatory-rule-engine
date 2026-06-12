@@ -206,10 +206,9 @@ This document binds the **field semantics, signature/timestamp envelope, and
 rejection rules** onto those shapes. Two shape gaps noted for the relevant
 work-items (out of scope here, do not silently patch):
 
-- `RevocationPolicy` (`HaltImmediately` / `FinishPinnedThenHalt` /
-  `FinishPinnedNoNew`) does **not** match spec §15's named policies
-  (hard-stop / finish-pinned / **audit-only**) — `audit-only` is dropped.
-  Reconcile under ADR 0013 (revocation policy reconciliation), not here.
+- `RevocationPolicy` — **resolved (ADR 0013, landed with the canon-4 bump to
+  `0.4.0` / `ke-canon-4`):** the enum is now spec §15's named policies in §15
+  order (`HardStop` / `FinishPinned` / `AuditOnly`).
 - `interpretation_notes` is one rule-level `Option<String>`
   (`crates/ke-core/src/ir/rule.rs`); spec §17 wants per-branch coverage. The
   `interpretation` attestation binds `rule_ids` today; per-branch binding is a

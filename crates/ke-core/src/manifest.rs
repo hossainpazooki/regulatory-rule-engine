@@ -79,12 +79,16 @@ pub enum AttestationType {
     PublicationApproval,
 }
 
-/// Revocation behavior for already-running workflows (spec § 15).
+/// Revocation behavior for already-running and new workflows (spec § 15).
+/// Variant order is the canonical discriminant order; declared in § 15 order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RevocationPolicy {
-    HaltImmediately,
-    FinishPinnedThenHalt,
-    FinishPinnedNoNew,
+    /// § 15 "hard stop": fail any workflow attempting to execute.
+    HardStop,
+    /// § 15 "finish pinned": allow already-started workflows to finish; block new starts.
+    FinishPinned,
+    /// § 15 "audit-only": allow execution; emit a high-severity audit event.
+    AuditOnly,
 }
 
 /// One entry of the `minimum_attestation_count_per_type` map. Encoded as a

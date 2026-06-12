@@ -268,7 +268,7 @@ pub fn policy() -> (String, PolicyBundle) {
                 },
             ],
         },
-        revocation_policy: RevocationPolicy::FinishPinnedNoNew,
+        revocation_policy: RevocationPolicy::FinishPinned,
         effective_window: window(JurisdictionDate::new(2024, 6, 30)),
     };
     ("policy_production_eu".to_string(), bundle)

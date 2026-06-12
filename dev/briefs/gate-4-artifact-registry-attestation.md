@@ -112,9 +112,10 @@ These Gate-3 "Gate-4 readiness decisions" are inputs to this gate, not open:
 - **`ke-artifact-py` index v1 = S3-backed PEP 503 simple index**, exact version +
   hash pinned in the platform repo.
 - **Codec = postcard-1** (ADR 0002); **content hash = BLAKE3**; **signature =
-  ed25519** (spec §8). Canonical encoding profile + version triplet
-  (`0.3.0` / `ke-canon-3` / `postcard-1`) is the Gate-1–3 contract; any Gate-4
-  shape change bumps it and regenerates golden vectors atomically.
+  ed25519** (spec §8). Canonical encoding profile + version triplet is now
+  (`0.4.0` / `ke-canon-4` / `postcard-1`) — the ADR 0013 canon-4 landing bumped
+  the Gate-1–3 contract (`0.3.0` / `ke-canon-3`) and regenerated the golden
+  vectors atomically; any further Gate-4 shape change bumps it again.
 - **Initial registry lives inside `ke-cli`** (spec §6 deferred-splits); a
   `ke-registry` crate splits out only when persistence/policy APIs stabilize.
 
@@ -140,8 +141,9 @@ independently verifiable.
     no artifact could reach `draft → structurally_verified` (§9) and Gate 4 had
     nothing to attest.
   - **Sequencing:** ADR 0013's canon bump (`0.3.0/ke-canon-3 → 0.4.0/ke-canon-4`)
-    is absorbed in a single Phase-1 "canon-4 landing" so the corpus regenerates
-    once; ADRs 0009/0011/schema bind to the post-0013 `RevocationPolicy` names.
+    was absorbed in a single Phase-1 "canon-4 landing" (**landed**: enum
+    reconciled, triplet bumped, corpus regenerated once); ADRs 0009/0011/schema
+    bind to the post-0013 `RevocationPolicy` names.
     ADR 0014's static-field decision must be settled before the attestation schema
     freezes (else a post-freeze §18 retrofit forces re-attestation).
 - **Phase 1 — `ke-artifact` core encoding + content addressing + signature.**
