@@ -1,6 +1,6 @@
 # 0011. T2/T3 publication policy + sidecar deployment
 
-**Status:** Proposed
+**Status:** Accepted (sign-off by Hossain, 2026-06-11)
 **Date:** 2026-06-11
 **Spec references:** § 11 (verification model / policy modes / `ConsistencyBlock` / T2/T3 sidecar ownership), § 21.2 (T2/T3 production policy), § 21.3 (T2/T3 sidecar deployment), § 20 (T2/T3 publish gap), § 10 (typed attestations), § 9 (lifecycle state machine), § 4.5 (platform-repo access)
 
@@ -30,7 +30,7 @@ This ADR does **not** resolve, and is not blocked by, the separate T4 `contradic
 
 ## Decision
 
-This ADR is **Proposed**. The recommendations below are starting points for Hossain + the security and domain reviewers; the AI may propose but not decide. No LLM/AI code sits anywhere in the verification, attestation, or publish path — T2/T3 produces evidence consumed by deterministic registry logic.
+This ADR was proposed under the AI authority boundary and is **Accepted** (sign-off by Hossain, 2026-06-11). One operational item remains open after acceptance: which evidence path (B1 vs B2, Decision B) production standardizes on. No LLM/AI code sits anywhere in the verification, attestation, or publish path — T2/T3 produces evidence consumed by deterministic registry logic.
 
 ### Decision A — T2/T3 publication policy (§ 21.2, § 11 policy modes)
 

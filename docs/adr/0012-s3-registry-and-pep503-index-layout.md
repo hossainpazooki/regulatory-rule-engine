@@ -1,15 +1,15 @@
 # 0012. S3 registry layout + S3-backed PEP 503 package index layout
 
-**Status:** Proposed
+**Status:** Accepted (sign-off by Hossain, 2026-06-11)
 **Date:** 2026-06-11
 **Spec references:** §8.1 (artifact structure), §9 (lifecycle state machine), §14 (cross-repo integration / `ke-artifact-py` packaging), §15 (pinning, rollback, revocation), §16.6 (flat-file `.kew` export), §18 (audit reconstruction), §21 (resolved: persistence = S3)
 **Brief references:** `dev/briefs/gate-4-artifact-registry-attestation.md` §2 row 5, §4, §5 (Phase 3 / Phase 4)
 **Gate:** 4 (Before-Gate-4 checklist item: "S3 + PEP 503 layouts documented")
 
-> This ADR is **Proposed**. The AI may propose, never decide (CLAUDE.md authority
-> boundary). The recommended-v1 layout below needs Hossain + security/retention
-> sign-off before Phase 1. No LLM/AI code sits anywhere in the registry, signing,
-> or index path; resolution and write paths are deterministic.
+> Accepted 2026-06-11 (sign-off by Hossain). The v1 layout below is decided; the
+> Object-Lock retention period remains an open retention-owner parameter. No
+> LLM/AI code sits anywhere in the registry, signing, or index path; resolution
+> and write paths are deterministic.
 
 ## Context
 
@@ -126,7 +126,8 @@ Convention is insufficient. The layout is enforced as:
 - **Hash-chained events** make a *gap* detectable even if the WORM layer were
   somehow bypassed: a verifier walking `0000..N` checks each `prev_event_hash`.
 
-Trade-off accepted for sign-off: compliance-mode Object Lock is irreversible and
+Trade-off accepted at sign-off (the retention period itself remains an open
+retention-owner parameter): compliance-mode Object Lock is irreversible and
 imposes a hard minimum retention. The reversible alternative (governance mode +
 an SCP denying the bypass permission) is weaker against a root/account compromise
 and is listed under Alternatives.

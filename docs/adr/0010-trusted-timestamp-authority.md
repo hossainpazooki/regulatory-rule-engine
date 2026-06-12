@@ -1,14 +1,14 @@
 # 0010. Trusted timestamp authority for typed attestations
 
-**Status:** Proposed
+**Status:** Accepted (sign-off by Hossain, 2026-06-11)
 **Date:** 2026-06-11
 **Spec references:** §10 (typed attestation model — bound `timestamp from a trusted timestamp authority`; "Timestamp authority" subsection), §21.5 (open decision — trusted timestamp authority), §9 (lifecycle — registry events as the time anchor), §20 (risks — key compromise / stale attestation)
 **Brief references:** `dev/briefs/gate-4-artifact-registry-attestation.md` §2 (decision 2), §8 ("Expert key compromise / stale attestation")
 **Gate:** 4 (prerequisite — must be resolved before Phase 1 per §23)
 
-> This ADR is **Proposed**, not Accepted. The AI may propose; it may not decide.
-> Final provider selection is procurement/legal and requires **Hossain + org
-> security/legal/domain sign-off** (see Consequences → "Sign-off required").
+> Accepted 2026-06-11 (sign-off by Hossain). Final provider selection remains
+> a **procurement/legal** open item (see Consequences → "Open operational
+> items"); production publish stays blocked until a real TSA is onboarded.
 > No LLM/AI code appears anywhere in the timestamping, signing, attestation, or
 > registry path ([[project-llm-authority-boundary]]).
 
@@ -71,7 +71,7 @@ reproducible byte-for-byte.
 ## Decision
 
 **1. v1 production authority = an RFC 3161-compatible *external* timestamp
-provider (recommended; needs sign-off).** Production attestations are stamped by
+provider (accepted 2026-06-11; concrete vendor selection still open).** Production attestations are stamped by
 a third-party RFC 3161 TSA that returns a signed timestamp token (TSTInfo) over
 the hash of the attestation's signed content. The provider is independent of the
 party holding the expert signing keys, so the signer cannot unilaterally choose
@@ -170,10 +170,10 @@ and onboards a provider:
   this invariant needs an explicit test in Phase 3 (a production publish of a
   mock-stamped artifact must fail with a specific policy error).
 
-**Sign-off required (this ADR is Proposed, not Accepted)**
-- **Hossain + org security:** approve external-vs-internal TSA for v1; select the
-  concrete RFC 3161 provider; approve the tolerated TSA/registry skew bound and
-  the TSA key-rotation/trust-anchor policy.
+**Open operational items (Accepted 2026-06-11; the items below remain open)**
+- **Hossain + org security:** select the concrete RFC 3161 provider; approve the
+  tolerated TSA/registry skew bound and the TSA key-rotation/trust-anchor policy.
+  (External-vs-internal for v1 is decided: external.)
 - **Org legal/procurement:** complete TSA contract, jurisdiction, and retention
   review; this is the gating item for the production publish path.
 - **Domain reviewer:** confirm the monotonic-ordering rule (attestation

@@ -1,6 +1,6 @@
 # 0013. Revocation policy reconciliation (§15) and rollback-target eligibility
 
-**Status:** Proposed
+**Status:** Accepted (sign-off by Hossain, 2026-06-11)
 **Date:** 2026-06-11
 **Spec references:** § 15 (runtime selection, pinning, rollback, revocation), § 8.1 (manifest / PolicyBundle), § 21.6 (revocation behavior — open)
 **Amends:** Gate 1 IR / canonical encoding (ADR 0002, ADR 0006, ADR 0007, `docs/canonical-encoding.md`); proposes a clarifying amendment to spec § 15.
@@ -50,14 +50,13 @@ silently re-admit a withdrawn artifact for new workflow starts — defeating the
 deprecation/revocation it was rolled back over. This is a registry-authority gap
 (CLAUDE.md: the registry is the only authority that transitions lifecycle state).
 
-This ADR is authored under the AI authority boundary: it **proposes** options
-and a recommended v1. The enum semantics require domain-expert and security
-sign-off, and the canonicalization bump must be sequenced with the other Gate-4
-canon-touching ADRs. Status remains **Proposed** until Hossain accepts.
+This ADR was authored under the AI authority boundary and is **Accepted**
+(sign-off by Hossain, 2026-06-11). The canonicalization bump remains sequenced
+with the other Gate-4 canon-touching ADRs.
 
 ## Decision
 
-**Decision 1 — change the enum to match § 15 (recommended v1).** Replace the
+**Decision 1 — change the enum to match § 15 (accepted v1).** Replace the
 three as-built variants with the three spec-named modes, declared in § 15 order
 so the canonical discriminant order is legible:
 

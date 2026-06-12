@@ -1,6 +1,6 @@
 # 0009. Expert key authority, key lifecycle, and revocation behavior
 
-**Status:** Proposed
+**Status:** Accepted (sign-off by Hossain, 2026-06-11)
 **Date:** 2026-06-11
 **Spec references:** § 21.1, § 21.6, § 20 ("Expert key compromise or stale attestation"), § 10 (typed attestation bound fields: signer identity / key ID / signer role), § 9 (lifecycle state machine), § 15 (revocation events, platform behavior by state), § 18 (audit contract)
 
@@ -22,11 +22,11 @@ Constraints that bound the decision:
 
 - **ed25519 + postcard only in the verification path.** ADR 0002 (postcard codec) and spec § 8 fix signatures at ed25519 and the codec at postcard-1. Any option dragging X.509/ASN.1 or CRL/OCSP parsing into the artifact verification path conflicts with that minimalism and couples the Python consumer to a CA stack.
 - **Deterministic test keys (brief § 3.3, MEMORY: `toolchain-windows-gnu-getrandom-dlltool`).** ed25519 signing is deterministic (RFC 8032); CI must not pull `getrandom`/OS randomness. Production keygen lives behind the key-authority boundary this ADR defines; tests use fixed keys.
-- **Authority boundary (CLAUDE.md § "Authority boundaries").** Only domain-expert keys sign typed attestations; only the registry transitions lifecycle state; the compiler is structural only; **no LLM/AI code may sign, attest, publish, or modify rules** in any path. This ADR proposes; Hossain plus the security and domain reviewers decide. Status stays **Proposed**.
+- **Authority boundary (CLAUDE.md § "Authority boundaries").** Only domain-expert keys sign typed attestations; only the registry transitions lifecycle state; the compiler is structural only; **no LLM/AI code may sign, attest, publish, or modify rules** in any path. This ADR was proposed under that boundary and **Accepted** (sign-off by Hossain, 2026-06-11).
 
 ## Decision
 
-> All choices below are **recommended v1 starting points requiring sign-off**, not decisions the author can make. The § 23 checklist boxes for § 21.1 / § 21.6 remain unchecked until Hossain + security + domain reviewers approve.
+> Accepted 2026-06-11 (sign-off by Hossain); the choices below are the decided v1. Two operational items remain open after acceptance: the IdP-backed vs self-managed pick (§ 1) and the retroactive-vs-prospective compromise scope (§ 5).
 
 ### 1. Expert key authority (§ 21.1)
 
@@ -66,7 +66,7 @@ The registry signs lifecycle events, tag moves, revocations, and the key directo
 
 ### 4. Revocation behavior for running pinned workflows (§ 21.6)
 
-Revocation behavior is **a function of (revocation reason class, environment policy)**, not a single global mode. Recommended v1 mapping (needs sign-off):
+Revocation behavior is **a function of (revocation reason class, environment policy)**, not a single global mode. v1 mapping (accepted 2026-06-11):
 
 | Revocation reason class | Recommended behavior | Rationale |
 |---|---|---|
@@ -85,7 +85,7 @@ A revocation event for a key triggers re-verification on **both** sides, per § 
 - **Registry-publish time.** The registry recomputes lifecycle state for every artifact whose required typed-attestation set (§ 10, § 11 policy) now fails because an attestation was signed by the revoked key. An artifact in `expert_attested` whose only `source_fidelity` attestation came from the revoked key drops below the required count → it is no longer publishable, and any `published` pointer to it is moved to `revoked` via an append-only event.
 - **Runtime time.** The platform re-checks **each attestation's signer `key_id`** against the *current* signed directory (status + expiry + authorized types) at execution time — not just at pin time. A pinned hash that was valid at pin time but whose attestation key is now revoked is handled by the § 4 behavior mapping above.
 
-**Retroactive vs prospective scope** is an explicit sign-off item: for **compromise**, treat all attestations by that key as suspect from the key's `valid_from` (retroactive); for **routine expiry/rotation**, attestations valid at signing time (per trusted timestamp, ADR 0010) remain valid (prospective). Whether retroactive compromise additionally invalidates *already-executed historical decisions* (vs only future selection/execution) is a domain/legal call left open.
+**Retroactive vs prospective scope** remains an explicit open item (not resolved by acceptance): for **compromise**, treat all attestations by that key as suspect from the key's `valid_from` (retroactive); for **routine expiry/rotation**, attestations valid at signing time (per trusted timestamp, ADR 0010) remain valid (prospective). Whether retroactive compromise additionally invalidates *already-executed historical decisions* (vs only future selection/execution) is a domain/legal call left open.
 
 ### 6. Contract reconciliation (blocking, routed out)
 

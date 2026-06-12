@@ -1,6 +1,6 @@
 # 0014. Audit/observability contract (§18) ownership and pre-freeze field model
 
-**Status:** Proposed
+**Status:** Accepted (sign-off by Hossain, 2026-06-11)
 **Date:** 2026-06-11
 **Spec references:** § 18 (audit event fields + reconstruction path), § 15 (revocation), § 17 (interpretation notes), § 19 (Gate 4 + Gate 6 acceptance), § 8 (artifact contract), § 10 (attestations), § 11 (ConsistencyBlock)
 
