@@ -147,6 +147,9 @@ independently verifiable.
     ADR 0014's static-field decision must be settled before the attestation schema
     freezes (else a post-freeze §18 retrofit forces re-attestation).
 - **Phase 1 — `ke-artifact` core encoding + content addressing + signature.**
+  **Delivered 2026-06-12** — see `docs/gate-4-implementation-log.md` (Phase 1)
+  for what landed, the byte-range contract, and the verbatim gate evidence
+  (89/0 workspace, 16/0 ke-artifact, generator idempotence, key hygiene).
   - `crates/ke-artifact/src/artifact.rs` — the `Artifact` assembly (§8.1):
     `manifest`, `compiled_ir`, `source_span_index`, `consistency_block`,
     `compiler_signature`, `attestations`, `registry_state_metadata`.

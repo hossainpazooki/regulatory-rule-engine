@@ -79,7 +79,10 @@ s3://<registry>/
 
 **Artifact objects** (`artifacts/<hash>/…`) are **content-addressed and
 WORM**. The key *is* the BLAKE3 hash, so the store is self-verifying: a reader
-recomputes BLAKE3 over `artifact.kew` and rejects on mismatch. `manifest.json`
+recomputes the content hash and rejects on mismatch — per the zero-then-patch
+derivation (Erratum, §5 step 3): extract the envelope prefix from `artifact.kew`,
+re-zero the 32-byte `artifact_hash` slot, BLAKE3 the zeroed prefix; never a
+naive hash of the raw file bytes. `manifest.json`
 and `schema.json` are non-authoritative decodings kept beside the bytes purely so
 queries and Pydantic generation (§14) don't have to decode every `.kew`; the
 authoritative artifact is always the bytes.
@@ -171,9 +174,17 @@ effective_date)` and returns a **content hash**, never a mutable handle:
    semantics; `jurisdiction_time_zone = None` honored exactly, ADR 0007/0008),
    intersected with `published` artifacts for `<env>` (per their event logs),
    pick the unique applicable hash; ambiguity is an error, not a silent choice.
-3. **Verify** the resolved object: recompute BLAKE3 over `artifact.kew` and
-   confirm it equals `<hash>`; read the event log to confirm current state is
+3. **Verify** the resolved object: ~~recompute BLAKE3 over `artifact.kew` and
+   confirm it equals `<hash>`~~; read the event log to confirm current state is
    `published` (or the explicitly requested state) for `<env>`.
+   **Erratum (2026-06-12):** the struck wording is wrong *by construction* under
+   the zero-then-patch derivation (`artifact_hash` is computed over the envelope
+   prefix with the 32-byte `artifact_hash` slot zeroed, then patched in), so
+   BLAKE3 over the raw `artifact.kew` bytes never equals `<hash>` for a valid
+   artifact. The correct verification: extract the envelope prefix from
+   `artifact.kew`, re-zero the 32-byte `artifact_hash` slot within that prefix,
+   recompute BLAKE3 over the zeroed prefix, and confirm it equals `<hash>`.
+   The naive whole-file check would reject every valid artifact.
 
 The resolver then **records, for the §18 audit, at resolution time**:
 
@@ -219,7 +230,8 @@ guarantees. Therefore:
   closing the audit's flagged gap and hardening against the §20 key-compromise
   risk.
 - Content-addressed keys make the store self-verifying; a corrupted or swapped
-  byte is caught by recomputing BLAKE3 against the key.
+  byte is caught by recomputing the content hash against the key (via the
+  zero-then-patch re-zero procedure — Erratum, §5 step 3).
 - Rollback is a pointer move with a signed event and retained pointer history —
   satisfies §15 with zero byte mutation and full auditability.
 - §18 "registry state at resolution time" is concretely sourced (highest-seq
