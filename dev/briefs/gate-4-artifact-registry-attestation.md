@@ -160,12 +160,20 @@ independently verifiable.
   - `fixtures/artifacts/` extended with §8.3 golden vectors (signed; via a
     documented generator — never hand-edited).
 - **Phase 2 — typed attestations + verification + `ConsistencyBlock`.**
+  **Delivered 2026-06-12** — see `docs/gate-4-implementation-log.md` Phase 2
+  (117/0 workspace; R1–R8 + signature/class/TSA as typed variants, each pinned
+  by a named test; attested golden vectors with the Phase-1 content addresses
+  pinned unchanged — the §9 append property is now mechanical).
   - `crates/ke-artifact/src/attestation.rs` — `Attestation` (all §10 bound
     fields), signing, and the platform **rejection rules** (§10): unknown/expired/
     revoked/unauthorized key, not bound to the artifact hash, unsupported policy
     version, expired, legal-source-hash changed, missing required types.
   - `crates/ke-artifact/src/consistency.rs` — `ConsistencyBlock` (§11) carrying
-    T0–T4 evidence, policy mode, model/profile versions, overrides, timestamps.
+    T0–T4 evidence, policy mode, model/profile versions, overrides, timestamps
+    (builder only; evidence path is platform-owned per ADR 0011, adapter in
+    ke-cli Phase 3).
+  - Also landed: `tsa.rs` (deterministic MockTsa; ADR-0010 class binding),
+    `keydir.rs` (ADR-0009 directory shape).
 - **Phase 3 — registry state machine + S3 v1.**
   - Registry inside `ke-cli` (`crates/ke-cli/src/registry/`): the §9 state
     machine (`draft → structurally_verified → ml_checked → expert_attested →

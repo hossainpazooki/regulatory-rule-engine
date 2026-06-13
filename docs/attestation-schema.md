@@ -10,16 +10,16 @@ rejection rules, timestamp authority), §11 (verification model,
 `ConsistencyBlock`, policy modes), §9 (lifecycle states), §15 (revocation),
 §20 (semantic-laundering risk).
 
-> **Gate status caveat (read first).** Finalizing this schema satisfies the
-> §23 "typed attestation schema finalized" and "platform rejection rules
-> specified" checklist items, but it does **not** by itself unblock Gate 4
-> Phase 1. The `ke-compiler` T4 `contradictory_outcome` detector currently
-> flags 52 Blocking conflicts on the clean 34-rule corpus
-> (`verify()` over `fixtures/rules` => `has_blocking() == true`). Per spec §9,
-> no artifact can reach `structurally_verified`, so **there is no
-> structurally-verified artifact to attest** and no attestation can be
-> exercised end-to-end. That T4 false-positive must be fixed (separate
-> work-item) before this schema has anything to bind to.
+> **Gate status (updated 2026-06-12).** The T4 false-positive blocker noted at
+> authoring time is **fixed** (shared-scenario witness, ADR 0005 amendment;
+> clean corpus `has_blocking() == false`). **Phase 2 implemented this schema**
+> in `crates/ke-artifact` — `attestation.rs` (payload-prefix ed25519 signing +
+> `verify_attestation`/`verify_attestation_set`), `tsa.rs` (deterministic
+> `MockTsa`; `Rfc3161*` → typed `TsaUnsupported` until vendor onboarding),
+> `keydir.rs` (ADR-0009 directory shape), with the R1–R8 rules below as typed
+> `AttestationRejection` variants, each pinned by a named test. Items still
+> marked _(pending …)_ below are genuinely open (registry-signed directory =
+> Phase 3; RFC 3161 vendor = procurement).
 
 ---
 
@@ -57,9 +57,10 @@ Each attestation carries exactly one `attestation_type`. The frozen enum is
 | `publication_approval` | The artifact may be published to a named environment under a named policy. | `environment` name + `attestation_policy_version`; honored only with required co-attestations (§6). |
 
 The expert's **authorization** to sign a given type is keyed by `signer_role`
-and verified against the key directory _(pending ADR 0009)_; an
-otherwise-valid key signing a type it is not authorized for is rejected (§5,
-rejection rule R1).
+and verified against the key directory (implemented Phase 2, `keydir.rs`;
+registry-signed directory object = Phase 3); an otherwise-valid key signing a
+type it is not authorized for is rejected (§5, rejection rule R1 —
+`KeyUnauthorizedForType`).
 
 ---
 
@@ -77,20 +78,21 @@ ADR 0001), so attestation bytes round-trip identically in Rust and Python.
 | `attestation_type` | `AttestationType` (§2) | The single named claim. | Drives required-type checks (§6) and authorization (R1). |
 | `signer_identity` | signer DN / subject | Who signed. | Form _(pending ADR 0009)_. |
 | `key_id` | key identifier | Which key signed; resolves to the directory entry. | Verified against directory + revocation list (R1). |
-| `signer_role` | role enum | Authorization basis for the type. | Role->allowed-types map _(pending ADR 0009)_. |
+| `signer_role` | `SignerRole` enum (`DomainExpert` \| `PublicationApprover` \| `Registry`) | Authorization basis for the type. | Implemented (Phase 2, `keydir.rs`); role→allowed-types enforced via `KeyDirectoryEntry.authorized_attestation_types`. |
 | `regime_id` | `String` | The regime the claim is scoped to. | Must match the artifact manifest `regime_id`. |
 | `effective_range` | `from: JurisdictionDate`, `to: Option<JurisdictionDate>` | The effective period the claim covers. | `[from, to)` half-open per ADR 0007. |
 | `legal_source_hash` | `[u8; 32]` (BLAKE3) | The legal source the encoding was reviewed against. | Hash-only storage for Gate 4 (brief decision 6). Change after attestation => rejection R5. |
 | `ir_schema_version` | `SchemaVersion` | The IR schema the artifact was compiled under. | Drift => unsupported (folds into R3 / policy). |
 | `compiler_version` | `SemVer` | The compiler that produced the artifact. | Recorded for audit reconstruction (§18). |
 | `attestation_policy_version` | `String` | The policy version the attestation was made under. | Unsupported => rejection R3. |
-| `timestamp` | trusted-timestamp envelope (§4) | When it was signed, per a trusted authority. | Mock TSA => rejection R8 under non-local policy. |
+| `timestamp` | `TimestampToken { class: TimestampAuthorityClass, token, claimed_time_unix }` (§4) | When it was signed, per a trusted authority; the **class is inside the signed payload** and re-derived from the token at verification. | Mock TSA => rejection R8 under non-local policy; class relabel => `TimestampClassMismatch`. |
 | `expiration` | `Option<JurisdictionDate>` | Optional validity horizon. | Past => rejection R4. |
 | `reviewer_comments` | `Option<String>` | Free-text rationale / stated conditions. | Required-conditions for `equivalence_claim` live here. |
-| `test_corpus_hash` _(proposed §10 addition — see §6)_ | `[u8; 32]` (BLAKE3) | The `TestCorpus` artifact the expert actually reviewed. | **Not in the current spec §10 list.** Proposed for `scenario_coverage` / `equivalence_claim` to close a semantic-laundering gap; needs a §10 amendment / ADR sign-off before it becomes binding. |
+| `test_corpus_hash` _(proposed §10 addition — see §6)_ | `Option<[u8; 32]>` (BLAKE3) | The `TestCorpus` artifact the expert actually reviewed. | **Not in the current spec §10 list.** The *slot* is frozen in the Phase-2 `Attestation` shape (`None` in all fixtures); binding semantics wait on a §10 amendment / ADR sign-off. |
 
 All §10 fields above the divider are spec-mandated. `test_corpus_hash` is a
-**proposed addition** flagged for reviewers, not yet authoritative.
+**proposed addition** — slot present in code since Phase 2, not yet
+authoritative; no verifier enforces it.
 
 ---
 
@@ -104,16 +106,20 @@ All §10 fields above the divider are spec-mandated. `test_corpus_hash` is a
   zero-then-patch derivation (brief §3) over the artifact, **before** any
   attestation exists; attestations are appended and never alter artifact bytes
   (spec §9 "state transitions never mutate artifact bytes").
-- **Timestamp authority _(pending ADR 0010)_:** v1 recommendation is an
-  RFC 3161-compatible TSA. Local development may use a **deterministic mock
-  TSA**, but artifacts/attestations stamped by the mock are **rejected by
-  non-local runtime policy** (spec §10 "Timestamp authority"; rejection R8).
-  The timestamp envelope carries the TSA token plus the authority identifier
-  so the platform can distinguish mock from production at verification time.
+- **Timestamp authority (ADR 0010 Accepted; mock implemented Phase 2):**
+  production uses an RFC 3161-compatible TSA (vendor selection = open
+  procurement item; `Rfc3161*` classes verify to a typed `TsaUnsupported`
+  until onboarding). Local development uses the **deterministic `MockTsa`**
+  (`tsa.rs`: fixed seed, caller-supplied clock, offline) — mock-stamped
+  attestations are **rejected by non-local runtime policy** (R8). The
+  `TimestampToken` carries the TSA class + token + claimed time; the class is
+  **bound into the signed payload and re-derived from the token** at
+  verification, so a relabelled token fails as `TimestampClassMismatch`
+  rather than relying on a self-declared field.
 
 ---
 
-## 5. Key identity and revocation verification _(pending ADR 0009)_
+## 5. Key identity and revocation verification (shape implemented Phase 2; registry-signed directory = Phase 3)
 
 At both **registry time** and **runtime** (spec §20 "registry-time plus
 runtime-time verification"), the verifier resolves `key_id` against the key
@@ -193,6 +199,20 @@ versus the artifact manifest are treated as binding failures and rejected
 depending on field). These are recorded so the Gate-4 rejection-test matrix
 (brief §6 acceptance: "missing, stale, revoked, or invalid attestations =>
 rejected with a specific policy error") has named cases.
+
+**Implemented (Phase 2, `crates/ke-artifact`):** every rule above is a typed
+`AttestationRejection` variant — R1 = `KeyUnknown` / `KeyExpired` /
+`KeyRevoked` / `KeyUnauthorizedForType`, R2 = `NotBoundToArtifact`,
+R3 = `PolicyVersionUnsupported`, R4 = `Expired`, R5 = `LegalSourceHashChanged`,
+R6 = `RequiredTypeMissing`, R7 = `CoAttestationAbsent`, R8 = `MockTsaNonLocal`,
+plus `AttestationSignatureInvalid`, `TimestampClassMismatch`, and
+`TsaUnsupported` — each pinned by a named test in
+`crates/ke-artifact/tests/attestation.rs`. Fold rules per the paragraph above:
+regime/compiler-version mismatch ⇒ R2; ir-schema drift ⇒ R3 (version string
+`ir-schema-X.Y.Z`). R4 expiry is half-open: invalid from 00:00 UTC of the
+expiration date. Verification order per attestation: key lookup (R1a), then
+signature, timestamp-class re-derivation, R8, remaining R1, R2, R3, R4, R5;
+set-level: R6 then R7.
 
 ---
 

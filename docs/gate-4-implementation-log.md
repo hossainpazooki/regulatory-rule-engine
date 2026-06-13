@@ -20,11 +20,13 @@ signature = ed25519 over the hash-patched envelope prefix; registry persistence
 v1 = S3 (ADR 0012, implementation Phase 3); attestations are typed and bind to
 the artifact hash (schema in `docs/attestation-schema.md`, behavior Phase 2).
 
-**Gate 4 status: Phase 1 complete (2026-06-12) — Phases 2–6 not started.**
+**Gate 4 status: Phases 1–2 complete (2026-06-12) — Phases 3–6 not started.**
 Phase 1 turned a compiled IR into a signed, content-addressed `.kew` artifact
-with committed golden vectors. Attestation/consistency *behavior*, the registry
-state machine, PyO3, and the contract test are still ahead. No commits made —
-Hossain owns the history.
+with committed golden vectors. Phase 2 added typed-attestation *behavior*
+(payload-prefix signing, verification, the R1–R8 rejection matrix) and
+**froze the `Attestation` shape** with the first attested goldens — content
+addresses unchanged. The registry state machine, PyO3, and the contract test
+are still ahead. No commits made — Hossain owns the history.
 
 ---
 
@@ -228,3 +230,101 @@ whole-file-hash wording **recurs in ADR 0012 §2 (~line 82) and Consequences
 consumer is written against that ADR.
 
 Phase 1 is ready for Hossain review/commit on `migration/gate-4-artifact`.
+
+---
+
+## Phase 2 — typed attestations, MockTsa, key directory, rejection rules (2026-06-12)
+
+**Status: delivered.** Behavior filled into the Phase-1 shapes at the freeze
+point — committed Phase-1 goldens encoded `attestations = []` (0x00) and
+`consistency_block = None` (0x00), so the shell amendments below changed no
+committed bytes; with attested goldens now committed, the `Attestation` shape
+is frozen.
+
+### What was built
+
+- **`attestation.rs`** — `Attestation`/`AttestationScope` moved here (old paths
+  re-exported). Signing reuses the proven prefix pattern: `signature: [u8;64]`
+  is the last field, so the signed bytes are the postcard payload prefix,
+  recovered via an `AttestationPayloadView` + `take_from_bytes` (the
+  `EnvelopeView` technique). `sign_attestation` / `verify_attestation` /
+  `verify_attestation_set` with an explicit `PolicyContext { environment,
+  now_unix, supported_policy_versions, current_legal_source_hash }` — no clock
+  syscalls; fully deterministic.
+- **Shell amendments:** `signer_role` is now the typed `SignerRole`
+  (`DomainExpert | PublicationApprover | Registry`, ADR 0009);
+  `TimestampEnvelope` → ADR-0010 `TimestampToken { class, token,
+  claimed_time_unix }` with `TimestampAuthorityClass` (`Rfc3161External` /
+  `Rfc3161Internal` / `Mock`) **inside the signed payload and re-derived from
+  the token at verification** (mismatch ⇒ typed rejection);
+  `test_corpus_hash: Option<[u8;32]>` slot added — the proposed §10 amendment
+  (attestation-schema §6A), frozen as a slot, **not yet authoritative**, `None`
+  in all fixtures.
+- **`tsa.rs`** — deterministic offline `MockTsa` (own fixed seed, authority
+  `test-mock-tsa-1`; token = ed25519 over class-discriminant ‖ payload_hash ‖
+  claimed_time LE; payload_hash = the attested `artifact_hash`). An ungated
+  `MOCK_TSA_PUBLIC_KEY` lets `derive_class` run without the `test-keys`
+  feature; a unit test pins it to the gated seed. `Rfc3161*` verification
+  returns typed `TsaUnsupported` until vendor onboarding (ADR 0010 blocker —
+  production publish stays dark regardless).
+- **`keydir.rs`** — ADR-0009 `KeyDirectoryEntry`/`KeyDirectory` (roles,
+  authorized types, validity window, status, revocation back-pointer). The
+  registry-signed directory object + root custody is Phase 3.
+- **`consistency.rs`** — `ConsistencyBlock` moved here + builder/validation.
+  No ke-compiler dependency; the `VerificationReport → ConsistencyBlock`
+  adapter is ke-cli (Phase 3). `consistency_block` stays `None` in committed
+  goldens (T2/T3 evidence is platform-owned, ADR 0011).
+- **Rejection matrix** — `AttestationRejection` with one typed variant per
+  rule: R1a–d (`KeyUnknown/KeyExpired/KeyRevoked/KeyUnauthorizedForType`),
+  R2 `NotBoundToArtifact`, R3 `PolicyVersionUnsupported`, R4 `Expired`,
+  R5 `LegalSourceHashChanged`, R6 `RequiredTypeMissing`, R7
+  `CoAttestationAbsent`, R8 `MockTsaNonLocal`, plus
+  `AttestationSignatureInvalid`, `TimestampClassMismatch`, `TsaUnsupported`.
+  `tests/attestation.rs` has **one named test per variant**, each asserting
+  the exact variant — the brief §7 "specific policy error" criterion,
+  mechanically. Mapping notes: regime/compiler-version mismatch folds into R2,
+  ir-schema drift into R3 (schema §7 footnote); R4 expiry is half-open from
+  00:00 UTC of the expiration date; `KeyUnknown` surfaces before the signature
+  check (lookup is a prerequisite).
+- **Attested golden vectors** — the generator appends a deterministic
+  3-attestation set (SourceFidelity + ScenarioCoverage under `DomainExpert`,
+  PublicationApproval under `PublicationApprover`; expert key
+  `test-expert-fixed-seed-1`; MockTsa at fixed `claimed_time` 1_750_000_000;
+  `attestations.json` review views). **The §9 append property is now pinned:**
+  `.kew` files grew post-envelope only (946→1750, 682→1486 bytes) while both
+  Phase-1 content addresses are unchanged and **hardcoded as regression pins**
+  in `tests/golden.rs` (`bcebbd1f…/862`, `a0a06ee4…/598`); `signature.json`
+  files are untouched in git, proving the compiler signature never moved.
+
+### Gate evidence (integration runner, independently re-verified)
+
+`cargo test --workspace` = **117 passed, 0 failed across 35 suites**
+(`ke-artifact` = 44: 7 unit + 17 attestation + 8 golden + 3 hash_offset +
+6 non_canonical + 3 sign). fmt + clippy (`-D warnings`, both feature sets)
+clean; `cargo build -p ke-artifact` without features clean (fixed-seed
+material absent from the normal surface); `OsRng`/`getrandom` grep:
+doc-comments only; generator double-run **byte-identical** (sha256 over all
+13 fixture files); key hygiene: `test-fixed-seed-1` (compiler),
+`test-expert-fixed-seed-1` (expert), `test-mock-tsa-1` (TSA) all asserted.
+
+### What Phase 2 deliberately EXCLUDES (deferred, not done)
+
+- **Registry-signed key directory + root-key custody** and **anti-backdating
+  monotonic ordering against the registry event log** — need the Phase-3 event
+  log (ADR 0009 §3, ADR 0010 §4).
+- **RFC 3161 token parsing** — blocked on vendor onboarding (ADR 0010);
+  `TsaUnsupported` is the honest stand-in.
+- **ConsistencyBlock evidence path** — T2/T3 is platform-owned (ADR 0011);
+  the ke-compiler adapter lands with ke-cli in Phase 3.
+- **`test_corpus_hash` binding semantics** — slot frozen, enforcement waits on
+  the §10 spec amendment.
+- Registry state machine + S3 (Phase 3), PyO3 (Phase 4), contract-test.sh
+  (Phase 5).
+
+### Residue from Phase 1, resolved
+
+The ADR 0012 naive-hash wording recurrence (§2 + Consequences) was corrected
+alongside the Phase-1 docs commit — all three spots now state the
+re-zero-the-slot procedure.
+
+Phase 2 is ready for Hossain review/commit on `migration/gate-4-artifact`.
