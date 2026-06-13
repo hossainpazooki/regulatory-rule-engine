@@ -328,3 +328,129 @@ alongside the Phase-1 docs commit — all three spots now state the
 re-zero-the-slot procedure.
 
 Phase 2 is ready for Hossain review/commit on `migration/gate-4-artifact`.
+
+---
+
+## Phase 3a — registry core: signed/hash-chained event log, local-FS backend, `ke compile`→draft/structurally_verified, `ke query` (2026-06-13)
+
+Phase 3 stands up the §9 registry lifecycle. **Split decision (confirmed):**
+**3a now** = registry-core library + local-FS backend + `ke compile`→
+`draft`/`structurally_verified` + `ke query`. **3b next** = `attest`/`publish`/
+`deprecate`/`revoke`/`rollback` commands + revocation-policy behavior. All of
+Phase 3a lives in `ke-cli` (now a `[lib]` + `ke` `[bin]`); the platform is not
+linked here.
+
+### What was built
+
+- **State lives in the event log, not the artifact (ADR 0012 §2).**
+  `ke-artifact`'s `RegistryStateMetadata` stays the inert `Draft` marker; a
+  new registry-local `LifecycleState { Draft, StructurallyVerified, MlChecked,
+  ExpertAttested, Published, Deprecated, Revoked }` is **derived** by walking
+  the log. `current_state(&[LifecycleEvent])` returns the highest-`seq` event's
+  `new_state`, validating as it goes.
+- **Append-only, hash-chained, registry-root-signed events**
+  (`registry/event.rs`). `LifecycleEvent { artifact_hash, seq, prior_state,
+  new_state, event_kind, authority_key_id, authority_role, timestamp,
+  prev_event_hash, signature }`. `signature` is the **last** field; the signed
+  bytes are the postcard **payload prefix** of all prior fields, recovered with
+  `take_from_bytes` via a private `EventPayloadView` (the proven
+  attestation/envelope technique). `prev_event_hash = blake3(canonical bytes of
+  the prior event **including** its signature)`; first event = `None`.
+  ed25519 by the **registry-root** key over the prefix.
+- **Transition authority = preconditions, not per-actor signing**
+  (ADR 0012 §2; §9). Every event is registry-root-signed (`SignerRole::
+  Registry`) and records the triggering authority in `authority_role`. The §9
+  rules ("only compiler/CI → structurally_verified", "only registry policy →
+  published", …) are enforced by `can_transition(from, to, &Preconditions)`
+  before append. **3a executes only `draft` + `structurally_verified`**; the
+  remaining edges (`→ml_checked` needs a consistency block; `→expert_attested`
+  needs a valid attestation set; `→published` needs `prior == expert_attested`;
+  `→deprecated`/`→revoked`) are table entries exercised by tests and used by 3b.
+- **Backend trait seam** (`registry/backend.rs`). `RegistryBackend`
+  (put_artifact / append_event / read_events / put_pointer / read_pointer /
+  list_manifests), sync, `io::Result`-style errors wrapped in `RegistryError`.
+  `LocalFsBackend` mirrors the ADR-0012 paths under one root
+  (`artifacts/<hash>/{artifact.kew,manifest.json,schema.json}`,
+  `events/<hash>/<seq:04>-<kind>.json`, `tags/<env>/<tag>.json`) and writes a
+  **`NON_AUTHORITATIVE`** marker at the root (ADR 0012 §6). S3 slots behind the
+  same trait in a later gate.
+- **Resolution + §18 record** (ADR 0012 §5, ADR 0014). `resolve(&backend,
+  selector, now)` for `ByHash` / `ByTag{env,tag}` / `ByRegime{regime_id,
+  effective, env}`. `ByRegime` filters `list_manifests` by regime AND the
+  closed-open `[effective_from, effective_to)` window (`to=None` open-ended;
+  date-only, `tz=None` honored) intersected with `state==Published`; `>1` =>
+  `Ambiguous`, `0` => `NotFound`. The §18 `ResolutionRecord { artifact_hash,
+  registry_state_at_resolution, resolving_event_key, selector_desc,
+  attestation_policy_version, resolution_timestamp_unix }`. Verification re-uses
+  the re-zero hash procedure (`ke_artifact::verify_hash`, **never**
+  `blake3(raw .kew)`). `is_rollback_eligible(state) == matches Published`
+  (ADR 0013 predicate now; command is 3b).
+- **Clock-free core.** Every registry fn takes `now_unix: u64`; no
+  `SystemTime`/clock syscalls in `registry/`. The CLI sources time from
+  `--now`/`KE_NOW` else system time **at the CLI edge only**.
+- **`ke` CLI (clap v4 derive).** Global `--registry <dir>` (or
+  `KE_REGISTRY_BACKEND=local` + `KE_REGISTRY_DIR`), `--now`/`KE_NOW`.
+  `ke compile <yaml> --regime <id> [--env]` (compile → verify, abort if
+  blocking → assemble with the test compiler key → put_artifact → append draft
+  → if structural preconditions hold, append structurally_verified → print
+  hash+state). `ke query (--hash | --tag <env>/<tag> | --regime --effective
+  --env)`. `verify`/`attest`/`publish`/`deprecate`/`revoke`/`rollback` are
+  declared but exit 2 with a Phase-3b message (surface visible).
+  clap is pinned `default-features = false` (drops the `anstyle-wincon →
+  windows-sys` color stack the windows-gnu dlltool cannot build).
+- **Registry test key (loud, no getrandom).** `registry/event.rs` gates
+  `test_keys` on `any(test, feature="test-keys")`: `REGISTRY_ROOT_KEY_ID =
+  "test-registry-fixed-seed-1"`, fixed 32-byte seed, signing key; plus an
+  **ungated** `REGISTRY_ROOT_PUBLIC_KEY` const for verification (mirrors
+  `tsa.rs MOCK_TSA_PUBLIC_KEY`). A gated unit test pins the const to the
+  seed-derived key. **Signing is feature-gated** so `cargo build -p ke-cli`
+  (no features) stays clean — the core types, `current_state`, `resolve`, and
+  the precondition table are all ungated; only the signing entry points
+  (`sign_event`, `ke compile`) need the feature.
+
+### Canonical-event-head-hash pin
+
+`tests/registry.rs::canonical_event_head_hash_is_pinned` builds the fixed
+registry (fixed keys + `KE_NOW=1_750_000_000`) by compiling
+`fixtures/rules/mica_stablecoin.yaml` and asserts the blake3 of the highest-seq
+event's canonical bytes equals the hardcoded constant
+**`3ded38e468316b59cf8afe2cd46fe36bb13632ca2b159085324dd3102282ce3e`** — any
+accidental change to the event encoding/signing shape flips this and fails.
+
+### Gate evidence (independently re-verified 2026-06-13)
+
+- `cargo test -p ke-cli` = **11 passed** (2 unit: the registry-root public-key
+  pin + key_id `test-` prefix; 9 integration: draft→structurally_verified flow,
+  chain-tamper → typed error, seq-gap → typed error, transition-precondition
+  rejection, ByHash/ByTag/ByRegime resolution + §18 fields + pre-window/unknown
+  NotFound, rollback-eligibility, bad-sig rejection incl. non-registry-key
+  forgery, the canonical-event-head-hash pin, determinism re-run).
+- `cargo test --workspace` = **128 passed, 0 failed across 38 suites**.
+- fmt clean; clippy (`-D warnings`) clean **both** without features and with
+  `--features test-keys --all-targets`; `cargo build -p ke-cli` (no features)
+  clean, **0 warnings**.
+- `bash scripts/registry-smoke.sh` → **PASS**: compiles two real corpus rules
+  (`mica_stablecoin`/`mica_2023`, `fca_crypto`/`fca_cryptoassets`) into a tmp
+  local-FS registry at `KE_NOW=1750000000`, each reaches
+  `structurally_verified`, `ke query --hash` confirms the state, the
+  `NON_AUTHORITATIVE` marker is present, and a re-run into a second tmp produces
+  **byte-identical** `events/` + `artifacts/` trees (determinism).
+- Hygiene: `OsRng`/`getrandom`/`tokio`/`aws` appear only in doc/Cargo comments
+  asserting the prohibition; `cargo tree -p ke-cli` pulls none of them. Every
+  event carries `authority_key_id = "test-registry-fixed-seed-1"` (asserted
+  `test-` prefixed). Local-FS objects flagged non-authoritative (ADR 0012 §6).
+
+### What Phase 3a deliberately EXCLUDES (deferred to 3b / later)
+
+- `attest`/`publish`/`deprecate`/`revoke`/`rollback` commands + revocation-policy
+  behavior (3b). The lifecycle edges past `structurally_verified` exist as
+  `can_transition` table entries + are exercised by tests (a test hand-appends a
+  `published` chain via core to drive ByTag/ByRegime), but no CLI executes them.
+- Real S3 backend + Object-Lock/versioning (later gate; trait seam ready).
+- Registry-root key HSM custody + signed key-directory object + root rotation
+  (ADR 0009, infra).
+- Full anti-backdating skew-bound check (monotonic `now_unix` + the hash chain
+  are present; the bound is 3b).
+- PyO3 (Phase 4), `contract-test.sh` (Phase 5), `ke serve` (Gate 5).
+
+Phase 3a is ready for Hossain review/commit on `migration/gate-4-artifact`.

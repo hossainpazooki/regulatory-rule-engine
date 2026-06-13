@@ -174,16 +174,28 @@ independently verifiable.
     ke-cli Phase 3).
   - Also landed: `tsa.rs` (deterministic MockTsa; ADR-0010 class binding),
     `keydir.rs` (ADR-0009 directory shape).
-- **Phase 3 — registry state machine + S3 v1.**
+- **Phase 3 — registry state machine + S3 v1.** *(Split: **3a done**, **3b
+  pending** — see `docs/gate-4-implementation-log.md`.)*
   - Registry inside `ke-cli` (`crates/ke-cli/src/registry/`): the §9 state
     machine (`draft → structurally_verified → ml_checked → expert_attested →
     published → deprecated → revoked`) as append-only signed events; transition
     authority rules (§9); rollback = move tag/policy pointer to a prior content
     hash (no byte mutation); revocation = append-only event (§15).
+    - **3a (done):** registry-core library — `LifecycleState` derived from a
+      hash-chained, registry-root-signed `LifecycleEvent` log (`current_state`),
+      the `can_transition` precondition table (the full §9 edge set, but only
+      `draft`+`structurally_verified` *executed*), `RegistryBackend` trait +
+      `LocalFsBackend` (ADR-0012 paths, `NON_AUTHORITATIVE` marker), `resolve`
+      (ByHash/ByTag/ByRegime) + the §18 `ResolutionRecord`,
+      `is_rollback_eligible`. Clock-free core (`now_unix` injected).
+    - **3b (pending):** the `attest`/`publish`/`deprecate`/`revoke`/`rollback`
+      *commands* + revocation-policy behavior (§15) + anti-backdating skew bound.
   - S3 layout per ADR 0012; **local filesystem backend allowed for dev/test
-    only**.
-  - `ke-cli` subcommands: `compile`, `verify`, `attest`, `publish`, `query`
-    (spec §6).
+    only** — and is what 3a ships (objects flagged `NON_AUTHORITATIVE`,
+    ADR 0012 §6). S3 slots behind the same `RegistryBackend` trait later.
+  - `ke-cli` subcommands: `compile` + `query` **(done, 3a)**; `verify` /
+    `attest` / `publish` (+ `deprecate`/`revoke`/`rollback`) declared but
+    exit-2 Phase-3b stubs **(3b)** (spec §6).
 - **Phase 4 — `ke-artifact-py` PyO3 binding + wheel + index.**
   - `crates/ke-artifact/src/python.rs` behind a `pyo3` feature; the §14 Python
     surface (`from_bytes`, `canonical_hash`, `verify_compiler_signature`,
