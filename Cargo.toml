@@ -17,6 +17,18 @@ authors = ["ke-workbench contributors"]
 publish = false
 
 [workspace.dependencies]
+# `default-features = false` drops clap's color/terminal stack (anstream ->
+# anstyle-wincon -> windows-sys), which cannot build on this windows-gnu
+# toolchain (broken self-contained dlltool; see MEMORY toolchain note). We keep
+# the derive macro plus help/usage/error rendering — no color needed for a
+# deterministic CLI.
+clap = { version = "4", default-features = false, features = [
+    "std",
+    "derive",
+    "help",
+    "usage",
+    "error-context",
+] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
