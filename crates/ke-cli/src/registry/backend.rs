@@ -14,8 +14,20 @@
 //!   artifacts/<hash>/schema.json
 //!   events/<hash>/<seq:04>-<event_kind>.json   (append-only)
 //!   tags/<env>/<tag>.json
+//!   consistency/<hash>.json      T2/T3 evidence SIDECAR (Phase 3b, dev-marked)
+//!   revocations/<hash>.json      revocation policy/reason/severity SIDECAR
 //!   policies/<env>/<name>.json
 //! ```
+//!
+//! # Sidecars carry the metadata the event shape must not (Phase 3b)
+//!
+//! [`LifecycleEvent`] is frozen (the 3a canonical-event-head-hash pin depends on
+//! it), so the T2/T3 [`ConsistencyBlock`](ke_artifact::ConsistencyBlock) and the
+//! revocation policy/reason/severity live in **sidecar objects**, never on the
+//! event. `consistency/<hash>.json` is the dev-stand-in T2/T3 evidence whose
+//! presence satisfies the `structurally_verified -> ml_checked` precondition;
+//! `revocations/<hash>.json` records the policy the registry **records but does
+//! not enforce** (runtime enforcement is platform/Gate 6).
 //!
 //! `<hash>` is the lowercase hex of the 32-byte artifact content hash. Events
 //! are JSON files (one per seq) so a reviewer can read the log; the bytes that
@@ -61,6 +73,11 @@ pub trait RegistryBackend {
     /// Refuses to overwrite an existing seq (append-only).
     fn append_event(&self, hash: &[u8; 32], event: &LifecycleEvent) -> Result<(), RegistryError>;
 
+    /// Read an artifact's stored `.kew` bytes (the authoritative content);
+    /// `None` if the artifact is not stored. `ke attest` decodes this to append
+    /// attestations and re-write the `.kew`.
+    fn read_artifact_kew(&self, hash: &[u8; 32]) -> Result<Vec<u8>, RegistryError>;
+
     /// Read all events for an artifact, ordered by seq ascending.
     fn read_events(&self, hash: &[u8; 32]) -> Result<Vec<LifecycleEvent>, RegistryError>;
 
@@ -80,6 +97,53 @@ pub trait RegistryBackend {
     /// List every stored artifact's `(hash, manifest)` for regime resolution.
     fn list_manifests(&self)
         -> Result<Vec<([u8; 32], ke_core::manifest::Manifest)>, RegistryError>;
+
+    /// Write the dev-stand-in T2/T3 consistency-block SIDECAR
+    /// `consistency/<hash>.json` (Phase 3b). Refuses to overwrite an existing
+    /// sidecar — the `ml_checked` transition runs once.
+    fn put_consistency(
+        &self,
+        hash: &[u8; 32],
+        block: &ke_artifact::ConsistencyBlock,
+    ) -> Result<(), RegistryError>;
+
+    /// Read the consistency-block sidecar; `None` if the artifact has not been
+    /// ml-checked. The `consistency_block_present` precondition reads this.
+    fn read_consistency(
+        &self,
+        hash: &[u8; 32],
+    ) -> Result<Option<ke_artifact::ConsistencyBlock>, RegistryError>;
+
+    /// Write the revocation-policy SIDECAR `revocations/<hash>.json` (Phase 3b).
+    /// The registry **records** the policy; runtime enforcement is platform/
+    /// Gate 6. Refuses to overwrite an existing sidecar.
+    fn put_revocation(
+        &self,
+        hash: &[u8; 32],
+        record: &RevocationRecord,
+    ) -> Result<(), RegistryError>;
+
+    /// Read the revocation sidecar; `None` if the artifact was never revoked.
+    fn read_revocation(&self, hash: &[u8; 32]) -> Result<Option<RevocationRecord>, RegistryError>;
+}
+
+/// The revocation-policy SIDECAR (`revocations/<hash>.json`): the policy the
+/// registry **records** when an artifact is revoked, plus the human reason, the
+/// event reference that justified it, and a derived severity. ADR 0012 events
+/// carry no policy field, so this lives beside the event log — the event shape
+/// stays frozen. **Runtime enforcement** of the policy (fail/block/audit-emit)
+/// is platform/Gate 6; the registry only records it.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct RevocationRecord {
+    /// The recorded revocation policy (spec § 15; not enforced here).
+    pub policy: ke_core::manifest::RevocationPolicy,
+    /// Optional human reason recorded with the revocation.
+    pub reason: Option<String>,
+    /// A human reference to the `revoked` event that justified the record.
+    pub event_ref: String,
+    /// Derived severity: `"high"` for `AuditOnly` (§ 15 emits a high-severity
+    /// audit event), else `"normal"`.
+    pub severity: String,
 }
 
 /// A tag pointer object (`tags/<env>/<tag>.json`): which artifact hash the tag
@@ -161,6 +225,18 @@ impl LocalFsBackend {
     fn tag_path(&self, env: &str, tag: &str) -> PathBuf {
         self.root.join("tags").join(env).join(format!("{tag}.json"))
     }
+
+    fn consistency_path(&self, hash: &[u8; 32]) -> PathBuf {
+        self.root
+            .join("consistency")
+            .join(format!("{}.json", hex32(hash)))
+    }
+
+    fn revocation_path(&self, hash: &[u8; 32]) -> PathBuf {
+        self.root
+            .join("revocations")
+            .join(format!("{}.json", hex32(hash)))
+    }
 }
 
 impl RegistryBackend for LocalFsBackend {
@@ -192,6 +268,16 @@ impl RegistryBackend for LocalFsBackend {
         let json = serde_json::to_string_pretty(event).map_err(RegistryError::event_json_encode)?;
         fs::write(&path, json).map_err(|e| RegistryError::io("write event", e))?;
         Ok(())
+    }
+
+    fn read_artifact_kew(&self, hash: &[u8; 32]) -> Result<Vec<u8>, RegistryError> {
+        let path = self.artifacts_dir(hash).join("artifact.kew");
+        if !path.exists() {
+            return Err(RegistryError::NotFound {
+                selector: format!("by-hash:{}", hex32(hash)),
+            });
+        }
+        fs::read(&path).map_err(|e| RegistryError::io("read artifact.kew", e))
     }
 
     fn read_events(&self, hash: &[u8; 32]) -> Result<Vec<LifecycleEvent>, RegistryError> {
@@ -276,6 +362,71 @@ impl RegistryBackend for LocalFsBackend {
         }
         out.sort_by(|a, b| a.0.cmp(&b.0));
         Ok(out)
+    }
+
+    fn put_consistency(
+        &self,
+        hash: &[u8; 32],
+        block: &ke_artifact::ConsistencyBlock,
+    ) -> Result<(), RegistryError> {
+        let path = self.consistency_path(hash);
+        if path.exists() {
+            return Err(RegistryError::SidecarExists {
+                kind: "consistency",
+            });
+        }
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|e| RegistryError::io("create consistency dir", e))?;
+        }
+        let json = serde_json::to_string_pretty(block).map_err(RegistryError::event_json_encode)?;
+        fs::write(&path, json).map_err(|e| RegistryError::io("write consistency sidecar", e))?;
+        Ok(())
+    }
+
+    fn read_consistency(
+        &self,
+        hash: &[u8; 32],
+    ) -> Result<Option<ke_artifact::ConsistencyBlock>, RegistryError> {
+        let path = self.consistency_path(hash);
+        if !path.exists() {
+            return Ok(None);
+        }
+        let bytes =
+            fs::read(&path).map_err(|e| RegistryError::io("read consistency sidecar", e))?;
+        let block: ke_artifact::ConsistencyBlock =
+            serde_json::from_slice(&bytes).map_err(RegistryError::event_json_decode)?;
+        Ok(Some(block))
+    }
+
+    fn put_revocation(
+        &self,
+        hash: &[u8; 32],
+        record: &RevocationRecord,
+    ) -> Result<(), RegistryError> {
+        let path = self.revocation_path(hash);
+        if path.exists() {
+            return Err(RegistryError::SidecarExists { kind: "revocation" });
+        }
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|e| RegistryError::io("create revocations dir", e))?;
+        }
+        let json =
+            serde_json::to_string_pretty(record).map_err(RegistryError::event_json_encode)?;
+        fs::write(&path, json).map_err(|e| RegistryError::io("write revocation sidecar", e))?;
+        Ok(())
+    }
+
+    fn read_revocation(&self, hash: &[u8; 32]) -> Result<Option<RevocationRecord>, RegistryError> {
+        let path = self.revocation_path(hash);
+        if !path.exists() {
+            return Ok(None);
+        }
+        let bytes = fs::read(&path).map_err(|e| RegistryError::io("read revocation sidecar", e))?;
+        let record: RevocationRecord =
+            serde_json::from_slice(&bytes).map_err(RegistryError::event_json_decode)?;
+        Ok(Some(record))
     }
 }
 

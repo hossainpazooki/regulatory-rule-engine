@@ -8,11 +8,14 @@
 //!   system clock **only at this CLI edge** — the registry core is clock-free
 //!   (plan §4).
 //!
-//! Implemented subcommands: `compile`, `query`. Declared-but-deferred (exit 2
-//! with a Phase-3b message so the surface is visible): `verify`, `attest`,
-//! `publish`, `deprecate`, `revoke`, `rollback`.
+//! Implemented subcommands: `compile`, `query` (Phase 3a) and the Phase-3b
+//! lifecycle set `ml-check`, `attest`, `publish`, `deprecate`, `revoke`,
+//! `rollback`. Without the `test-keys` feature the signing commands return a
+//! typed "requires --features test-keys" error (the command surface still
+//! parses). `verify` remains a deferred exit-2 stub (standalone attestation-set
+//! verification is a later surface).
 
-use crate::commands::{compile, query};
+use crate::commands::{attest, compile, deprecate, ml_check, publish, query, revoke, rollback};
 use crate::registry::backend::LocalFsBackend;
 use crate::registry::Selector;
 use anyhow::{Context, Result};
@@ -67,18 +70,71 @@ pub enum Command {
         #[arg(long, default_value = "local")]
         env: String,
     },
-    /// Phase 3b: verify an artifact's attestation set against a policy.
+    /// Dev stand-in T2/T3 step: write a non-authoritative consistency-block
+    /// sidecar and move structurally_verified -> ml_checked.
+    #[command(name = "ml-check")]
+    MlCheck {
+        /// Artifact content hash (64-char lowercase hex).
+        #[arg(long)]
+        hash: String,
+    },
+    /// Sign typed expert attestations and move ml_checked -> expert_attested.
+    Attest {
+        /// Artifact content hash (64-char lowercase hex).
+        #[arg(long)]
+        hash: String,
+        /// Attestation type (repeatable): source_fidelity | interpretation |
+        /// scenario_coverage | equivalence_claim | publication_approval.
+        #[arg(long = "type", value_name = "TYPE", required = true)]
+        types: Vec<String>,
+    },
+    /// Transition an expert-attested artifact to published and set its tag.
+    Publish {
+        /// Artifact content hash (64-char lowercase hex).
+        #[arg(long)]
+        hash: String,
+        /// Named environment the tag pointer is written under.
+        #[arg(long)]
+        env: String,
+        /// Tag to move (default `current`).
+        #[arg(long, default_value = "current")]
+        tag: String,
+        /// Optional PolicyBundle JSON; default is the strict built-in policy.
+        #[arg(long)]
+        policy: Option<String>,
+    },
+    /// Deprecate a published artifact.
+    Deprecate {
+        /// Artifact content hash (64-char lowercase hex).
+        #[arg(long)]
+        hash: String,
+    },
+    /// Revoke a published or deprecated artifact; records (not enforces) policy.
+    Revoke {
+        /// Artifact content hash (64-char lowercase hex).
+        #[arg(long)]
+        hash: String,
+        /// Recorded revocation policy: hardstop | finishpinned | auditonly.
+        #[arg(long)]
+        policy: String,
+        /// Optional human reason recorded in the sidecar.
+        #[arg(long)]
+        reason: Option<String>,
+    },
+    /// Roll a tag back to a prior published artifact (ADR 0013).
+    Rollback {
+        /// Named environment the tag pointer lives under.
+        #[arg(long)]
+        env: String,
+        /// Tag to move (default `current`).
+        #[arg(long, default_value = "current")]
+        tag: String,
+        /// Rollback target's content hash (64-char lowercase hex).
+        #[arg(long = "to")]
+        to: String,
+    },
+    /// Deferred: standalone verification of an artifact's attestation set.
     Verify,
-    /// Phase 3b: sign a typed expert attestation bound to an artifact hash.
-    Attest,
-    /// Phase 3b: transition an expert-attested artifact to published.
-    Publish,
-    /// Phase 3b: deprecate a published artifact.
-    Deprecate,
-    /// Phase 3b: revoke a published or deprecated artifact.
-    Revoke,
-    /// Phase 3b: roll a tag back to a prior published artifact.
-    Rollback,
 }
 
 /// Resolve the registry root from `--registry`, else `KE_REGISTRY_DIR` (when
@@ -164,9 +220,9 @@ fn query_selector(
     anyhow::bail!("`ke query` needs one of --hash, --tag, or --regime --effective")
 }
 
-/// Parse argv, dispatch, and return a process exit code. `verify`/`attest`/
-/// `publish`/`deprecate`/`revoke`/`rollback` print a Phase-3b message and exit
-/// 2; errors print to stderr and exit 1; success exits 0.
+/// Parse argv, dispatch, and return a process exit code. `verify` prints a
+/// deferred-surface message and exits 2; errors print to stderr and exit 1;
+/// success exits 0.
 pub fn run() -> i32 {
     let cli = Cli::parse();
     match dispatch(&cli) {
@@ -213,30 +269,117 @@ fn dispatch(cli: &Cli) -> Result<i32> {
             print!("{}", query::render(&record));
             Ok(0)
         }
-        Command::Verify
-        | Command::Attest
-        | Command::Publish
-        | Command::Deprecate
-        | Command::Revoke
-        | Command::Rollback => {
+        Command::MlCheck { hash } => {
+            let backend = open_backend(cli)?;
+            let now = now_unix(cli)?;
+            let args = ml_check::MlCheckArgs {
+                artifact_hash: crate::registry::hash_from_hex(hash)?,
+                now_unix: now,
+            };
+            let outcome = ml_check::run(&backend, &args)?;
+            println!("ml-check: hash={} state={:?}", hash, outcome.final_state);
+            Ok(0)
+        }
+        Command::Attest { hash, types } => {
+            let backend = open_backend(cli)?;
+            let now = now_unix(cli)?;
+            let parsed: Vec<ke_core::manifest::AttestationType> = types
+                .iter()
+                .map(|t| attest::parse_attestation_type(t))
+                .collect::<Result<_>>()?;
+            let args = attest::AttestArgs {
+                artifact_hash: crate::registry::hash_from_hex(hash)?,
+                types: &parsed,
+                now_unix: now,
+            };
+            let outcome = attest::run(&backend, &args)?;
+            println!(
+                "attest: hash={} state={:?} attestations={}",
+                hash, outcome.final_state, outcome.attestation_count
+            );
+            Ok(0)
+        }
+        Command::Publish {
+            hash,
+            env,
+            tag,
+            policy,
+        } => {
+            let backend = open_backend(cli)?;
+            let now = now_unix(cli)?;
+            let args = publish::PublishArgs {
+                artifact_hash: crate::registry::hash_from_hex(hash)?,
+                env,
+                tag,
+                policy_path: policy.as_deref(),
+                now_unix: now,
+            };
+            let outcome = publish::run(&backend, &args)?;
+            println!(
+                "publish: hash={} state={:?} tag={}",
+                hash, outcome.final_state, outcome.tag_ref
+            );
+            Ok(0)
+        }
+        Command::Deprecate { hash } => {
+            let backend = open_backend(cli)?;
+            let now = now_unix(cli)?;
+            let args = deprecate::DeprecateArgs {
+                artifact_hash: crate::registry::hash_from_hex(hash)?,
+                now_unix: now,
+            };
+            let outcome = deprecate::run(&backend, &args)?;
+            println!("deprecate: hash={} state={:?}", hash, outcome.final_state);
+            Ok(0)
+        }
+        Command::Revoke {
+            hash,
+            policy,
+            reason,
+        } => {
+            let backend = open_backend(cli)?;
+            let now = now_unix(cli)?;
+            let args = revoke::RevokeArgs {
+                artifact_hash: crate::registry::hash_from_hex(hash)?,
+                policy: revoke::parse_revocation_policy(policy)?,
+                reason: reason.as_deref(),
+                now_unix: now,
+            };
+            let outcome = revoke::run(&backend, &args)?;
+            println!(
+                "revoke: hash={} state={:?} severity={}",
+                hash, outcome.final_state, outcome.severity
+            );
+            Ok(0)
+        }
+        Command::Rollback { env, tag, to } => {
+            let backend = open_backend(cli)?;
+            let now = now_unix(cli)?;
+            let args = rollback::RollbackArgs {
+                env,
+                tag,
+                to_hash: crate::registry::hash_from_hex(to)?,
+                now_unix: now,
+            };
+            let outcome = rollback::run(&backend, &args)?;
+            println!(
+                "rollback: target={} state={:?} tag={}",
+                to, outcome.target_state, outcome.tag_ref
+            );
+            Ok(0)
+        }
+        Command::Verify => {
             eprintln!(
-                "`ke {}` is Phase 3b (attest/publish/deprecate/revoke/rollback + \
-                 revocation-policy behavior). Not available in Phase 3a.",
-                phase_3b_name(&cli.command)
+                "`ke verify` (standalone attestation-set verification) is a deferred surface. \
+                 Use `ke publish --policy ...` for the publish-time policy gate."
             );
             Ok(2)
         }
     }
 }
 
-fn phase_3b_name(command: &Command) -> &'static str {
-    match command {
-        Command::Verify => "verify",
-        Command::Attest => "attest",
-        Command::Publish => "publish",
-        Command::Deprecate => "deprecate",
-        Command::Revoke => "revoke",
-        Command::Rollback => "rollback",
-        _ => "?",
-    }
+/// Open the local-FS backend from the resolved registry root.
+fn open_backend(cli: &Cli) -> Result<LocalFsBackend> {
+    let root = registry_root(cli)?;
+    Ok(LocalFsBackend::open(root)?)
 }

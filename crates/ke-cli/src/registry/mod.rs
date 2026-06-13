@@ -185,6 +185,25 @@ pub enum RegistryError {
     /// expected hash (ADR 0012 §5 re-zero procedure).
     #[error("resolved artifact hash mismatch for selector: {selector}")]
     ResolvedHashMismatch { selector: String },
+    /// A rollback target was not in the `Published` state (ADR 0013): only a
+    /// published artifact is a valid rollback target.
+    #[error("rollback target ineligible: state is {state:?}, must be Published (ADR 0013)")]
+    RollbackIneligible { state: LifecycleState },
+    /// `verify_attestation_set` rejected the artifact's attestation set; carries
+    /// the human-rendered rejections (Phase 3b attest/publish gate).
+    #[error("attestation set rejected:\n{}", .0.join("\n"))]
+    AttestationSetRejected(Vec<String>),
+    /// A `--policy` PolicyBundle JSON file could not be read or parsed.
+    #[error("policy load failed: {0}")]
+    PolicyLoad(String),
+    /// A sidecar object already exists for this artifact (consistency /
+    /// revocation runs once; append-only-ish for the sidecars).
+    #[error("{kind} sidecar already exists for this artifact")]
+    SidecarExists { kind: &'static str },
+    /// The artifact has no recorded lifecycle state (empty event log) where one
+    /// was required (e.g. a transition command on an unknown hash).
+    #[error("no lifecycle state recorded for this artifact (compile it first)")]
+    NoState,
 }
 
 impl RegistryError {
@@ -489,10 +508,70 @@ pub fn build_transition_event(
     event::sign_event(unsigned)
 }
 
+/// Read an artifact's event log and return its **validated head event** (the
+/// highest-seq event, after [`current_state`] has walked + verified the whole
+/// chain). [`RegistryError::NoState`] if the log is empty. Phase 3b transition
+/// commands chain their new event onto this head.
+pub fn head_event<B: RegistryBackend>(
+    backend: &B,
+    hash: &[u8; 32],
+) -> Result<LifecycleEvent, RegistryError> {
+    let events = backend.read_events(hash)?;
+    // Validate the whole chain (seq/links/signatures) before trusting the head.
+    current_state(&events)?;
+    events.into_iter().last().ok_or(RegistryError::NoState)
+}
+
+/// The current validated [`LifecycleState`] of an artifact, or
+/// [`RegistryError::NoState`] if the log is empty.
+pub fn require_current_state<B: RegistryBackend>(
+    backend: &B,
+    hash: &[u8; 32],
+) -> Result<LifecycleState, RegistryError> {
+    let events = backend.read_events(hash)?;
+    current_state(&events)?.ok_or(RegistryError::NoState)
+}
+
+/// Build a `tag_moved` event (ADR 0013 rollback): a non-state-changing event
+/// chained onto `prior`. `new_state == prior_state == prior.new_state` (the tag
+/// move does not transition the artifact's lifecycle state — it records that a
+/// tag pointer was moved to this artifact), but `event_kind = "tag_moved"`
+/// distinguishes it in the log. Registry-root-signed (gated).
+///
+/// This is intentionally NOT routed through [`build_transition_event`] (which
+/// derives `event_kind` from `new_state`): a tag move keeps the state and so
+/// needs the distinct `tag_moved` kind. [`current_state`] validates the chain
+/// regardless of kind, and the unchanged `new_state` keeps the derived state
+/// correct.
+#[cfg(any(test, feature = "test-keys"))]
+pub fn build_tag_moved_event(
+    prior: &LifecycleEvent,
+    authority_key_id: &str,
+    authority_role: SignerRole,
+    timestamp: ke_artifact::TimestampToken,
+) -> Result<LifecycleEvent, RegistryError> {
+    let unsigned = LifecycleEvent {
+        artifact_hash: prior.artifact_hash,
+        seq: prior.seq + 1,
+        prior_state: Some(prior.new_state),
+        new_state: prior.new_state,
+        event_kind: "tag_moved".to_string(),
+        authority_key_id: authority_key_id.to_string(),
+        authority_role,
+        timestamp,
+        prev_event_hash: Some(prior.chain_hash()?),
+        signature: [0u8; 64],
+    };
+    event::sign_event(unsigned)
+}
+
 /// Convert a [`VerificationReport`] into the structural-clean precondition bit.
 pub fn structural_clean(report: &VerificationReport) -> bool {
     !report.has_blocking()
 }
+
+/// Re-export the revocation-record sidecar type for the commands/tests.
+pub use backend::RevocationRecord;
 
 /// Re-export the hex helper for the commands/tests.
 pub use backend::{hex32 as hash_hex, hex_to_hash as hash_from_hex};
