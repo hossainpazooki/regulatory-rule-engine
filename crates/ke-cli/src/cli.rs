@@ -23,7 +23,11 @@ use crate::registry::Selector;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 
-/// ke-workbench command-line (Gate 4 Phase 3a: registry compile/query).
+/// ke-workbench command-line — Gate 4 registry + verification.
+///
+/// Implemented phases (shown per command in `[Gate 4 · Phase N]` tags below):
+/// 3a = compile/query; 3b = the lifecycle commands (ml-check/attest/publish/
+/// deprecate/revoke/rollback); 4a = export-provenance. `serve` is Gate 5.
 #[derive(Parser, Debug)]
 #[command(name = "ke", version, about, long_about = None)]
 pub struct Cli {
@@ -42,8 +46,8 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
-    /// Compile a YAML rule document into a signed artifact and record its
-    /// draft / structurally_verified lifecycle events.
+    /// [Gate 4 · Phase 3a] Compile a YAML rule document into a signed artifact
+    /// and record its draft / structurally_verified lifecycle events.
     Compile {
         /// Path to the YAML rule document.
         yaml: String,
@@ -54,7 +58,8 @@ pub enum Command {
         #[arg(long, default_value = "local")]
         env: String,
     },
-    /// Resolve an artifact and print its hash, current state, and §18 record.
+    /// [Gate 4 · Phase 3a] Resolve an artifact and print its hash, current
+    /// state, and §18 record.
     Query {
         /// Resolve a specific content hash (64-char lowercase hex).
         #[arg(long, conflicts_with_all = ["tag", "regime"])]
@@ -72,15 +77,16 @@ pub enum Command {
         #[arg(long, default_value = "local")]
         env: String,
     },
-    /// Dev stand-in T2/T3 step: write a non-authoritative consistency-block
-    /// sidecar and move structurally_verified -> ml_checked.
+    /// [Gate 4 · Phase 3b] Dev stand-in T2/T3 step: write a non-authoritative
+    /// consistency-block sidecar and move structurally_verified -> ml_checked.
     #[command(name = "ml-check")]
     MlCheck {
         /// Artifact content hash (64-char lowercase hex).
         #[arg(long)]
         hash: String,
     },
-    /// Sign typed expert attestations and move ml_checked -> expert_attested.
+    /// [Gate 4 · Phase 3b] Sign typed expert attestations and move
+    /// ml_checked -> expert_attested.
     Attest {
         /// Artifact content hash (64-char lowercase hex).
         #[arg(long)]
@@ -90,7 +96,8 @@ pub enum Command {
         #[arg(long = "type", value_name = "TYPE", required = true)]
         types: Vec<String>,
     },
-    /// Transition an expert-attested artifact to published and set its tag.
+    /// [Gate 4 · Phase 3b] Transition an expert-attested artifact to published
+    /// and set its tag.
     Publish {
         /// Artifact content hash (64-char lowercase hex).
         #[arg(long)]
@@ -105,13 +112,14 @@ pub enum Command {
         #[arg(long)]
         policy: Option<String>,
     },
-    /// Deprecate a published artifact.
+    /// [Gate 4 · Phase 3b] Deprecate a published artifact.
     Deprecate {
         /// Artifact content hash (64-char lowercase hex).
         #[arg(long)]
         hash: String,
     },
-    /// Revoke a published or deprecated artifact; records (not enforces) policy.
+    /// [Gate 4 · Phase 3b] Revoke a published or deprecated artifact; records
+    /// (not enforces) policy.
     Revoke {
         /// Artifact content hash (64-char lowercase hex).
         #[arg(long)]
@@ -123,7 +131,7 @@ pub enum Command {
         #[arg(long)]
         reason: Option<String>,
     },
-    /// Roll a tag back to a prior published artifact (ADR 0013).
+    /// [Gate 4 · Phase 3b] Roll a tag back to a prior published artifact (ADR 0013).
     Rollback {
         /// Named environment the tag pointer lives under.
         #[arg(long)]
@@ -135,10 +143,11 @@ pub enum Command {
         #[arg(long = "to")]
         to: String,
     },
-    /// Export the consumer-agnostic provenance JSON for an artifact: regime,
-    /// content hash, version triplet, signer key (+ is-test-key), attestation
-    /// summaries, and the registry state + event-head hash as-of-export
-    /// (ADR 0016). Reads the registry; signs nothing (no `test-keys` needed).
+    /// [Gate 4 · Phase 4a] Export the consumer-agnostic provenance JSON for an
+    /// artifact: regime, content hash, version triplet, signer key
+    /// (+ is-test-key), attestation summaries, and the registry state +
+    /// event-head hash as-of-export (ADR 0016). Reads the registry; signs
+    /// nothing (no `test-keys` needed).
     #[command(name = "export-provenance")]
     ExportProvenance {
         /// Artifact content hash (64-char lowercase hex).
@@ -148,7 +157,8 @@ pub enum Command {
         #[arg(long)]
         write: bool,
     },
-    /// Deferred: standalone verification of an artifact's attestation set.
+    /// [Gate 4 · Phase 4b — deferred] Standalone verification of an artifact's
+    /// attestation set.
     Verify,
 }
 
