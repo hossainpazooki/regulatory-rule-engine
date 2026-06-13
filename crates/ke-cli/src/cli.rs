@@ -15,7 +15,9 @@
 //! parses). `verify` remains a deferred exit-2 stub (standalone attestation-set
 //! verification is a later surface).
 
-use crate::commands::{attest, compile, deprecate, ml_check, publish, query, revoke, rollback};
+use crate::commands::{
+    attest, compile, deprecate, export_provenance, ml_check, publish, query, revoke, rollback,
+};
 use crate::registry::backend::LocalFsBackend;
 use crate::registry::Selector;
 use anyhow::{Context, Result};
@@ -132,6 +134,19 @@ pub enum Command {
         /// Rollback target's content hash (64-char lowercase hex).
         #[arg(long = "to")]
         to: String,
+    },
+    /// Export the consumer-agnostic provenance JSON for an artifact: regime,
+    /// content hash, version triplet, signer key (+ is-test-key), attestation
+    /// summaries, and the registry state + event-head hash as-of-export
+    /// (ADR 0016). Reads the registry; signs nothing (no `test-keys` needed).
+    #[command(name = "export-provenance")]
+    ExportProvenance {
+        /// Artifact content hash (64-char lowercase hex).
+        #[arg(long)]
+        hash: String,
+        /// Also write `<registry>/artifacts/<hash>/provenance.json`.
+        #[arg(long)]
+        write: bool,
     },
     /// Deferred: standalone verification of an artifact's attestation set.
     Verify,
@@ -366,6 +381,19 @@ fn dispatch(cli: &Cli) -> Result<i32> {
                 "rollback: target={} state={:?} tag={}",
                 to, outcome.target_state, outcome.tag_ref
             );
+            Ok(0)
+        }
+        Command::ExportProvenance { hash, write } => {
+            let root = registry_root(cli)?;
+            let now = now_unix(cli)?;
+            let backend = LocalFsBackend::open(&root)?;
+            let args = export_provenance::ExportProvenanceArgs {
+                artifact_hash: crate::registry::hash_from_hex(hash)?,
+                exported_at_unix: now,
+                write_root: if *write { Some(root.as_str()) } else { None },
+            };
+            let outcome = export_provenance::run(&backend, &args)?;
+            println!("{}", outcome.canonical_json);
             Ok(0)
         }
         Command::Verify => {

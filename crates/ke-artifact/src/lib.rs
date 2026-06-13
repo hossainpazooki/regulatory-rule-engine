@@ -28,6 +28,7 @@ pub mod hash;
 pub mod keydir;
 pub mod sign;
 pub mod tsa;
+pub mod verify;
 
 pub use artifact::{
     build_span_index, decode_artifact, Artifact, AuditVersions, CompilerSignature,
@@ -42,6 +43,10 @@ pub use hash::{artifact_hash_offset, content_hash, verify_hash};
 pub use keydir::{KeyDirectory, KeyDirectoryEntry, KeyStatus, SignerRole};
 pub use sign::{sign_envelope, verify_signature};
 pub use tsa::{derive_class, TimestampAuthorityClass, TimestampToken, TsaError};
+pub use verify::{
+    artifact_provenance, verify_artifact, ArtifactProvenance, AttestationSummary, RegistryEvidence,
+    RegistryStatus, RejectionReason, Verdict, VerificationOutcome,
+};
 
 use ke_core::canonical::{CanonicalDecodeError, CanonicalError};
 use thiserror::Error;

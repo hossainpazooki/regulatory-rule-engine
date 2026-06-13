@@ -56,6 +56,7 @@ Gate 4 (prerequisites — **Accepted** by Hossain 2026-06-11; see
 - [0013 Revocation policy reconciliation (§15) + rollback-target eligibility](0013-revocation-policy-reconciliation.md) — spec § 15 — **Accepted** (authorizes canon bump 0.3.0→0.4.0 / ke-canon-3→ke-canon-4, pending execution)
 - [0014 Audit/observability contract (§18) ownership + pre-freeze field model](0014-audit-contract-ownership.md) — spec § 18 — **Accepted**
 - [0015 Temporal orchestration ownership: orchestration stays Python, the work moves to Rust](0015-temporal-orchestration-ownership.md) — spec § 2 (non-goals), § 14, § 15, § 19 (Gate 6) — **Proposed** (restates existing spec policy)
+- [0016 Phase 4 is consumer-agnostic verification + provenance export, with both bindings](0016-phase4-consumer-agnostic-verification.md) — spec § 6, § 14, § 16 — **Accepted** (sign-off by Hossain, 2026-06-13; rescopes the brief's Phase 4; pulls `ke-wasm` verify into Gate 4; 4a = pure Rust core delivered, 4b = PyO3/WASM/contract-test)
 
 Anticipated (later gates — numbers assigned when authored):
 

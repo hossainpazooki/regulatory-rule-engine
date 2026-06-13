@@ -232,12 +232,41 @@ independently verifiable.
     `attest` / `publish` / `deprecate` / `revoke` / `rollback` **(done, 3b)** —
     signing behind `test-keys`, no-feature build returns a typed "requires
     `--features test-keys`" error per command (spec §6).
-- **Phase 4 — `ke-artifact-py` PyO3 binding + wheel + index.**
-  - `crates/ke-artifact/src/python.rs` behind a `pyo3` feature; the §14 Python
-    surface (`from_bytes`, `canonical_hash`, `verify_compiler_signature`,
-    `verify_attestations`, `iter_rules`, `consistency_block`, `attestations`,
-    `source_span_index`).
-  - Packaged wheel published to the S3-backed PEP 503 index (ADR 0012).
+- **Phase 4 — consumer-agnostic verification + provenance export, with both
+  bindings (RESCOPED by ADR 0016; supersedes the original "Python-only" Phase 4
+  below).** Driver: the platform-api is a hypothetical consumer while **COMPASS
+  is a live consumer today** that surfaces ATLAS provenance "surfaced, not
+  re-verified," reads a sibling `fixtures/` dir absent on Vercel, and has **no
+  revocation channel**. So Phase 4 ships **one** pure verification surface with
+  two thin bindings, plus a provenance export carrying registry state.
+  - **Phase 4a (delivered): ADR 0016 + the pure Rust core, CI-testable.**
+    - `crates/ke-artifact/src/verify.rs` — the consumer surface, RNG-free and
+      backend-free (WASM-ready): `verify_artifact(kew, keydir, ctx, registry) ->
+      VerificationOutcome` wrapping the existing pure verifiers
+      (`decode_artifact` → `verify_hash` → `verify_signature` → `verify_attestation_set`),
+      then folding in registry state; `Verdict` / `RejectionReason`
+      (`HashMismatch` / `CompilerSignatureInvalid` / `Attestations` /
+      `NotPublished` / `StaleEventHead` / `Decode`); `RegistryStatus` /
+      `RegistryEvidence` (status + event-head hash, optional live head for
+      staleness); `ArtifactProvenance` / `AttestationSummary` (`artifact_provenance(...)`,
+      plain serde → one canonical JSON, `is_test_key` surfaces `test-*` keys).
+      **`verify_artifact` takes registry state as DATA — no I/O, no RNG.**
+    - `crates/ke-cli/src/commands/export_provenance.rs` + `ke export-provenance`
+      — the **only** registry-touching part: reads the `.kew` and the event log
+      (`current_state` → `RegistryStatus`, `head_event.chain_hash()` →
+      event-head hash), builds `RegistryEvidence`, calls `artifact_provenance`,
+      prints canonical JSON (and optionally writes `artifacts/<hash>/provenance.json`).
+      `--now` / `KE_NOW` for `exported_at`.
+  - **Phase 4b (next): bindings + cross-language contract test.** PyO3
+    `ke-artifact-py` wheel (the §14 surface) published to the S3-backed PEP 503
+    index (ADR 0012); the `ke-wasm` wasm-bindgen verifier + `@platform/atlas-artifact`
+    npm package (verify-only, spec §6); `scripts/contract-test.sh` (Rust ≡ Python
+    ≡ WASM — same `.kew` → identical verdict + provenance). Actual publishing +
+    the COMPASS rewire are separate credentialed/follow-up steps. (Original
+    Python-only surface, retained for reference: `crates/ke-artifact/src/python.rs`
+    behind a `pyo3` feature — `from_bytes`, `canonical_hash`,
+    `verify_compiler_signature`, `verify_attestations`, `iter_rules`,
+    `consistency_block`, `attestations`, `source_span_index`.)
 - **Phase 5 — cross-language contract test + schema→Pydantic.**
   - `scripts/contract-test.sh` — round-trips golden artifacts Rust↔Python,
     verifies canonical hashes match across languages (§14 schema-drift

@@ -16,6 +16,7 @@
 pub mod attest;
 pub mod compile;
 pub mod deprecate;
+pub mod export_provenance;
 pub mod ml_check;
 pub mod publish;
 pub mod query;

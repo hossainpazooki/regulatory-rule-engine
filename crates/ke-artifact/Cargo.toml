@@ -22,6 +22,7 @@ test-keys = []
 [dependencies]
 ke-core = { path = "../ke-core" }
 serde = { workspace = true }
+serde_json = { workspace = true }
 postcard = { workspace = true }
 blake3 = { workspace = true }
 ed25519-dalek = { workspace = true }
