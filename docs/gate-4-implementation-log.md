@@ -618,3 +618,210 @@ hash-unchanged assertion, and the published+revoked hardcoded hex pins
 
 Phase 3b is ready for Hossain review/commit on `migration/gate-4-artifact`.
 **Phase 3 (registry lifecycle) is complete (3a + 3b).**
+
+---
+
+## Phase 4a — consumer-agnostic verify surface + provenance export (ADR 0016 rescope; pure Rust core) (2026-06-13)
+
+Phase 4a delivers the **pure, CI-testable core** of the rescoped Phase 4. The
+brief's original Phase 4 was **Python-only** (`ke-artifact-py` PyO3 wheel for the
+hypothetical `institutional-defi-platform-api` consumer). **ADR 0016**
+(`docs/adr/0016-phase4-consumer-agnostic-verification.md`, **Accepted** sign-off
+by Hossain 2026-06-13) rescopes it: Phase 4 delivers **one** consumer-agnostic
+verification surface + a provenance export carrying registry state, with **both**
+bindings (PyO3 + WASM) sitting thinly over that single surface — splitting the
+binding effort doubles the cross-language contract surface. ADR 0016 also pulls
+`ke-wasm` verification **into Gate 4** (COMPASS, a live consumer today, needs
+in-browser verify + revocation now; it reuses the Phase 1–2 surface verbatim) and
+keeps `ke-cli serve` (REST/WS) in Gate 5. Spec refs §6 (WASM stays
+preview/verify-only — never signs/publishes), §14, §16. Approving the plan was
+the gate-discipline sign-off for the rescope; ADR 0016 + the brief §5 amendment +
+the `docs/adr/README.md` index entry (line 59) were written **with** the code.
+
+**This is bindings-prep + provenance export, NOT new crypto.** The verify path
+already existed as pure, RNG-free, I/O-free functions in `ke-artifact`
+(`decode_artifact`, `verify_hash`, `verify_signature`, `verify_attestation_set`);
+ed25519 *verify* is deterministic — only signing/`test_keys` touch RNG and stay
+feature-gated. 4a wraps those into one call and a serde provenance struct.
+
+**Confirmed split:** **4a now** = ADR 0016 + the pure Rust core (no new
+toolchain). **4b next** = PyO3 wheel + `ke-wasm` wasm-bindgen verifier + the
+`@platform/atlas-artifact` npm package + the 3-language `contract-test.sh`.
+
+### What was built
+
+- **`crates/ke-artifact/src/verify.rs` (new) — the pure consumer surface,
+  re-exported from `lib.rs`.** One entry point folds the four existing pure
+  verifiers plus registry state into a single verdict:
+  - `verify_artifact(kew: &[u8], keydir: &KeyDirectory, ctx: &PolicyContext,
+    registry: RegistryEvidence) -> VerificationOutcome`. Order, first failure
+    short-circuits to `Rejected`: `decode_artifact` (→ `RejectionReason::Decode`)
+    → `verify_hash` (→ `HashMismatch`) → `verify_signature` over the envelope
+    prefix `[0, envelope_len)` with the compiler key (→
+    `CompilerSignatureInvalid`) → `verify_attestation_set` (→
+    `Attestations(Vec<AttestationRejection>)`) → if `registry.status !=
+    Published` ⇒ `NotPublished{status}` → if `registry.live_event_head` is `Some`
+    and `!= event_head_hash` ⇒ `StaleEventHead{embedded, live}`; otherwise
+    `Verified`. **It always builds provenance** (even on rejection) and performs
+    **no I/O and no RNG** — registry state arrives as data, so the surface stays
+    WASM-ready.
+  - `enum Verdict { Verified, Rejected(RejectionReason) }`;
+    `enum RejectionReason { HashMismatch, CompilerSignatureInvalid,
+    Attestations(Vec<AttestationRejection>), NotPublished{status},
+    StaleEventHead{embedded, live}, Decode(String) }`;
+    `struct VerificationOutcome { verdict, provenance, registry_state }`.
+  - `enum RegistryStatus { Published, Deprecated, Revoked, Unknown }` — an
+    **ke-artifact-local mirror** of the registry lifecycle state, so the crate
+    stays backend-free.
+  - `struct RegistryEvidence { status, event_head_hash: [u8;32],
+    live_event_head: Option<[u8;32]> }` — status + head as-of-export;
+    `live_event_head` (if `Some`) is a freshly-fetched head for **staleness
+    detection** against an offline export.
+- **`ArtifactProvenance` canonical export (in `ke-artifact`, plain serde so both
+  4b bindings emit/read it).** `regime_id`, `artifact_hash`, the version triplet
+  (`ir_schema_version` / `codec_version` / `canonicalization_version`),
+  `signer_key_id` + **`is_test_key: bool`** (`signer_key_id.starts_with("test-")`
+  — surfaces that `test-*` keys are not production), `attestations:
+  Vec<AttestationSummary>`, `registry_state: RegistryStatus`,
+  `registry_event_head_hash: [u8;32]`, `exported_at_unix: u64`.
+  `to_canonical_json()` → one stable JSON (serde_json, key order = struct field
+  order). `AttestationSummary { attestation_type, signer_key_id, is_test_key,
+  tsa_class, claimed_time_unix }` carries **no signature bytes**.
+  `artifact_provenance(artifact, registry, exported_at_unix) -> ArtifactProvenance`
+  is pure.
+- **`crates/ke-cli/src/commands/export_provenance.rs` + an `export-provenance`
+  subcommand — the only registry-touching part.** Reads the artifact `.kew`
+  (`decode_artifact`) and the event log: `registry::current_state` → mapped to
+  `ke_artifact::RegistryStatus` (`Published`/`Deprecated`/`Revoked` else
+  `Unknown`) via `status_for`; `registry::head_event` → `chain_hash()` =
+  `event_head_hash`; builds `RegistryEvidence{status, event_head_hash,
+  live_event_head: None}`, calls `artifact_provenance`, prints canonical
+  serde_json and optionally writes `artifacts/<hash>/provenance.json`.
+  `exported_at` comes from `--now`/`KE_NOW`. The ke-cli→ke-artifact dependency is
+  one-way: the lifecycle-state→`RegistryStatus` mapping happens **at this
+  boundary**, never the reverse.
+
+### The layering (the load-bearing discipline)
+
+`verify_artifact` and `artifact_provenance` are **pure / RNG-free / backend-free**
+— no `std::fs`, no `std::net`, no `tokio`/`reqwest`, no `OsRng`/`getrandom` in
+`verify.rs` or its transitive callees (`decode_artifact`, `verify_hash`,
+`verify_signature`, `verify_attestation_set`, `KeyDirectory::lookup`,
+`VerifyingKey::from_bytes`); ed25519 verify is deterministic.
+**`ke-artifact` has no `ke-cli` dependency** so the future WASM binding needs no
+filesystem. **All registry reading is confined to `ke-cli`** (the
+`export-provenance` producer). This is what makes 4b's PyO3 and WASM bindings
+*thin over one surface*.
+
+### The COMPASS correctness fix (proven, not asserted)
+
+COMPASS today surfaces ATLAS provenance **"surfaced, not re-verified,"** reads a
+sibling `fixtures/` dir absent on Vercel, and **has no revocation channel** — so
+it can show a **revoked** pack as authoritative. The export embeds **registry
+state + the event-head hash** so an offline consumer (1) **refuses non-`Published`
+packs** and (2) **detects staleness** against a live head. Both are closed by
+named tests, not prose:
+
+- `rejected_when_revoked` — `RegistryStatus::Revoked` with otherwise-valid crypto
+  ⇒ `Verdict::Rejected(NotPublished{Revoked})`. This is the exact COMPASS bug the
+  rescope closes.
+- `stale_event_head` — `live_event_head` ≠ the embedded `event_head_hash` ⇒
+  rejected with `StaleEventHead{embedded, live}`.
+
+### Gate evidence (integration runner, independently re-verified 2026-06-13; quoted verbatim)
+
+> All seven gate items verified independently this session; no fixes were needed
+> (builder work was already correct). Working tree left unchanged (only mtime
+> touches, zero content diffs).
+>
+> 1. STATIC GATES: `cargo fmt --all -- --check` -> clean (no output).
+>    `cargo clippy --workspace --all-targets -- -D warnings` -> "Finished `dev`
+>    profile ... in 1.02s" (clean). `cargo clippy -p ke-artifact -p ke-cli
+>    --all-targets --features test-keys -- -D warnings` (after forcing rebuild
+>    via touch) -> "Checking ke-artifact ... Checking ke-cli ... Finished"
+>    (clean).
+>
+> 2. TESTS: `cargo test --workspace` -> NO FAILURES; summed 141 passed, 0 failed
+>    across all suites. New 4a suites both ran under default `cargo test
+>    --workspace` (feature unification via the self dev-dependency with
+>    features=["test-keys"]): verify_surface.rs = 6 passed, export_provenance.rs =
+>    2 passed. Prior suites intact: ke-artifact lib 7, attestation 17, golden 8,
+>    hash_offset 3, non_canonical 6, sign 3; ke-cli lib 2, lifecycle 5 (incl. 3a
+>    event-head pin), registry 9; ke-compiler lowering/parser_spans/python_import/
+>    t4_conflicts/t4_corpus/verify_t0_t1; ke-core round_trip 6, non_canonical 8,
+>    schema_determinism 3, artifact_hash_offset 2; ke-runtime lib 27, metamorphic
+>    5, property 3, trace_fixtures 1.
+>
+> 3. PURE-BUILD: `cargo build -p ke-artifact` (no features) -> "Finished"
+>    (verify surface compiles with no feature, no RNG).
+>
+> 4. RNG-FREE GATE: grep getrandom|OsRng|rand:: in
+>    crates/ke-artifact/src/verify.rs -> ZERO. Crate-wide hits only in sign.rs
+>    (lines 11,53-54) and tsa.rs (line 17) -- all DOC COMMENTS asserting absence;
+>    no executable RNG anywhere. verify.rs grep for std::fs|std::net|File::|
+>    reqwest|tokio|fn main -> NONE (no I/O). Confirmed verify_artifact's
+>    transitive callees (decode_artifact, verify_hash, verify_signature,
+>    verify_attestation_set, KeyDirectory::lookup, VerifyingKey::from_bytes) are
+>    the RNG/IO-free side; ed25519 verify is deterministic. ke-artifact/Cargo.toml
+>    has NO ke-cli dependency (stays backend-free).
+>
+> 5. verify_surface.rs named cases present (cargo test --list):
+>    verified_published_golden, rejected_bad_sig, rejected_missing_attestation,
+>    rejected_when_revoked (Revoked->Rejected(NotPublished{Revoked}) with valid
+>    crypto), stale_event_head, plus provenance_canonical_json_is_stable. All 6
+>    pass.
+>
+> 6. EXPORT-PROVENANCE:
+>    ke-cli/tests/export_provenance.rs::export_provenance_tracks_published_then_revoked
+>    drives compile->ml_check->attest->publish->revoke; asserts
+>    registry_state==Revoked, hash_hex(registry_event_head_hash)==
+>    head_event(...).chain_hash() off the log (independent of the command),
+>    is_test_key==true, attestations.len()==3. Sidecar test writes provenance.json
+>    byte-equal to canonical JSON. Both pass.
+>
+> 7. INDEPENDENT RECOMPUTE (python blake3, not the Rust surface):
+>    fixtures/artifacts/rule_reserve_assets/artifact.kew, envelope_len=862;
+>    located the 32-byte claimed hash slot at offset 1 in the prefix, re-zeroed
+>    it, blake3(prefix).hex() =
+>    bcebbd1f89619efbab253e9fb463fa089b0d487a28064006ec6fd7a43a0ccb87 ==
+>    GOLDEN.md == manifest claim. MATCH: True. The verify_surface
+>    verified_published_golden test wraps this exact .kew with
+>    RegistryStatus::Published and asserts Verdict::Verified -> agrees with the
+>    recompute and with ke-cli.
+>
+> 8. DOCS: docs/adr/0016-phase4-consumer-agnostic-verification.md -> "**Status:**
+>    Accepted (sign-off by Hossain, 2026-06-13)", spec refs §6/§14/§16, splits
+>    4a/4b. docs/adr/README.md line 59 indexes 0016 as Accepted under Gate 4.
+>    dev/briefs/gate-4-artifact-registry-attestation.md §5 (lines 235-260)
+>    "Phase 4 -- consumer-agnostic verification + provenance export ... (RESCOPED
+>    by ADR 0016)" with "Phase 4a (delivered)" and "Phase 4b (next)".
+
+**Test counts** (same report): `cargo test --workspace` = **141 passed, 0 failed,
+0 ignored**. New 4a suites: `ke-artifact/tests/verify_surface.rs` **6 passed**
+(`verified_published_golden`, `rejected_bad_sig`, `rejected_missing_attestation`,
+`rejected_when_revoked`, `stale_event_head`, `provenance_canonical_json_is_stable`);
+`ke-cli/tests/export_provenance.rs` **2 passed**
+(`export_provenance_tracks_published_then_revoked`,
+`export_provenance_write_root_writes_sidecar`). clippy default + `test-keys`
+clean; fmt clean; `cargo build -p ke-artifact` (no features) clean.
+
+### Implemented vs deferred (honest boundary)
+
+- **Implemented (4a, this repo):** the pure `verify_artifact` surface +
+  `VerificationOutcome`/`Verdict`/`RejectionReason`; `RegistryStatus`/
+  `RegistryEvidence`; `ArtifactProvenance` + `AttestationSummary` canonical-JSON
+  export with registry state + event-head hash + `is_test_key`; the `ke-cli
+  export-provenance` registry-reading producer (stdout + optional sidecar); the
+  COMPASS revoked/stale fix proven by `rejected_when_revoked` + `stale_event_head`.
+- **Deferred to 4b:** PyO3 `ke-artifact-py` wheel + maturin + the S3 PEP-503
+  simple index; the `ke-wasm` wasm-bindgen verifier + the `@platform/atlas-artifact`
+  npm package (verifier WASM + TS types + provenance reader); the 3-language
+  `contract-test.sh` (Rust ≡ Python ≡ WASM — same `.kew` → identical verdict +
+  provenance).
+- **Deferred / follow-up (credentialed or downstream):** actual publishing of the
+  wheel/npm package (credentialed, Hossain-driven); the **COMPASS Desk-MVP rewire**
+  ("surfaced, not re-verified" → in-browser verified + revoked-pack flagging),
+  sequenced **after** 4b ships the npm package; `ke-cli serve` (REST/WS) stays
+  **Gate 5**.
+
+Phase 4a is ready for Hossain review/commit on `migration/gate-4-artifact`.
