@@ -454,3 +454,167 @@ accidental change to the event encoding/signing shape flips this and fails.
 - PyO3 (Phase 4), `contract-test.sh` (Phase 5), `ke serve` (Gate 5).
 
 Phase 3a is ready for Hossain review/commit on `migration/gate-4-artifact`.
+
+---
+
+## Phase 3b — lifecycle commands: `ml-check`, `attest`, `publish`, `deprecate`, `revoke`, `rollback` (2026-06-13)
+
+Phase 3b drives a `structurally_verified` artifact through the **rest of the §9
+lifecycle** via CLI commands, filling the 3a exit-2 stubs. All six commands keep
+the 3a precedent: signing stays behind the `test-keys` cargo feature, and a
+no-feature build returns a typed "requires `--features test-keys`" error per
+command. Every lifecycle event remains **registry-root-signed**
+(`SignerRole::Registry`) and records the triggering authority in
+`authority_role` — the `LifecycleEvent` shape is **unchanged**, so the 3a
+canonical-event-head-hash pin still holds. Branch: `migration/gate-4-artifact`
+(continues; Phase 3a is committed).
+
+### What was built
+
+- **`ke ml-check --hash <h>` — dev stand-in (loudly non-authoritative).**
+  Real T2/T3 is platform-owned (ADR 0011); this command is a development
+  stand-in only. Precondition: prior == `StructurallyVerified`. It builds a dev
+  `ConsistencyBlock` via `ConsistencyBlockBuilder` with
+  `execution_environment = "local-dev-standin"` (clearly non-authoritative),
+  writes it to a **new registry sidecar** `consistency/<hash>.json` (**not** the
+  artifact envelope), and appends an `ml_checked` event. The
+  `consistency_block_present` precondition reads that sidecar object's presence.
+- **`ke attest --hash <h> --type <t>` (repeatable) — expert attestations
+  outside the envelope.** For each `--type`, builds an `Attestation` (expert key
+  via `test_keys::expert_signing_key`, `key_id = TEST_EXPERT_KEY_ID`; fields
+  pulled from the manifest: `regime_id`, `effective_from`/`to`,
+  `ir_schema_version`, `compiler_version`; `legal_source_hash =
+  manifest.source_corpus_hash`; `scope = WholeArtifact`; MockTsa-stamped at
+  `now_unix`; `attestation_policy_version = "ap-1"`; `test_corpus_hash = None`),
+  `sign_attestation`, then `decode_artifact` → `with_attestations(all)` →
+  re-write `artifact.kew`. The post-envelope append property is **asserted**:
+  `artifact_hash` is unchanged before/after (decode-and-compare; the §9
+  immutability + Phase-1/2 content-address pins hold). When the set verifies
+  under the policy context, appends `expert_attested` (precondition: prior ==
+  `MlChecked` **and** `verify_attestation_set` ok).
+- **`ke publish --hash <h> --env <env> [--tag <tag>] [--policy <bundle.json>]`
+  — the policy gate.** Default `VerificationPolicy` requires `SourceFidelity` +
+  `ScenarioCoverage` + `PublicationApproval`, count ≥1 each; `--policy` loads a
+  `PolicyBundle` JSON (serde) and uses its `verification_policy`. Runs
+  `verify_attestation_set`; on a missing required type it **fails with a typed
+  error** (`AttestationSetRejected`, carrying the rejections — the policy gate).
+  On pass + prior == `ExpertAttested`, appends `published` and writes the tag
+  pointer via `put_pointer(env, tag, hash, event_ref)`.
+- **`ke deprecate --hash <h>`.** Precondition prior == `Published`; appends
+  `deprecated`.
+- **`ke revoke --hash <h> --policy <hardstop|finishpinned|auditonly>
+  [--reason <s>]`.** Precondition prior ∈ {`Published`, `Deprecated`}; appends a
+  standard `revoked` event **plus** a `revocations/<hash>.json` sidecar
+  `{policy, reason, event_ref, severity}` (severity = `high` for `AuditOnly`).
+  The registry **records** policy + severity; **runtime enforcement**
+  (fail/block/audit-emit) is platform/Gate 6 — documented as a boundary, not
+  implemented here.
+- **`ke rollback --env <env> [--tag current] --to <hash>` (ADR 0013).**
+  Requires `is_rollback_eligible(current_state(--to)) == Published` (rejects
+  `Deprecated`/`Revoked` with a typed `RollbackIneligible{state}` error); moves
+  the tag pointer → `--to` and appends a `tag_moved` event.
+- **Backend additions (additive to the trait + `LocalFsBackend`):**
+  `put_consistency`/`read_consistency` (`consistency/<hash>.json`),
+  `put_revocation`/`read_revocation` (`revocations/<hash>.json`). `put_pointer`
+  already existed. New `RegistryError` arms: `RollbackIneligible{state}`,
+  `AttestationSetRejected` (carries the rejections), `PolicyLoad`.
+
+### Event shape unchanged — the 3a pin still holds
+
+All new metadata (the dev consistency block, the revocation policy/reason/
+severity) lives in **sidecar objects**, never in `LifecycleEvent`.
+`LifecycleEvent` was not altered, so
+`tests/registry.rs::canonical_event_head_hash_is_pinned` stays green. A new
+`tests/lifecycle.rs` adds its own pins for the **published** and **revoked**
+event-head hashes (hardcoded hex), so any accidental change to the lifecycle
+event encoding flips them and fails.
+
+### Two placement decisions, flagged for follow-up
+
+- **(i) §8.1-vs-§9 `consistency_block` placement tension.** §8.1 lists
+  `consistency_block` as an *in-envelope* component, but the §9 lifecycle
+  attaches T2/T3 evidence *after* compile. These can't both hold for T2/T3: the
+  in-envelope slot is part of the hashed/signed bytes, so populating it
+  post-compile would change `artifact_hash` and break immutability + the
+  Phase-1/2 content-address pins. **Resolution adopted in 3b:** the in-envelope
+  `consistency_block` slot is reserved for *compile-time* T0/T1/T4 evidence only
+  (a Phase-1 slot left `None`); **T2/T3 evidence is a registry sidecar**
+  (`consistency/<hash>.json`), never the envelope. The envelope field stays
+  `None`. **Recommendation:** raise a follow-up ADR if the envelope slot should
+  ever carry compile-time evidence — 3b makes no envelope/contract change beyond
+  the sidecar.
+- **(ii) S3-WORM note on the `.kew` re-write.** `attest` re-writes
+  `artifact.kew` in place to append attestations after the envelope. This is
+  fine on local-FS. Under a future **S3-WORM** (Object-Lock) backend, an
+  in-place re-write is not allowed — attestations would have to become
+  **separate objects** behind the same `RegistryBackend` trait. Flagged, trait
+  seam ready, not built.
+
+### Gate evidence (integration runner, independently re-verified 2026-06-13; quoted verbatim)
+
+> All Phase 3b integration gates independently re-run this session on branch
+> migration/gate-4-artifact; every check passed with no fixes required.
+>
+> 1. FMT: `cargo fmt --all -- --check` -> exit 0 (clean).
+>
+> 2. CLIPPY (-D warnings, both feature sets):
+>    - `cargo clippy --workspace --all-targets -- -D warnings` -> exit 0.
+>    - `cargo clippy -p ke-cli --features test-keys --all-targets -- -D warnings` -> exit 0.
+>
+> 3. TESTS:
+>    - `cargo test --workspace` -> exit 0, every binary green (sample totals: ke-artifact 7+17+8+3+6+3; ke-cli unit 2, lifecycle 5, registry 9; ke-compiler 2+2+3+1+4+2+4; ke-runtime unit 27 + metamorphic 5 + property 3 + trace 1; ke-core round-trip/non-canonical/etc all green; 0 failed across the workspace).
+>    - `cargo test -p ke-cli --features test-keys` -> lifecycle 5 passed, registry 9 passed (incl. the 3a pin `canonical_event_head_hash_is_pinned`), unit 2 passed, 0 failed. The 3a event-head pin still holds -> LifecycleEvent shape unchanged.
+>
+> 4. NO-FEATURE GATE: `cargo build -p ke-cli` (no features) -> exit 0. Each of the six commands returns its typed "requires --features test-keys" error (verbatim, e.g. ml-check: "error: `ke ml-check` requires the `test-keys` feature ... Build with `--features test-keys`. Production signing keys are an infra/ADR-0009 concern."), all exit 1. Confirmed for ml-check/attest(valid type)/publish/deprecate/revoke/rollback.
+>
+> 5. FORBIDDEN-DEPS GREP over crates/ke-cli/src for OsRng|getrandom|tokio|aws_|aws-sdk|.await|async fn|async {: 6 hits, ALL doc-comment lines (// or //!). Zero code usage; no async.
+>
+> 6. lifecycle.rs PINS hardcoded (grep confirmed at lines 407, 413): published head 24ca20b500735f2fe3840c89f3a9e9ebc39faf98508834c86cfd6422f7614328; revoked head c7429bba9673837c21749fb99de690ea0c1b8cc5bd9e1a513b3e283686ed6b74. Required test names all present: full_lifecycle_happy_path, publish_rejected_when_required_type_missing, rollback_to_published_ok_and_to_revoked_ineligible, revoke_auditonly_records_high_severity, published_and_revoked_event_heads_are_pinned; attest-hash-unchanged assertion at lines 159-174 (decode before/after, assert artifact_hash == hash_before == registry hash).
+>
+> 7. SMOKE: `bash scripts/lifecycle-smoke.sh` -> exit 0, "lifecycle-smoke: PASS"; its internal twice-run determinism check (events/artifacts/tags/consistency/revocations byte-identical) passed. I then ran my OWN independent twice-run into persistent dirs: same content hash 4fa59822189929b1f814dffd68b2f10786cf042eef6a78ec0981f025a9f9c5c2 both runs; diff -r of all five subtrees -> IDENTICAL each. NON_AUTHORITATIVE marker present and reads the ADR-0012 section 6 non-authoritative notice.
+>
+> 8. BOUNDARY CHECKS (independent decode of a fresh run):
+>    - tags/staging/current.json -> target_hash_hex = published hash, event_ref published@seq4.
+>    - revoked event (events/<h>/0006-revoked.json): standard fields only (event_kind=revoked, new_state=Revoked, authority_role=Registry, authority_key_id=test-registry-fixed-seed-1); NO policy/severity/reason field -> LifecycleEvent shape untouched.
+>    - revocations/<h>.json sidecar = {policy: AuditOnly, reason, event_ref: revoked@seq6, severity: high} -> policy/severity RECORDED, no enforcement.
+>    - consistency/<h>.json sidecar: execution_environment=local-dev-standin, policy_mode=Advisory, loudly non-authoritative.
+>    - CONTENT-ADDRESS proof via a throwaway example calling verify_hash (the proper re-zero recompute, NOT blake3 of raw .kew): before attest = 7360 bytes / envelope_len 7276 / 0 attestations / hash 4fa598...c5c2; after attest = 8164 bytes (file grew 804B) / envelope_len STILL 7276 / 3 attestations / verify_hash STILL 4fa598...c5c2; consistency_block_is_none=true in BOTH. Attestations appended post-envelope; content address unchanged; in-envelope consistency_block stays None (dev block is sidecar-only).
+
+**Test counts** (same report): `cargo test -p ke-cli --features test-keys` =
+**16 passed, 0 failed** (unit 2 + lifecycle 5 + registry 9 — registry includes
+the 3a `canonical_event_head_hash_is_pinned`). `cargo test --workspace` = **0
+failed across all crates**: ke-cli 16, ke-artifact 44 (7+17+8+3+6+3),
+ke-compiler 17, ke-runtime 36 (27+5+3+1), ke-core 19, ke-wasm 0; doc-tests 0.
+`tests/lifecycle.rs` = 5 named tests covering the full happy path, the policy-
+gate rejection, rollback-ineligibility, AuditOnly high-severity, the attest-
+hash-unchanged assertion, and the published+revoked hardcoded hex pins
+(`24ca20b5…4328` published head, `c7429bba…6b74` revoked head).
+
+### Implemented vs recorded-not-enforced vs deferred (honest boundary)
+
+- **Implemented (this repo, local-FS, behind `test-keys`):** the six lifecycle
+  commands, the dev consistency sidecar, expert attestation + the
+  `verify_attestation_set` publish gate, the revocation-policy + severity
+  sidecar, ADR-0013 rollback eligibility, the no-feature typed-error surface.
+- **Recorded, not enforced (boundary):** the revocation policy/severity is
+  *recorded* in the sidecar; **runtime enforcement** (fail/block/audit-emit) is
+  platform/Gate 6. The `ml-check` consistency block is a **dev stand-in**
+  (`local-dev-standin`), explicitly non-authoritative.
+
+### What Phase 3b deliberately EXCLUDES (deferred, not done)
+
+- **Real T2/T3 sidecar evidence** — platform-owned (ADR 0011); `ml-check` ships
+  only a loudly-marked dev stand-in.
+- **Runtime revocation enforcement** — platform/Gate 6; the registry only
+  records state + policy + severity.
+- **Registry-root HSM custody + signed key-directory object + root rotation** —
+  ADR 0009, infra.
+- **Real S3 backend + Object-Lock/versioning + attestations-as-separate-objects
+  under WORM** — trait seam ready; the local-FS `.kew` re-write is the dev path.
+- **PyO3 / `ke-artifact-py`** (Phase 4), **`contract-test.sh`** (Phase 5),
+  **`ke serve`** (Gate 5).
+- The §8.1-vs-§9 `consistency_block` placement is **flagged for a possible
+  follow-up ADR**, not resolved here.
+
+Phase 3b is ready for Hossain review/commit on `migration/gate-4-artifact`.
+**Phase 3 (registry lifecycle) is complete (3a + 3b).**

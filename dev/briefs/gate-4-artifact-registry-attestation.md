@@ -1,7 +1,9 @@
 # Gate 4 — Artifact, registry, attestation, platform unblock (brief)
 
-**Status:** not started. **Blocked on the §2 prerequisite decisions** — several
-spec §21 open decisions must be resolved (as Gate-4 ADRs) before Phase 1 begins.
+**Status:** in progress — **Phases 0–3 complete** (3a + 3b; see
+`docs/gate-4-implementation-log.md`); Phases 4–6 (PyO3 wheel, cross-language
+contract test, acceptance) ahead. The §2 prerequisite decisions were resolved as
+Gate-4 ADRs 0009–0014 in Phase 0 (Accepted 2026-06-11), unblocking Phase 1.
 This brief is the contract; it mirrors the Gate 1–3 briefs and the mandatory §22
 brief sections.
 **Authoritative spec sections:** §8 (artifact contract), §9 (lifecycle state
@@ -174,8 +176,38 @@ independently verifiable.
     ke-cli Phase 3).
   - Also landed: `tsa.rs` (deterministic MockTsa; ADR-0010 class binding),
     `keydir.rs` (ADR-0009 directory shape).
-- **Phase 3 — registry state machine + S3 v1.** *(Split: **3a done**, **3b
-  pending** — see `docs/gate-4-implementation-log.md`.)*
+- **Phase 3 — registry state machine (local-FS backend). COMPLETE (3a + 3b); S3 v1 deferred (trait seam ready, see below).**
+  **Delivered 2026-06-13** — see `docs/gate-4-implementation-log.md` (Phase 3a +
+  Phase 3b) for what landed and the verbatim gate evidence. 3a stood up the
+  registry-core library, the hash-chained registry-root-signed event log, the
+  `can_transition` table, the `LocalFsBackend`, `resolve`, and `ke compile`/`ke
+  query`. **3b** drove the rest of the §9 lifecycle via six CLI commands —
+  `ml-check` (dev stand-in writing a `consistency/<hash>.json` sidecar, **not**
+  the envelope), `attest` (expert attestations re-written into `.kew`
+  post-envelope with `artifact_hash` asserted unchanged), `publish` (the
+  `verify_attestation_set` policy gate; typed `AttestationSetRejected` on a
+  missing required type), `deprecate`, `revoke` (revocation policy + severity
+  **recorded** in a `revocations/<hash>.json` sidecar — runtime enforcement is
+  platform/Gate 6), and `rollback` (ADR-0013 eligibility). `LifecycleEvent`
+  shape is unchanged, so the 3a canonical-event-head pin still holds; 3b adds
+  its own published/revoked event-head pins. Signing stays behind `test-keys`;
+  a no-feature build keeps each command a typed "requires `--features
+  test-keys`" error. Evidence: `cargo test -p ke-cli --features test-keys` =
+  16/0; `cargo test --workspace` = 0 failed; fmt + clippy (`-D warnings`, both
+  feature sets) clean; `bash scripts/lifecycle-smoke.sh` PASS with twice-run
+  byte-identical determinism across `events/artifacts/tags/consistency/
+  revocations`.
+  - **Deferred past Phase 3** (recorded honestly): real T2/T3 sidecar evidence
+    (platform-owned, ADR 0011 — `ml-check` is a loudly-marked dev stand-in);
+    **runtime** revocation **enforcement** (platform/Gate 6 — the registry only
+    records state + policy + severity); registry-root HSM custody + signed
+    key-directory object + root rotation (ADR 0009, infra); real S3 backend +
+    Object-Lock/versioning + attestations-as-separate-objects under WORM (trait
+    seam ready; the local-FS `.kew` re-write is the dev path); PyO3 (Phase 4);
+    `contract-test.sh` (Phase 5); `ke serve` (Gate 5). The §8.1-vs-§9
+    `consistency_block` placement (in-envelope slot reserved for compile-time
+    T0/T1/T4 and left `None`; T2/T3 lives in the registry sidecar) is **flagged
+    for a possible follow-up ADR**, not resolved here.
   - Registry inside `ke-cli` (`crates/ke-cli/src/registry/`): the §9 state
     machine (`draft → structurally_verified → ml_checked → expert_attested →
     published → deprecated → revoked`) as append-only signed events; transition
@@ -188,14 +220,18 @@ independently verifiable.
       `LocalFsBackend` (ADR-0012 paths, `NON_AUTHORITATIVE` marker), `resolve`
       (ByHash/ByTag/ByRegime) + the §18 `ResolutionRecord`,
       `is_rollback_eligible`. Clock-free core (`now_unix` injected).
-    - **3b (pending):** the `attest`/`publish`/`deprecate`/`revoke`/`rollback`
-      *commands* + revocation-policy behavior (§15) + anti-backdating skew bound.
+    - **3b (done):** the `ml-check`/`attest`/`publish`/`deprecate`/`revoke`/
+      `rollback` *commands* + revocation-policy **recording** (§15; policy +
+      severity in a `revocations/<hash>.json` sidecar, runtime enforcement is
+      platform/Gate 6). Anti-backdating skew bound remains deferred (monotonic
+      `now_unix` + the hash chain are present; the bound itself is not built).
   - S3 layout per ADR 0012; **local filesystem backend allowed for dev/test
     only** — and is what 3a ships (objects flagged `NON_AUTHORITATIVE`,
     ADR 0012 §6). S3 slots behind the same `RegistryBackend` trait later.
-  - `ke-cli` subcommands: `compile` + `query` **(done, 3a)**; `verify` /
-    `attest` / `publish` (+ `deprecate`/`revoke`/`rollback`) declared but
-    exit-2 Phase-3b stubs **(3b)** (spec §6).
+  - `ke-cli` subcommands: `compile` + `query` **(done, 3a)**; `ml-check` /
+    `attest` / `publish` / `deprecate` / `revoke` / `rollback` **(done, 3b)** —
+    signing behind `test-keys`, no-feature build returns a typed "requires
+    `--features test-keys`" error per command (spec §6).
 - **Phase 4 — `ke-artifact-py` PyO3 binding + wheel + index.**
   - `crates/ke-artifact/src/python.rs` behind a `pyo3` feature; the §14 Python
     surface (`from_bytes`, `canonical_hash`, `verify_compiler_signature`,
