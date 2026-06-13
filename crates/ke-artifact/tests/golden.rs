@@ -12,15 +12,58 @@
 //!   semantics cannot be "fixed" by weakening the design;
 //! - the compiler signature verifies over the hash-patched envelope prefix
 //!   with the fixed-seed test verifying key;
-//! - key hygiene: every committed signature carries `key_id` starting with
-//!   `test-` (exactly `test-fixed-seed-1`), never a production key id.
+//! - key hygiene: every committed key id (compiler signature, expert
+//!   attestations, mock-TSA authority) starts with `test-`, never a
+//!   production key id;
+//! - **Phase 2 — hash-stability pins:** the two Phase-1 content addresses are
+//!   hardcoded below ([`PHASE_1_PINS`]) and asserted against both the decoded
+//!   manifests and the `GOLDEN.md` ledger. The committed goldens now carry a
+//!   three-type attestation set appended **post-envelope**, so these pins
+//!   mechanically prove that attestation append never moves the content
+//!   address (spec § 9);
+//! - the committed attestation set round-trips and passes
+//!   `verify_attestation_set` under a strict local policy.
 
 use ke_artifact::sign::{test_keys, verify_signature};
-use ke_artifact::{artifact_hash_offset, decode_artifact, verify_hash, RegistryStateMetadata};
+use ke_artifact::tsa::{TimestampAuthorityClass, MOCK_TSA_AUTHORITY_ID};
+use ke_artifact::{
+    artifact_hash_offset, decode_artifact, verify_attestation_set, verify_hash, KeyDirectory,
+    KeyDirectoryEntry, KeyStatus, PolicyContext, RegistryStateMetadata, SignerRole,
+};
+use ke_core::manifest::{AttestationCount, AttestationType, T2T3Mode, VerificationPolicy};
 use std::fs;
 use std::path::{Path, PathBuf};
 
 const GOLDEN_IDS: [&str; 2] = ["rule_reserve_assets", "rule_significant_thresholds"];
+
+/// The Phase-1 content addresses, hardcoded as regression pins:
+/// `(artifact_id, artifact_hash hex, envelope_len)`. These values were
+/// recorded **before** the Phase-2 attestation set was appended; if either
+/// ever moves, the spec § 9 append property (state never mutates envelope
+/// bytes) has been broken.
+const PHASE_1_PINS: [(&str, &str, usize); 2] = [
+    (
+        "rule_reserve_assets",
+        "bcebbd1f89619efbab253e9fb463fa089b0d487a28064006ec6fd7a43a0ccb87",
+        862,
+    ),
+    (
+        "rule_significant_thresholds",
+        "a0a06ee4cd592d557d42e9f1a0c5177a64a4c080f0677ef73a706542798f66bf",
+        598,
+    ),
+];
+
+/// The fixed verification clock for the golden attestation set — the same
+/// instant the generator's mock-TSA tokens claim (`GOLDEN_CLAIMED_TIME_UNIX`).
+const GOLDEN_NOW: u64 = 1_750_000_000;
+
+/// The three attestation types every golden artifact must carry.
+const GOLDEN_TYPES: [AttestationType; 3] = [
+    AttestationType::SourceFidelity,
+    AttestationType::ScenarioCoverage,
+    AttestationType::PublicationApproval,
+];
 
 fn artifacts_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -144,7 +187,7 @@ fn compiler_signature_verifies_over_patched_prefix() {
 }
 
 #[test]
-fn committed_key_id_is_loudly_a_test_key() {
+fn committed_key_ids_are_loudly_test_keys() {
     for id in GOLDEN_IDS {
         let bytes = read_kew(id);
         let (artifact, _) = decode_artifact(&bytes).expect("golden .kew decodes");
@@ -159,33 +202,190 @@ fn committed_key_id_is_loudly_a_test_key() {
             "{id}: exactly test-fixed-seed-1"
         );
 
-        // The signature.json review view carries the same loud key id.
+        // Every committed attestation key id is the loud expert test key.
+        for att in &artifact.attestations {
+            assert!(
+                att.key_id.starts_with("test-"),
+                "{id}: attestation key_id `{}` must start with `test-`",
+                att.key_id
+            );
+            assert_eq!(
+                att.key_id,
+                test_keys::TEST_EXPERT_KEY_ID,
+                "{id}: exactly test-expert-fixed-seed-1"
+            );
+        }
+        // The mock-TSA authority id is loudly a test authority.
+        assert!(
+            MOCK_TSA_AUTHORITY_ID.starts_with("test-"),
+            "mock TSA authority id must start with `test-`"
+        );
+
+        // The review views carry the same loud key ids.
         let view = fs::read_to_string(artifacts_dir().join(id).join("signature.json"))
             .expect("read signature.json");
         assert!(
             view.contains("\"key_id\": \"test-fixed-seed-1\""),
             "{id}: signature.json review view carries the test key_id"
         );
+        let view = fs::read_to_string(artifacts_dir().join(id).join("attestations.json"))
+            .expect("read attestations.json");
+        assert!(
+            view.contains("\"key_id\": \"test-expert-fixed-seed-1\""),
+            "{id}: attestations.json review view carries the expert test key_id"
+        );
+        assert!(
+            view.contains("\"tsa_authority_id\": \"test-mock-tsa-1\""),
+            "{id}: attestations.json review view carries the mock-TSA authority id"
+        );
     }
 }
 
 #[test]
-fn golden_artifacts_carry_phase_1_inert_slots() {
+fn golden_artifacts_carry_phase_2_slots() {
     for id in GOLDEN_IDS {
         let bytes = read_kew(id);
         let (artifact, _) = decode_artifact(&bytes).expect("golden .kew decodes");
         assert!(
             artifact.consistency_block.is_none(),
-            "{id}: ConsistencyBlock is Phase 2"
+            "{id}: no T2/T3 evidence path exists yet (platform-owned, ADR 0011)"
         );
-        assert!(
-            artifact.attestations.is_empty(),
-            "{id}: attestation binding is Phase 2"
+        assert_eq!(
+            artifact.attestations.len(),
+            3,
+            "{id}: Phase 2 appended the three-type attestation set"
         );
         assert_eq!(
             artifact.registry_state_metadata,
             RegistryStateMetadata::Draft,
             "{id}: registry state machine is Phase 3"
         );
+    }
+}
+
+// ---- Phase 2: hash-stability pins + attested round-trip ----
+
+/// A key directory holding exactly the golden expert key, authorized for the
+/// three golden attestation types under both signing roles.
+fn golden_directory() -> KeyDirectory {
+    KeyDirectory {
+        entries: vec![KeyDirectoryEntry {
+            key_id: test_keys::TEST_EXPERT_KEY_ID.to_string(),
+            public_key: test_keys::expert_verifying_key().to_bytes(),
+            signer_roles: vec![SignerRole::DomainExpert, SignerRole::PublicationApprover],
+            authorized_attestation_types: GOLDEN_TYPES.to_vec(),
+            valid_from_unix: 1_000_000_000,
+            valid_to_unix: 2_000_000_000,
+            status: KeyStatus::Active,
+            revoked_at_unix: None,
+            revocation_reason: None,
+            revocation_event_hash: None,
+        }],
+    }
+}
+
+fn golden_context(current_legal_source_hash: [u8; 32]) -> PolicyContext {
+    PolicyContext {
+        environment: "local".to_string(),
+        now_unix: GOLDEN_NOW,
+        supported_policy_versions: vec!["ap-1".to_string()],
+        current_legal_source_hash: Some(current_legal_source_hash),
+    }
+}
+
+/// The §9 append property, mechanically pinned: the Phase-1 content
+/// addresses (recorded before any attestation existed) still match BOTH the
+/// decoded manifest AND the `GOLDEN.md` ledger, even though the committed
+/// `.kew` files now carry the attestation set. If a pin moves, appending
+/// attestations mutated envelope bytes — a contract break, not a refresh.
+#[test]
+fn hash_stability_pins_attestation_append_never_moves_the_content_address() {
+    for (id, pin_hex, pin_len) in PHASE_1_PINS {
+        let bytes = read_kew(id);
+        let (artifact, envelope_len) = decode_artifact(&bytes).expect("golden .kew decodes");
+        let pin = unhex32(pin_hex);
+
+        assert_eq!(
+            artifact.manifest.artifact_hash, pin,
+            "{id}: manifest.artifact_hash must equal the Phase-1 pin"
+        );
+        assert_eq!(
+            envelope_len, pin_len,
+            "{id}: envelope_len must equal the Phase-1 pin"
+        );
+        let (ledger_hash, ledger_len) = ledger_row(id);
+        assert_eq!(
+            ledger_hash, pin,
+            "{id}: GOLDEN.md ledger hash must equal the Phase-1 pin"
+        );
+        assert_eq!(ledger_len, pin_len, "{id}: GOLDEN.md ledger envelope_len");
+
+        // The pinned address holds even though attestations are present and
+        // the file is strictly longer than the envelope they bind to.
+        assert!(
+            !artifact.attestations.is_empty(),
+            "{id}: the committed golden carries the attestation set"
+        );
+        assert!(
+            bytes.len() > pin_len,
+            "{id}: attested tail extends past the pinned envelope"
+        );
+    }
+}
+
+#[test]
+fn golden_attestation_set_round_trips_and_passes_strict_local_policy() {
+    for id in GOLDEN_IDS {
+        let bytes = read_kew(id);
+        let (artifact, _) = decode_artifact(&bytes).expect("golden .kew decodes");
+
+        // Exactly the three expected types, each mock-stamped at the fixed
+        // generator time and bound to this artifact's hash.
+        let types: Vec<AttestationType> = artifact
+            .attestations
+            .iter()
+            .map(|a| a.attestation_type)
+            .collect();
+        assert_eq!(types, GOLDEN_TYPES, "{id}: three-type set in fixed order");
+        for att in &artifact.attestations {
+            assert_eq!(
+                att.artifact_hash, artifact.manifest.artifact_hash,
+                "{id}: attestation binds the committed artifact hash"
+            );
+            assert_eq!(
+                att.timestamp.class,
+                TimestampAuthorityClass::Mock,
+                "{id}: mock-TSA stamped"
+            );
+            assert_eq!(
+                att.timestamp.claimed_time_unix, GOLDEN_NOW,
+                "{id}: fixed generator claimed_time"
+            );
+            assert!(att.test_corpus_hash.is_none(), "{id}: slot not ratified");
+        }
+
+        // The full set passes a strict policy requiring all three types,
+        // verified purely (fixed clock, local environment, recomputed legal
+        // source hash = the manifest's source corpus hash the generator bound).
+        let policy = VerificationPolicy {
+            t2_t3_mode: T2T3Mode::Strict,
+            required_attestation_types: GOLDEN_TYPES.to_vec(),
+            minimum_attestation_count_per_type: GOLDEN_TYPES
+                .iter()
+                .map(|ty| AttestationCount {
+                    attestation_type: *ty,
+                    count: 1,
+                })
+                .collect(),
+        };
+        verify_attestation_set(
+            &artifact,
+            &policy,
+            &golden_directory(),
+            &golden_context(artifact.manifest.source_corpus_hash),
+        )
+        .unwrap_or_else(|rejections| {
+            panic!("{id}: committed attestation set must verify, got {rejections:?}")
+        });
     }
 }

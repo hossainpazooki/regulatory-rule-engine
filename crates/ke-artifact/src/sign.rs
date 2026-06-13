@@ -13,9 +13,7 @@
 
 use crate::artifact::CompilerSignature;
 use crate::ArtifactError;
-use ed25519_dalek::{Signer, Verifier};
-
-pub use ed25519_dalek::{Signature, SigningKey, VerifyingKey};
+pub use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 
 /// Sign the hash-patched envelope prefix with the compiler key. `key_id`
 /// names the key in the resulting [`CompilerSignature`]; fixed-seed test keys
@@ -77,5 +75,46 @@ pub mod test_keys {
     /// The verifying key for [`signing_key`].
     pub fn verifying_key() -> VerifyingKey {
         signing_key().verifying_key()
+    }
+
+    // ---- Phase 2: domain-expert test key (attestation signing) ----
+
+    /// The `key_id` every fixed-seed **expert** attestation carries. Distinct
+    /// from [`TEST_KEY_ID`] so test attestations can never be mistaken for
+    /// compiler signatures or ADR-0009 production expert keys.
+    pub const TEST_EXPERT_KEY_ID: &str = "test-expert-fixed-seed-1";
+
+    /// Fixed 32-byte expert seed — distinct from [`FIXED_SEED`] and from the
+    /// mock-TSA seed (printable on purpose — loudly a test key).
+    pub const EXPERT_FIXED_SEED: [u8; 32] = *b"ke-workbench-test-expert-seed-1!";
+
+    /// The fixed-seed expert signing key. Deterministic; never random.
+    pub fn expert_signing_key() -> SigningKey {
+        SigningKey::from_bytes(&EXPERT_FIXED_SEED)
+    }
+
+    /// The verifying key for [`expert_signing_key`].
+    pub fn expert_verifying_key() -> VerifyingKey {
+        expert_signing_key().verifying_key()
+    }
+
+    // ---- Phase 2: mock-TSA test key (timestamp tokens, ADR 0010) ----
+
+    /// Fixed 32-byte mock-TSA seed — distinct from both signing seeds above.
+    /// The mock TSA's authority id is
+    /// [`crate::tsa::MOCK_TSA_AUTHORITY_ID`] (`"test-mock-tsa-1"`).
+    pub const MOCK_TSA_SEED: [u8; 32] = *b"ke-workbench-test-mock-tsa-seed1";
+
+    /// The mock-TSA signing key. Deterministic; never random.
+    pub fn mock_tsa_signing_key() -> SigningKey {
+        SigningKey::from_bytes(&MOCK_TSA_SEED)
+    }
+
+    /// The verifying key for [`mock_tsa_signing_key`]. Its byte form is
+    /// embedded ungated as [`crate::tsa::MOCK_TSA_PUBLIC_KEY`] so token
+    /// re-derivation works without the `test-keys` feature; a unit test in
+    /// [`crate::tsa`] pins the two to each other.
+    pub fn mock_tsa_verifying_key() -> VerifyingKey {
+        mock_tsa_signing_key().verifying_key()
     }
 }

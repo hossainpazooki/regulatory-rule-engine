@@ -1,14 +1,20 @@
 //! ke-artifact: canonical encoding + content addressing + signatures + attestations.
 //!
-//! Gate 4 Phase 1. Turns compiled IR into a **signed, content-addressed
-//! artifact** per spec § 8: the `.kew` byte format, the BLAKE3 zero-then-patch
+//! Gate 4. Turns compiled IR into a **signed, content-addressed artifact**
+//! per spec § 8: the `.kew` byte format, the BLAKE3 zero-then-patch
 //! `artifact_hash` derivation, and the ed25519 compiler signature over the
-//! envelope prefix. See [`artifact`] for the full byte-range contract.
+//! envelope prefix (Phase 1; see [`artifact`] for the byte-range contract).
+//! Phase 2 adds typed expert attestations — payload-prefix signing,
+//! verification, and the spec § 10 rejection rules ([`attestation`]), the
+//! ADR 0010 timestamp-token model ([`tsa`]), the ADR 0009 key-directory
+//! shapes ([`keydir`]), and the spec § 11 `ConsistencyBlock` builder
+//! ([`consistency`]).
 //!
-//! Authority boundaries (spec § 5, § 10, § 13): this crate signs *compiler*
-//! signatures only — structural validity, never legal truth. It does **not**
-//! attest, publish, or transition registry lifecycle state (Phases 2/3). No
-//! AI/LLM code participates in any path here.
+//! Authority boundaries (spec § 5, § 10, § 13): the compiler key signs
+//! *structural validity* only — never legal truth. Attestations are signed
+//! exclusively by domain-expert keys resolved through the key directory.
+//! This crate does **not** publish or transition registry lifecycle state
+//! (Phase 3). No AI/LLM code participates in any path here.
 //!
 //! The PyO3 binding for the platform (`ke-artifact-py`) lives behind the
 //! `pyo3` feature; see spec § 14 (Phase 4).
@@ -16,16 +22,26 @@
 #![deny(unsafe_code)]
 
 pub mod artifact;
+pub mod attestation;
+pub mod consistency;
 pub mod hash;
+pub mod keydir;
 pub mod sign;
+pub mod tsa;
 
 pub use artifact::{
-    build_span_index, decode_artifact, Artifact, Attestation, AttestationScope, AuditVersions,
-    CompilerSignature, ConsistencyBlock, RegistryStateMetadata, SourceSpanIndex, SpanIndexEntry,
-    TimestampEnvelope,
+    build_span_index, decode_artifact, Artifact, AuditVersions, CompilerSignature,
+    RegistryStateMetadata, SourceSpanIndex, SpanIndexEntry,
 };
+pub use attestation::{
+    sign_attestation, verify_attestation, verify_attestation_set, Attestation,
+    AttestationRejection, AttestationScope, PolicyContext,
+};
+pub use consistency::{ConsistencyBlock, ConsistencyBlockBuilder, ConsistencyError};
 pub use hash::{artifact_hash_offset, content_hash, verify_hash};
+pub use keydir::{KeyDirectory, KeyDirectoryEntry, KeyStatus, SignerRole};
 pub use sign::{sign_envelope, verify_signature};
+pub use tsa::{derive_class, TimestampAuthorityClass, TimestampToken, TsaError};
 
 use ke_core::canonical::{CanonicalDecodeError, CanonicalError};
 use thiserror::Error;
@@ -79,7 +95,7 @@ pub enum ArtifactError {
 }
 
 /// Lowercase hex for a 32-byte hash (error display only).
-fn hex32(bytes: &[u8; 32]) -> String {
+pub(crate) fn hex32(bytes: &[u8; 32]) -> String {
     use std::fmt::Write;
     bytes.iter().fold(String::with_capacity(64), |mut s, b| {
         let _ = write!(s, "{b:02x}");

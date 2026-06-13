@@ -17,8 +17,8 @@
 //!   consistency_block           Option<ConsistencyBlock> (None in Phase 1)
 //! [envelope_len, EOF)           OUTSIDE the envelope — never hashed/signed
 //!   compiler_signature          CompilerSignature
-//!   attestations                Vec<Attestation> (empty in Phase 1)
-//!   registry_state_metadata     RegistryStateMetadata (::Draft in Phase 1)
+//!   attestations                Vec<Attestation> (appended in Phase 2)
+//!   registry_state_metadata     RegistryStateMetadata (::Draft until Phase 3)
 //! ```
 //!
 //! The **envelope serialization is the literal byte prefix** `[0,
@@ -51,9 +51,11 @@
 //!
 //! `compiler_signature`, `attestations`, and `registry_state_metadata` live
 //! **outside** the hashed+signed envelope (spec § 9: state transitions never
-//! mutate artifact bytes), so their shapes may still evolve in Phase 2/3
-//! without breaking content addresses. Envelope field order, by contrast, is
-//! frozen.
+//! mutate artifact bytes), so appending attestations
+//! ([`Artifact::with_attestations`]) never moves the content address. The
+//! `Attestation` shape froze in Phase 2 (the first attested goldens);
+//! `registry_state_metadata` may still evolve in Phase 3. Envelope field
+//! order is frozen since Phase 1.
 
 use crate::sign::sign_envelope;
 use crate::ArtifactError;
@@ -61,10 +63,15 @@ use ed25519_dalek::SigningKey;
 use ke_core::canonical::decode::{validate_manifest, validate_rule};
 use ke_core::canonical::encode::{canonicalize_manifest, canonicalize_rule};
 use ke_core::canonical::CanonicalError;
-use ke_core::ir::{DecisionEntry, JurisdictionDate, RuleIR, SourceSpan};
-use ke_core::manifest::{AttestationType, Manifest, SemVer, T2T3Mode};
-use ke_core::version::SchemaVersion;
+use ke_core::ir::{DecisionEntry, RuleIR, SourceSpan};
+use ke_core::manifest::Manifest;
 use serde::{Deserialize, Serialize};
+
+// Phase 2 moved the attestation and consistency types into their own modules;
+// the original `crate::artifact::*` paths stay valid via these re-exports.
+pub use crate::attestation::{Attestation, AttestationScope};
+pub use crate::consistency::ConsistencyBlock;
+pub use crate::tsa::{TimestampAuthorityClass, TimestampToken};
 
 /// The signed, content-addressed artifact record (spec § 8). **Field
 /// declaration order is the `.kew` byte contract** — see the module doc.
@@ -77,11 +84,13 @@ pub struct Artifact {
     pub compiled_ir: Vec<RuleIR>,
     pub source_span_index: SourceSpanIndex,
     pub audit_versions: AuditVersions,
-    /// `None` in Phase 1; ConsistencyBlock *behavior* is Phase 2.
+    /// `None` until a T2/T3 evidence path exists (platform-owned, ADR 0011);
+    /// committed goldens keep `None`. See [`crate::consistency`].
     pub consistency_block: Option<ConsistencyBlock>,
     // ---- OUTSIDE the envelope (appended; never hashed/signed) ----
     pub compiler_signature: CompilerSignature,
-    /// Empty in Phase 1; attestation binding is Phase 2.
+    /// Empty at assembly; appended post-envelope via
+    /// [`Artifact::with_attestations`] (never hashed/signed — spec § 9).
     pub attestations: Vec<Attestation>,
     /// `::Draft` in Phase 1; the registry state machine is Phase 3.
     pub registry_state_metadata: RegistryStateMetadata,
@@ -111,95 +120,6 @@ pub struct AuditVersions {
     pub scenario_corpus_version: Option<String>,
 }
 
-/// T2/T3 verification evidence (spec § 11). **Phase-2 BEHAVIOR** — the shape
-/// is a minimal stub frozen now so Phase 2 fills behavior, not bytes; in
-/// Phase 1 every artifact carries `consistency_block: None`.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ConsistencyBlock {
-    /// Tier result (T2/T3 outcome).
-    pub tier_result: String,
-    /// Publication-policy mode the evidence was produced under.
-    pub policy_mode: T2T3Mode,
-    /// Model name for T2/T3.
-    pub model_name: String,
-    /// Model version for T2/T3.
-    pub model_version: String,
-    /// Prompt or scoring profile version, where applicable.
-    pub scoring_profile_version: Option<String>,
-    /// Evidence references.
-    pub evidence_references: Vec<String>,
-    /// Reviewer overrides.
-    pub reviewer_overrides: Vec<String>,
-    /// Reviewer rationale.
-    pub reviewer_rationale: Option<String>,
-    /// Timestamp (representation pending the trusted-timestamp ADR 0010).
-    pub timestamp: String,
-    /// Execution environment the verification ran in.
-    pub execution_environment: String,
-}
-
-/// A typed expert attestation — **Phase-2 shell** per
-/// `docs/attestation-schema.md` § 3 (spec § 10 bound fields). In Phase 1 the
-/// `attestations` vec is always empty; no signing, verification, or rejection
-/// rules (R1–R8) are implemented here.
-///
-/// This type lives **outside** the hashed+signed envelope, so its shape may
-/// still evolve in Phase 2 without breaking content addresses. Fields marked
-/// "pending ADR" use provisional representations.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Attestation {
-    /// BLAKE3 content hash of the exact artifact being attested (binds R2).
-    pub artifact_hash: [u8; 32],
-    /// Which rules / whole artifact the claim covers.
-    pub scope: AttestationScope,
-    /// The single named claim (one of the five frozen ke-core types).
-    pub attestation_type: AttestationType,
-    /// Who signed (form pending ADR 0009).
-    pub signer_identity: String,
-    /// Which key signed; resolves to the key-directory entry (pending ADR 0009).
-    pub key_id: String,
-    /// Authorization basis for the type (role enum pending ADR 0009).
-    pub signer_role: String,
-    /// The regime the claim is scoped to (must match the manifest).
-    pub regime_id: String,
-    /// Effective period the claim covers — `[from, to)` half-open (ADR 0007).
-    pub effective_from: JurisdictionDate,
-    pub effective_to: Option<JurisdictionDate>,
-    /// The legal source the encoding was reviewed against (hash-only, R5).
-    pub legal_source_hash: [u8; 32],
-    /// The IR schema the artifact was compiled under.
-    pub ir_schema_version: SchemaVersion,
-    /// The compiler that produced the artifact (audit reconstruction, § 18).
-    pub compiler_version: SemVer,
-    /// The attestation policy version the attestation was made under (R3).
-    pub attestation_policy_version: String,
-    /// Trusted-timestamp envelope (pending ADR 0010; mock TSA => R8).
-    pub timestamp: TimestampEnvelope,
-    /// Optional validity horizon (past => R4).
-    pub expiration: Option<JurisdictionDate>,
-    /// Free-text rationale / stated conditions.
-    pub reviewer_comments: Option<String>,
-    /// ed25519 over the canonical encoding of the bound fields (Phase 2).
-    #[serde(with = "serde_bytes_64")]
-    pub signature: [u8; 64],
-}
-
-/// Attestation scope: an explicit rule-id set or the whole artifact
-/// (`docs/attestation-schema.md` § 3 — exactly one of the two).
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum AttestationScope {
-    RuleIds(Vec<String>),
-    WholeArtifact,
-}
-
-/// Trusted-timestamp envelope stub (pending ADR 0010): the TSA token plus the
-/// authority identifier so verifiers can distinguish mock from production.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TimestampEnvelope {
-    pub authority_id: String,
-    pub token: Vec<u8>,
-}
-
 /// The compiler's ed25519 signature over the **hash-patched envelope prefix**
 /// (structural validity only — never legal truth; spec § 5). Lives outside
 /// the envelope: signing cannot alter the bytes it signs.
@@ -223,8 +143,9 @@ pub enum RegistryStateMetadata {
 
 /// Serde support for `[u8; 64]` (serde's derive covers arrays only up to 32).
 /// Encodes as a 64-element tuple — byte-identical under postcard to a native
-/// fixed array (no length prefix).
-mod serde_bytes_64 {
+/// fixed array (no length prefix). Shared with [`crate::attestation`] for the
+/// attestation signature field.
+pub(crate) mod serde_bytes_64 {
     use serde::de::{Error, SeqAccess, Visitor};
     use serde::ser::SerializeTuple;
     use serde::{Deserializer, Serializer};
@@ -360,6 +281,28 @@ impl Artifact {
             postcard::to_stdvec(&artifact).map_err(codec)?,
             "envelope-prefix concatenation must equal postcard(Artifact)"
         );
+        Ok((artifact, kew))
+    }
+
+    /// Replace the post-envelope attestation set and re-encode the `.kew`
+    /// bytes. Attestations live **outside** the hashed+signed envelope (spec
+    /// § 9: state transitions never mutate artifact bytes), so this changes
+    /// only bytes after `envelope_len` — `manifest.artifact_hash` and the
+    /// compiler signature are untouched and remain valid. The golden suite
+    /// pins this append property against the Phase-1 hashes.
+    pub fn with_attestations(
+        self,
+        attestations: Vec<Attestation>,
+    ) -> Result<(Artifact, Vec<u8>), ArtifactError> {
+        let artifact = Artifact {
+            attestations,
+            ..self
+        };
+        // Re-serializing the whole record reproduces the envelope prefix
+        // byte-for-byte (content already canonicalized, hash already patched
+        // into `manifest.artifact_hash`; postcard is deterministic), so only
+        // the post-envelope tail differs from the pre-append encoding.
+        let kew = postcard::to_stdvec(&artifact).map_err(codec)?;
         Ok((artifact, kew))
     }
 }
