@@ -55,6 +55,15 @@ jobs:
         with:
           python-version: "3.11"
 
+      # WASM leg needs node on PATH (contract-test.sh runs the nodejs-target glue
+      # via a node driver). ubuntu-latest ships node, but pin it explicitly so the
+      # leg is GUARANTEED present — otherwise the script would loud-SKIP wasm and
+      # the job could go green on only two legs.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       # --- gate the green workspace + feature isolation (verification §1) ---
       - name: cargo test --workspace (default features; pyo3 NOT linked)
         run: cargo test --workspace --locked
@@ -77,6 +86,11 @@ jobs:
           maturin build --features pyo3 --release --out dist
           pip install --no-index --find-links dist ke-artifact-py
 
+      # Fail fast if the wheel can't be imported: otherwise contract-test.sh would
+      # loud-SKIP the python leg and the job could pass on rust+wasm alone.
+      - name: Assert the wheel is importable (python leg must be PRESENT)
+        run: python -c "import ke_artifact_py; print('ke_artifact_py OK')"
+
       # --- WASM leg: install the wasm-bindgen CLI pinned to the crate version.
       # contract-test.sh itself builds the nodejs-target package (into pkg-node/
       # with a {"type":"commonjs"} marker — the browser-facing pkg/ is ESM and
@@ -85,8 +99,25 @@ jobs:
         run: cargo install wasm-bindgen-cli --version "${WASM_BINDGEN_VERSION}" --locked
 
       # --- the 3-language contract over all goldens ---
-      - name: Run contract-test.sh (Rust ≡ Python ≡ WASM)
-        run: bash scripts/contract-test.sh
+      #
+      # PLATFORM CHECKOUT: this job does NOT clone the sibling platform repo
+      # (institutional-defi-platform-api). The contract test never invokes the
+      # platform — it verifies committed goldens with the ATLAS bindings only.
+      # The spec §4.5 SHA gate guards against a *wrong* platform checkout; with
+      # none present the script warns and proceeds (by design). So C1/C2 platform
+      # INTEGRATION acceptance is out of scope here; this proves verifier parity.
+      #
+      # We capture the script output and additionally FAIL if any leg loud-SKIPs:
+      # in CI all three legs are provisioned above, so a SKIP means a real break
+      # (wheel not importable, wasm not built, node missing) that must not pass.
+      - name: Run contract-test.sh (Rust ≡ Python ≡ WASM, all 3 legs required)
+        run: |
+          set -o pipefail
+          bash scripts/contract-test.sh 2>&1 | tee contract-test.out
+          if grep -q "SKIPPED" contract-test.out; then
+            echo "FATAL: a contract leg was SKIPPED in CI (all three are provisioned) — see log above"
+            exit 1
+          fi
 
   windows-gnu-pyo3-check:
     name: windows-gnu pyo3 compile gate (local-equivalent)

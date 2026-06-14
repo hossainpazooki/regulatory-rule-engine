@@ -1,8 +1,19 @@
 # Gate 4 — Artifact, registry, attestation, platform unblock (brief)
 
-**Status:** in progress — **Phases 0–4 complete** (3a + 3b; 4a + 4b; see
-`docs/gate-4-implementation-log.md`); Phases 5–6 (cross-language acceptance
-coordination) ahead. Phase 4 shipped the consumer-agnostic verify surface +
+**Status:** **ATLAS-side accept-ready** — **Phases 0–4 + the Phase-6 acceptance
+record complete** (3a + 3b; 4a + 4b; see `docs/gate-4-implementation-log.md` and
+`docs/gate-4-acceptance.md`). **Acceptance verdict (honest):** C3 (specific-policy
+rejection) is **MET in this repo** by named re-runnable tests + the cross-language
+contract test; **C4** (rollback → prior signed hash) is **PARTIALLY met** —
+rollback eligibility + pointer-move + mechanism proven, but the literal
+resolve-by-tag-to-previous-*distinct*-hash is not yet covered by a dedicated test
+(small follow-up); **C1** (platform verifies
+before execution) has the **verifier delivered and proven Rust ≡ Python ≡ WASM**,
+with platform **integration PENDING the separate platform-repo PR**; **C2**
+(execute parity) has its **runtime-parity foundation** in the Gate-3 equivalence
+harness, with artifact-based execute parity **platform-side, PENDING**. C1/C2 are
+**not** marked met here — they are cross-repo (the consumer does not yet consume
+ATLAS artifacts). Phase 4 shipped the consumer-agnostic verify surface +
 provenance export (4a) and the two thin verify-only bindings (PyO3 + WASM) plus
 the 3-language contract test (4b) — **build + local test only**; actual S3/npm
 publish and the COMPASS rewire remain Hossain follow-ups. The §2 prerequisite
@@ -298,15 +309,49 @@ independently verifiable.
       package; the **COMPASS Desk-MVP rewire** to the published WASM verifier
       ("surfaced, not re-verified" → in-browser verified + revoked-pack flagging),
       sequenced **after** the package ships.
-- **Phase 5 — cross-language contract test + schema→Pydantic.**
-  - `scripts/contract-test.sh` — round-trips golden artifacts Rust↔Python,
-    verifies canonical hashes match across languages (§14 schema-drift
-    prevention); SHA-gated to the recorded `SOURCE.md` commit (mirrors
-    `differential-test.sh`).
-  - JSON Schema emission consumed by platform Pydantic-model generation
-    (platform side; contract fixtures provided here).
-- **Phase 6 — acceptance + platform coordination.** `docs/gate-4-implementation-log.md`;
-  confirm the platform-repo PR demonstrates end-to-end load + execute parity.
+- **Phase 5 — cross-language contract test + schema→Pydantic. (SPLIT by the
+  ADR-0016 rescope: the contract test moved into Phase 4b and is DELIVERED; the
+  Pydantic half is platform-side.)**
+  - `scripts/contract-test.sh` — **delivered in Phase 4b (2026-06-14)** and
+    extended beyond the original Rust↔Python to **three languages
+    (Rust ≡ Python ≡ WASM)**: same `.kew` → byte-identical verdict + canonical
+    provenance + content hash; SHA-gated to `SOURCE.md` (mirrors
+    `differential-test.sh`). The rescope pulled it forward because it wraps the
+    same verify surface as the bindings — see the Phase 4b entry above.
+  - JSON Schema → platform **Pydantic-model generation** is **platform-repo
+    work** (§14 schema-drift prevention); this repo emits the schema + provides
+    the contract fixtures. Tracked under Phase 6 platform coordination / the
+    separate platform-repo brief — not an ATLAS-repo deliverable.
+- **Phase 6 — acceptance record + platform coordination. ATLAS-side DELIVERED
+  2026-06-14; platform integration PENDING.** The Gate-4 **acceptance record**
+  `docs/gate-4-acceptance.md` maps each §19 / §7 criterion (C1–C4) to ATLAS-side
+  evidence (file:line / named test / reproduce command) and an honest status;
+  the Phase-6 entry in `docs/gate-4-implementation-log.md` records the verdict.
+  - **C3 + C4 MET in-repo:** C3 by the typed R1–R8 rejection matrix
+    (`crates/ke-artifact/tests/attestation.rs`, one named test per variant) +
+    the revoked/stale surface rejections
+    (`crates/ke-artifact/tests/verify_surface.rs`
+    `rejected_when_revoked`/`stale_event_head`) + the contract test's
+    cross-language identical reason set; C4 by
+    `crates/ke-cli/tests/lifecycle.rs`
+    `rollback_to_published_ok_and_to_revoked_ineligible` +
+    `published_and_revoked_event_heads_are_pinned` + ADR-0013
+    `is_rollback_eligible`.
+  - **C1 verifier DELIVERED + 3-language-consistent** (`verify.rs`
+    `verify_artifact`; `bash scripts/contract-test.sh` PASS) — platform
+    verification-middleware **integration PENDING** the separate platform-repo PR.
+  - **C2 runtime-parity FOUNDATION DELIVERED** (Gate-3
+    `scripts/equivalence-harness.sh`, Rust runtime ≡ Python `RuleRuntime`) —
+    artifact-based execute parity is **platform-side, PENDING**.
+  - **Cannot close from this repo:** C1 + C2 require the platform to load +
+    execute; that change is a separate `institutional-defi-platform-api` PR
+    (brief §1, §10), instantiated from
+    `dev/briefs/gate-4-platform-consumption-OUTLINE.md`. This workflow does not
+    modify the sibling repo and does not fabricate platform execution.
+  - **Independent verification (reviewer commands, in the acceptance record):**
+    `cargo test --workspace` (141/0); `cargo test -p ke-artifact --features
+    test-keys --test attestation --test verify_surface`; `cargo test -p ke-cli
+    --features test-keys --test lifecycle`; `bash scripts/contract-test.sh`.
 
 ---
 

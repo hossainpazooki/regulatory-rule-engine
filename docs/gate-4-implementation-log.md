@@ -1043,3 +1043,80 @@ artifacts).
 Phase 4b builds + local tests are green on `migration/gate-4-artifact`, ready for
 Hossain review/commit. **Phase 4 (consumer-agnostic verification + both bindings)
 is complete (4a + 4b).**
+
+---
+
+## Phase 6 — acceptance record + the honest C1–C4 boundary (2026-06-14)
+
+Phase 6 closes the doc-each-phase convention with the **Gate-4 acceptance
+record** (`docs/gate-4-acceptance.md`) mapping each spec §19 / brief §7 criterion
+(C1–C4) to ATLAS-side evidence and an honest status. No code changed; this entry
++ the acceptance record + the brief §5/top-line status updates are the
+deliverable. (There is no separate "Phase 5" log entry: the ADR-0016 rescope
+moved the cross-language contract test into Phase 4b — see the brief §5 Phase-5
+note — and the Pydantic half is platform-side.)
+
+### The acceptance verdict (honest, re-runnable)
+
+- **C3 (reject with a specific policy error): MET in-repo.** The typed R1–R8
+  rejection matrix has one named test per variant in
+  `crates/ke-artifact/tests/attestation.rs`
+  (`r1a_unknown_key_rejected:151` … `r8_mock_tsa_non_local_rejected_local_accepted:399`,
+  12 tests), plus surface rejections in `crates/ke-artifact/tests/verify_surface.rs`
+  (`rejected_bad_sig:178`, `rejected_missing_attestation:212`,
+  `stale_event_head:282`, `rejected_when_revoked:251`). The contract test proves
+  a **cross-language identical** rejection reason set for
+  `rule_significant_thresholds`. Reproduce:
+  `cargo test -p ke-artifact --features test-keys --test attestation --test verify_surface`.
+- **C4 (rollback → prior signed content hash): MET in-repo.**
+  `crates/ke-cli/tests/lifecycle.rs:286`
+  `rollback_to_published_ok_and_to_revoked_ineligible` +
+  `:416 published_and_revoked_event_heads_are_pinned`; ADR-0013
+  `is_rollback_eligible == Published`. Reproduce:
+  `cargo test -p ke-cli --features test-keys --test lifecycle`.
+- **C1 (platform verifies before execution): VERIFIER DELIVERED — INTEGRATION
+  PENDING.** The verifier the platform will call (`verify_artifact` in
+  `crates/ke-artifact/src/verify.rs`) is delivered and proven
+  **Rust ≡ Python ≡ WASM** by `bash scripts/contract-test.sh` (PASS over both
+  goldens; `crates/ke-artifact/tests/verify_surface.rs:139
+  verified_published_golden`). The platform load + verification-middleware
+  integration is a **separate platform-repo PR** and is **not** marked met here.
+- **C2 (execute parity): FOUNDATION DELIVERED — PENDING.** The Gate-3 equivalence
+  harness (`scripts/equivalence-harness.sh`) proves Rust runtime ≡ Python
+  `RuleRuntime` (the runtime-parity foundation); the artifact-based execute-parity
+  is **platform-side**, pending the platform-repo PR.
+
+### The cross-repo boundary (do not cross)
+
+C1 and C2 are written from **the platform's** vantage. The consumer
+(`institutional-defi-platform-api`) does **not** yet consume ATLAS artifacts;
+the platform change is a separate PR per CLAUDE.md / brief §1, §10. This
+workflow does not modify the sibling repo and does not fabricate platform
+execution. ATLAS provides the verifier (wheel/WASM) + the contract; the platform
+**integration** acceptance is pending that PR. Stated plainly in
+`docs/gate-4-acceptance.md` ("Cannot be closed from this repo").
+
+### Known residue (in the acceptance record)
+
+§8.1-vs-§9 `consistency_block` placement (follow-up ADR flagged, not written);
+real S3 backend (trait seam ready); HSM custody + signed key-directory + root
+rotation (ADR 0009 infra); **runtime revocation enforcement = Gate 6** (the
+registry only records state + policy + severity; verify-time rejection of
+non-`Published` packs is closed by `rejected_when_revoked`); credentialed
+publish of the wheel/npm package + the COMPASS rewire (Hossain follow-ups);
+RFC 3161 TSA (`TsaUnsupported` stand-in, ADR 0010).
+
+### Verification (this entry)
+
+Docs only — no code touched. The acceptance record's "How to independently
+verify" section lists the exact reviewer commands (`cargo test --workspace` =
+141/0; the three feature-gated test commands; `bash scripts/contract-test.sh`).
+Every claim in `docs/gate-4-acceptance.md` cites a real, named test at a real
+`file:line` (all confirmed present via `cargo test --list` / grep this session)
+or a verbatim gate-evidence quote already recorded in this log (Phases 3b, 4a,
+4b). No commits made — Hossain owns the history.
+
+**Gate 4 (ATLAS side) is accept-ready: C3 + C4 met in-repo; C1 verifier
+delivered + 3-language-consistent; C2 runtime-parity foundation delivered. Full
+§19 acceptance closes when the platform-repo PR demonstrates C1 + C2
+end-to-end.**
