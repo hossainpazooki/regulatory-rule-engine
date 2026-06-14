@@ -8,6 +8,13 @@ exist because the migration plan in
 If something here conflicts with the spec, the **spec wins** — open an ADR
 in `docs/adr/` to reconcile.
 
+> Global working rules (file-op style, git default, verification, workflows,
+> shared agents) are loaded from `~/.claude/`. This file adds the repo's
+> spec-driven hard constraints on top, and **overrides the global git default**
+> with stricter gate discipline (see Git discipline below). When this file and
+> the global rules disagree, this file wins; when this file and the spec
+> disagree, the spec wins.
+
 ---
 
 ## What this repo is
@@ -42,10 +49,6 @@ Authoritative spec: `docs/spec/ke-workbench-rust-migration-spec-v3.1.md`.
 
 ### File ops
 
-- File operations must be sequential. Race-prone batching is forbidden:
-  - **WRONG:** `Edit A + Edit B + Write C` in parallel.
-  - **CORRECT:** `Edit A` → wait → `Edit B` → wait → `Write C`.
-- Safe to parallelize: `Grep`, `Glob`, `Read`, read-only `Bash`, web fetches.
 - **Plan Mode is required for design or architectural changes that touch
   ≥ 2 files** (new modules, schema changes, refactors, gate-scope decisions).
   Mechanical multi-file edits that must move together — version bumps, pin
