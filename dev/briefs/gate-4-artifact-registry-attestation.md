@@ -1,9 +1,13 @@
 # Gate 4 — Artifact, registry, attestation, platform unblock (brief)
 
-**Status:** in progress — **Phases 0–3 complete** (3a + 3b; see
-`docs/gate-4-implementation-log.md`); Phases 4–6 (PyO3 wheel, cross-language
-contract test, acceptance) ahead. The §2 prerequisite decisions were resolved as
-Gate-4 ADRs 0009–0014 in Phase 0 (Accepted 2026-06-11), unblocking Phase 1.
+**Status:** in progress — **Phases 0–4 complete** (3a + 3b; 4a + 4b; see
+`docs/gate-4-implementation-log.md`); Phases 5–6 (cross-language acceptance
+coordination) ahead. Phase 4 shipped the consumer-agnostic verify surface +
+provenance export (4a) and the two thin verify-only bindings (PyO3 + WASM) plus
+the 3-language contract test (4b) — **build + local test only**; actual S3/npm
+publish and the COMPASS rewire remain Hossain follow-ups. The §2 prerequisite
+decisions were resolved as Gate-4 ADRs 0009–0014 in Phase 0 (Accepted
+2026-06-11), unblocking Phase 1.
 This brief is the contract; it mirrors the Gate 1–3 briefs and the mandatory §22
 brief sections.
 **Authoritative spec sections:** §8 (artifact contract), §9 (lifecycle state
@@ -257,16 +261,43 @@ independently verifiable.
       event-head hash), builds `RegistryEvidence`, calls `artifact_provenance`,
       prints canonical JSON (and optionally writes `artifacts/<hash>/provenance.json`).
       `--now` / `KE_NOW` for `exported_at`.
-  - **Phase 4b (next): bindings + cross-language contract test.** PyO3
-    `ke-artifact-py` wheel (the §14 surface) published to the S3-backed PEP 503
-    index (ADR 0012); the `ke-wasm` wasm-bindgen verifier + `@platform/atlas-artifact`
-    npm package (verify-only, spec §6); `scripts/contract-test.sh` (Rust ≡ Python
-    ≡ WASM — same `.kew` → identical verdict + provenance). Actual publishing +
-    the COMPASS rewire are separate credentialed/follow-up steps. (Original
-    Python-only surface, retained for reference: `crates/ke-artifact/src/python.rs`
-    behind a `pyo3` feature — `from_bytes`, `canonical_hash`,
-    `verify_compiler_signature`, `verify_attestations`, `iter_rules`,
-    `consistency_block`, `attestations`, `source_span_index`.)
+  - **Phase 4b (delivered 2026-06-14): bindings + cross-language contract test —
+    build + local test only.** See `docs/gate-4-implementation-log.md` (Phase 4b)
+    for what landed and the verbatim gate evidence (141/0 workspace with **pyo3
+    absent from the default graph**; `bash scripts/contract-test.sh` PASS over both
+    goldens with all three legs running for real; independent pure-Python BLAKE3
+    recompute matching `GOLDEN.md`; RNG-free + no-signing grep).
+    - **PyO3 `ke_artifact_py` module** (`crates/ke-artifact/src/python.rs`) behind
+      the **optional, feature-gated** `pyo3` dep (`[features] pyo3 =
+      ["dep:pyo3"]`), so `cargo test --workspace` (default) never links Python;
+      `pyproject.toml` (maturin, abi3-py39). Verify-only §14 surface over the
+      4a/Phase-1–2 pure fns (`from_bytes`, `canonical_hash`,
+      `verify_compiler_signature`, `verify_attestations`, `verify_artifact`,
+      `provenance`, `iter_rules`, `consistency_block`, `attestations`,
+      `source_span_index`); no `SigningKey`/publish reachable.
+    - **`ke-wasm` verify-only wasm-bindgen binding** (`crates/ke-wasm/src/lib.rs`,
+      `verify_artifact` + a provenance reader, `wasm-bindgen = "=0.2.95"`) +
+      the `@platform/atlas-artifact` package (spec §6 — zero signing exports).
+    - **`scripts/contract-test.sh`** (Rust ≡ Python ≡ WASM — same `.kew` →
+      byte-identical verdict + canonical provenance + content hash), SHA-gated to
+      `fixtures/rules/SOURCE.md`, loud skip per absent leg; the shared verifier
+      inputs live in **`scripts/contract-inputs/`** (NOT `fixtures/`, which is
+      generator-only). A Linux CI job builds the wheel + WASM package and runs it.
+    - **windows-gnu wheel caveat (honest):** the local windows-gnu wheel was
+      *expected* to fail to LINK (Rust-gnu vs MSVC-CPython); in practice the
+      abi3 + extension-module wheel **built AND loaded locally** this session
+      (`maturin build --release` → `ke_artifact_py-…-cp39-abi3-win_amd64.whl`,
+      installed into the platform `.venv`, `verify_artifact` returned
+      verified/Published/`bcebbd1f…`) — `extension-module` leaves libpython
+      unlinked, CPython symbols resolve at load time. Linux CI stays the
+      authoritative consumer build; the windows-gnu floor stays `cargo check
+      --features pyo3`. The earlier "expected link failure" framing was corrected
+      in the CI workflow + the implementation log.
+    - **Follow-ups (NOT done — credentialed/downstream, Hossain):** actual publish
+      to the S3-backed PEP 503 index (ADR 0012) + the npm `@platform/atlas-artifact`
+      package; the **COMPASS Desk-MVP rewire** to the published WASM verifier
+      ("surfaced, not re-verified" → in-browser verified + revoked-pack flagging),
+      sequenced **after** the package ships.
 - **Phase 5 — cross-language contract test + schema→Pydantic.**
   - `scripts/contract-test.sh` — round-trips golden artifacts Rust↔Python,
     verifies canonical hashes match across languages (§14 schema-drift

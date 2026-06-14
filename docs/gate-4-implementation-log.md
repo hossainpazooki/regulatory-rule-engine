@@ -20,13 +20,18 @@ signature = ed25519 over the hash-patched envelope prefix; registry persistence
 v1 = S3 (ADR 0012, implementation Phase 3); attestations are typed and bind to
 the artifact hash (schema in `docs/attestation-schema.md`, behavior Phase 2).
 
-**Gate 4 status: Phases 1–2 complete (2026-06-12) — Phases 3–6 not started.**
+**Gate 4 status: Phases 0–4 complete (Phase 4b 2026-06-14) — Phases 5–6 ahead.**
 Phase 1 turned a compiled IR into a signed, content-addressed `.kew` artifact
 with committed golden vectors. Phase 2 added typed-attestation *behavior*
 (payload-prefix signing, verification, the R1–R8 rejection matrix) and
 **froze the `Attestation` shape** with the first attested goldens — content
-addresses unchanged. The registry state machine, PyO3, and the contract test
-are still ahead. No commits made — Hossain owns the history.
+addresses unchanged. Phase 3 (3a + 3b) stood up the §9 registry lifecycle over a
+local-FS backend. Phase 4 delivered the consumer-agnostic verify surface +
+provenance export (4a) and the two thin bindings (PyO3 + WASM, verify-only) plus
+the 3-language `contract-test.sh` (4b) — build + local test only; actual
+publish + the COMPASS rewire are Hossain follow-ups. Cross-language acceptance
+coordination (Phases 5–6) is still ahead. No commits made — Hossain owns the
+history.
 
 ---
 
@@ -825,3 +830,216 @@ clean; fmt clean; `cargo build -p ke-artifact` (no features) clean.
   **Gate 5**.
 
 Phase 4a is ready for Hossain review/commit on `migration/gate-4-artifact`.
+
+---
+
+## Phase 4b — PyO3 + WASM verify bindings + 3-language contract test (build + local test) ✅ (2026-06-14)
+
+Phase 4b puts the **two thin bindings** over the 4a pure verify surface and the
+**three-language contract test** that makes "the artifact is the contract" mean
+*the same verdict + canonical provenance in Rust, Python, and TS* — per ADR 0016.
+**No new crypto:** both bindings wrap the existing pure, RNG-free `ke-artifact`
+functions (`verify_artifact`, `artifact_provenance`, and the four verifiers under
+them); ed25519 *verify* is deterministic, so neither binding path touches
+`getrandom`/`OsRng`. Per the confirmed boundary, 4b **builds + locally tests**;
+actual S3/npm publish and the COMPASS rewire stay Hossain's credentialed
+follow-ups. Branch: `migration/gate-4-artifact` (continues).
+
+**Toolchain (decided what ran locally):** Rust 1.85 (`x86_64-pc-windows-gnu`),
+CPython 3.14 (platform `.venv`), node v24, `wasm-bindgen` **0.2.95** (the crate
+pin; an exact-version prebuilt MSVC binary dropped on PATH — see tooling notes),
+`maturin` 1.14.
+
+### What was built (two thin bindings over the 4a surface + the contract test)
+
+- **PyO3 binding — the `ke_artifact_py` module, feature-gated so the default
+  workspace never pulls pyo3.** `crates/ke-artifact/src/python.rs` behind the
+  **optional** `pyo3` dep, wired `[features] pyo3 = ["dep:pyo3"]` and
+  `pyo3 = { version = "0.22", features = ["extension-module","abi3-py39"],
+  optional = true }`. `cargo test --workspace` (default features) does **not**
+  link Python; pyo3 compiles only under `--features pyo3`. The §14 Python surface
+  is **verify-only** over the 4a/Phase-1–2 pure fns: `from_bytes`,
+  `canonical_hash`, `verify_compiler_signature`, `verify_attestations`,
+  `verify_artifact(kew, keydir, ctx, registry) → VerificationOutcome` (the 4a
+  call), `provenance(...)` (canonical JSON), `iter_rules`, `consistency_block`,
+  `attestations`, `source_span_index`; Python-friendly types (bytes/dict/str),
+  errors → Python exceptions. `crates/ke-artifact/pyproject.toml` (maturin
+  backend, `module-name = ke_artifact_py`, abi3-py39). **No `SigningKey`/publish
+  reachable** — only `verify_compiler_signature` + a `signer_key_id` getter.
+- **WASM binding — `ke-wasm` verify-only wasm-bindgen binding + the
+  `@platform/atlas-artifact` package (spec §6).** `crates/ke-wasm/src/lib.rs`:
+  `#[wasm_bindgen]` wrappers over `verify_artifact` + a provenance reader
+  (`.kew` bytes + JS-supplied keydir/policy/registry-evidence JSON → verdict +
+  provenance JSON). `wasm-bindgen = "=0.2.95"` (pinned to the installed CLI).
+  `crates/ke-wasm/package.json` for `@platform/atlas-artifact`. **Zero signing
+  exports** (WASM discipline — never signs/publishes; verification is RNG-free).
+  `ke-wasm` still builds on the host target for `cargo test --workspace`; the
+  real artifact is `--target wasm32-unknown-unknown`.
+- **`scripts/contract-test.sh` — Rust ≡ Python ≡ WASM over each golden.**
+  `set -euo pipefail` + the repo's SHA-gate/`fatal` conventions (mirrors
+  `differential-test.sh`); SHA-gated to `fixtures/rules/SOURCE.md`; loud skip for
+  any absent leg (no silent pass). For each golden `fixtures/artifacts/*/artifact.kew`
+  it computes the Rust, Python (installed wheel), and WASM (node loading the
+  built package) verdicts and asserts **byte-identical `{verdict, registry_state,
+  content_hash, provenance}`** across all present legs.
+- **Shared verifier inputs under `scripts/contract-inputs/`** (NOT under
+  `fixtures/` — that dir is generator-only): `keydir.json`, `policy.json`
+  (`context.json`), `registry.json` — fixed JSON matching what
+  `crates/ke-artifact/tests/verify_surface.rs` builds in-Rust for the Published
+  golden case (expert key authorized for the attested types, valid window over
+  the fixed claimed-time, environment `local`, `supported_policy_versions
+  ["ap-1"]`, `RegistryStatus::Published`, golden `event_head_hash`, `live_event_head
+  None`).
+
+### Gate evidence (integration/bind runner, run this session from a clean state; quoted verbatim)
+
+> GATE = `bash scripts/contract-test.sh` (Rust ≡ Python ≡ WASM over the goldens) +
+> `cargo test --workspace`. Both run THIS session from a clean state.
+>
+> `cargo test --workspace` → "TOTAL passed=141 failed=0". fmt clean (`cargo fmt
+> --all --check` → FMT OK). clippy clean default AND `--features pyo3` (both
+> "Finished, -D warnings"). Feature isolation: `cargo tree -e features -p
+> ke-artifact` → "OK: pyo3 absent by default"; present only under `--features
+> pyo3`. `cargo check -p ke-artifact --features pyo3` compiles; `cargo build -p
+> ke-wasm --target wasm32-unknown-unknown` builds.
+>
+> CONTRACT TEST verbatim success line:
+>   platform SHA verified: f73b9403c88a7ab5d741b351dce085b6988b6ba7
+>   python leg: .../.venv/Scripts/python.exe (ke_artifact_py importable)
+>   building the WASM nodejs-target package (wasm-bindgen 0.2.95)…
+>   wasm leg: node + .../crates/ke-wasm/pkg-node
+>   ok    rule_reserve_assets  [rust+python+wasm]  verdict=verified
+>   ok    rule_significant_thresholds  [rust+python+wasm]  verdict=rejected:Attestations([LegalSourceHashChanged x3, RequiredTypeMissing{SourceFidelity}, {ScenarioCoverage}, {PublicationApproval}])
+>   checked 2 golden artifact(s)
+>   PASS: every present leg agrees on verdict + canonical provenance over all goldens
+>
+> All three legs emit byte-identical {verdict, registry_state, content_hash,
+> provenance} — the norm() compare passed, that is the contract.
+>
+> INDEPENDENT RECOMPUTE (pure Python blake3, no Rust path): re-zeroed the 32-byte
+> hash slot (offset 1, after the 1-byte ArtifactKind tag), BLAKE3 over the
+> envelope prefix → rule_reserve_assets (prefix 862) =
+> bcebbd1f89619efbab253e9fb463fa089b0d487a28064006ec6fd7a43a0ccb87 (MATCH
+> GOLDEN.md + brief); rule_significant_thresholds (prefix 598) =
+> a0a06ee4cd592d557d42e9f1a0c5177a64a4c080f0677ef73a706542798f66bf (MATCH).
+> Installed wheel's canonical_hash() returned the same bcebbd1f… and
+> verify_artifact() returned verified/Published.
+>
+> RNG-FREE grep: no getrandom/OsRng in the --features pyo3 dependency graph or the
+> ke-wasm wasm32 graph; the only matches in python.rs/lib.rs are doc comments. No
+> SigningKey/publish/generate reachable from either binding (python has only
+> verify_compiler_signature + signer_key_id getter; wasm has zero signing
+> exports).
+>
+> Git: NOT committed (repo CLAUDE.md rule).
+
+> ALL THREE LEGS RAN FOR REAL — none skipped, none faked. Rust leg: ke-artifact
+> contract-verify example. Python leg: maturin-built abi3 wheel installed into
+> ../institutional-defi-platform-api/.venv, ke_artifact_py.verify_artifact
+> returned verified/Published/bcebbd1f… WASM leg: cargo build wasm32 --release +
+> wasm-bindgen --target nodejs into pkg-node/, node loaded it (CJS via require) and
+> returned the same JSON. All three byte-identical per contract-test.sh PASS.
+
+**Test counts** (same report): `cargo test --workspace` = **141 passed, 0 failed**
+(unchanged from 4a — pyo3 stays out of the default graph, so 4b adds no
+default-feature suite; the contract test is the cross-language gate). The contract
+verdicts: `rule_reserve_assets` → **verified** (Published golden), and
+`rule_significant_thresholds` → **rejected** with
+`Attestations([LegalSourceHashChanged x3, RequiredTypeMissing{SourceFidelity},
+{ScenarioCoverage}, {PublicationApproval}])` (the second golden's attestations do
+not satisfy the shared policy context — the rejection is itself part of the
+contract, identical across all three legs).
+
+### Honest correction to the windows-gnu wheel expectation
+
+The 4b brief and the prior CI comments framed the **local windows-gnu wheel as
+EXPECTED to fail to LINK** (Rust-gnu vs MSVC-CPython) and to be gated only on
+`cargo check --features pyo3`. **That did not happen — the abi3 +
+extension-module wheel built AND loaded on windows-gnu this session.** From the
+bind runner, verbatim:
+
+> built locally — `maturin build --release` produced
+> ke_artifact_py-0.0.0-cp39-abi3-win_amd64.whl on x86_64-pc-windows-gnu;
+> pip-installed into the platform .venv; ke_artifact_py.verify_artifact returned
+> verdict=verified, registry_state=Published, content_hash=bcebbd1f… for
+> rule_reserve_assets. The expected Rust-gnu↔MSVC-CPython link failure did NOT
+> occur (abi3+extension-module = no link-time libpython). Linux CI remains the
+> authoritative consumer build; windows-gnu CI keeps cargo check --features pyo3
+> as the floor.
+
+Reason: `extension-module` leaves libpython **unlinked** at build time and CPython
+symbols resolve at *load* time, so no MSVC-CPython link step is hit. The Linux CI
+job stays the authoritative consumer build (the platform-api is Linux); the
+windows-gnu floor stays `cargo check --features pyo3`. The dishonest "expected
+link failure" framing was corrected in `.github/workflows/contract-tests.yml` and
+this log — this is a **local build + load that genuinely happened**, not an
+implied pass.
+
+### Fixes made while bringing the contract test up (bind runner)
+
+- **`scripts/contract-test.sh` node leg was unloadable** — nodejs-target
+  wasm-bindgen output is CommonJS, but `crates/ke-wasm/package.json` declares
+  `"type":"module"` (the browser/bundler ESM artifact COMPASS consumes), so node
+  ESM-parsed the CJS glue and threw `module is not defined`. Root cause = two
+  module systems sharing one `pkg/` + package.json. **Fix:** the script now builds
+  the node leg into a separate `crates/ke-wasm/pkg-node/` with its own
+  `{"type":"commonjs"}` marker and loads it via `require` (driver rewritten
+  `.mjs`→`.cjs`, dynamic `import()`→`require`).
+- **`scripts/contract-test.sh` path handling** — added a `winpath()` (`cygpath
+  -w`) helper applied to all node argv paths; on Git Bash/MINGW the `/c/...` MSYS
+  paths node cannot resolve are converted to native Windows form (mirrors
+  `differential-test.sh`).
+- **`scripts/contract-test.sh` self-builds the WASM leg** — `cargo build wasm32
+  --release` + `wasm-bindgen --target nodejs`, and version-checks the installed
+  `wasm-bindgen == ` the crate pin `0.2.95` before running, so the test is
+  reproducible from a clean checkout (it previously only detected a pre-built
+  `pkg`).
+- **`.github/workflows/contract-tests.yml`** — removed the broken `wasm-pack build
+  --target nodejs --out-dir pkg` step (it wrote CJS into the ESM `pkg/`, same bug);
+  the CI step now only installs the pinned `wasm-bindgen-cli` and the contract test
+  builds `pkg-node/` itself. Also corrected the dishonest "windows-gnu wheel link
+  EXPECTED to fail" framing (see above).
+- **`.gitignore`** — added `crates/ke-wasm/pkg/` and `pkg-node/` (generated
+  wasm-bindgen output, not committed source).
+
+### Tooling notes (windows-gnu)
+
+- `cargo install wasm-bindgen-cli --version 0.2.95` fails to build from source
+  here: without `--locked` a transitive dep needs rustc 1.86; with `--locked` the
+  C-dep build needs `gcc.exe` (absent on this gnu host) and the MSVC toolchain has
+  no working linker env. **Fix:** dropped the official prebuilt `wasm-bindgen
+  0.2.95` (`x86_64-pc-windows-msvc`) binary on PATH — **exact** version match to
+  the crate pin (the classic version-lockstep footgun). CI installs via `cargo
+  install … --locked` on Linux, which works.
+- `pkg/` (ESM/bundler, COMPASS-facing) and `pkg-node/` (CJS, the contract test's
+  node leg) are both **generated** (now gitignored), not committed source.
+
+### Implemented vs deferred (honest boundary)
+
+- **Implemented (4b, this repo — build + local test, green):** the feature-gated
+  PyO3 `ke_artifact_py` verify-only module + `pyproject.toml`; the `ke-wasm`
+  verify-only wasm-bindgen binding + `@platform/atlas-artifact` package; the
+  3-language `scripts/contract-test.sh` (Rust ≡ Python ≡ WASM, byte-identical
+  verdict + provenance + content hash over both goldens); the shared
+  `scripts/contract-inputs/` verifier inputs; a Linux CI job. The windows-gnu wheel
+  **built and loaded locally** this session.
+- **Deferred / follow-up (credentialed or downstream — Hossain):** actual publish
+  of the wheel to the S3-backed PEP-503 index and the npm `@platform/atlas-artifact`
+  package; the **COMPASS Desk-MVP rewire** (swap the vendored snapshot +
+  sibling-dir sync for the published WASM verifier; "surfaced, not re-verified" →
+  in-browser verified + revoked-pack flagging), sequenced **after** 4b ships the
+  package; the real S3 registry backend; `ke serve` (REST/WS) stays **Gate 5**.
+
+### RNG-free + no-signing guarantee (carried from 4a, re-confirmed for both bindings)
+
+`getrandom`/`OsRng` are absent from both the `--features pyo3` dependency graph
+and the `ke-wasm` wasm32 graph; the only `getrandom`/`OsRng` strings in
+`python.rs`/`lib.rs` are doc comments asserting the prohibition. Neither binding
+exposes `SigningKey`/publish/generate: the Python surface offers only
+`verify_compiler_signature` + a `signer_key_id` getter, and the WASM surface has
+**zero** signing exports (spec §6 — browser/WASM code never produces authoritative
+artifacts).
+
+Phase 4b builds + local tests are green on `migration/gate-4-artifact`, ready for
+Hossain review/commit. **Phase 4 (consumer-agnostic verification + both bindings)
+is complete (4a + 4b).**
