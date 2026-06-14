@@ -1,0 +1,22 @@
+{
+  "t2_t3_mode": "Strict",
+  "required_attestation_types": [
+    "SourceFidelity",
+    "ScenarioCoverage",
+    "PublicationApproval"
+  ],
+  "minimum_attestation_count_per_type": [
+    {
+      "attestation_type": "SourceFidelity",
+      "count": 1
+    },
+    {
+      "attestation_type": "ScenarioCoverage",
+      "count": 1
+    },
+    {
+      "attestation_type": "PublicationApproval",
+      "count": 1
+    }
+  ]
+}

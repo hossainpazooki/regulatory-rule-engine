@@ -59,7 +59,11 @@ pub enum RegistryStatus {
 /// chain-hash of the head event **as of export**; `live_event_head`, if
 /// `Some`, is a freshly-fetched head the consumer supplies for **staleness
 /// detection** — a mismatch is [`RejectionReason::StaleEventHead`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+///
+/// `Serialize`/`Deserialize` (Phase 4b): the PyO3 / WASM bindings take this as
+/// JSON so the three contract languages share one registry-evidence input
+/// (`scripts/contract-inputs/registry.json`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RegistryEvidence {
     /// The registry lifecycle status as of export.
     pub status: RegistryStatus,

@@ -115,7 +115,10 @@ struct AttestationPayloadView {
 /// Explicit verification context — clock, environment, supported policy
 /// versions, and the recomputed legal-source hash all arrive here so
 /// verification stays pure (no system clock, no environment reads).
-#[derive(Clone, Debug, PartialEq, Eq)]
+///
+/// `Deserialize` (Phase 4b): the PyO3 / WASM bindings take this as JSON, so the
+/// three contract languages share one verifier context (`scripts/contract-inputs/policy.json`).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PolicyContext {
     /// Named environment the verification runs under (R8: mock TSA is
     /// accepted only when this is `"local"`).

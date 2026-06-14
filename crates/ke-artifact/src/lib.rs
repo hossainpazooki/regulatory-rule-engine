@@ -26,6 +26,12 @@ pub mod attestation;
 pub mod consistency;
 pub mod hash;
 pub mod keydir;
+/// PyO3 binding for `ke-artifact-py` (spec § 14, Phase 4b). Behind the `pyo3`
+/// feature so the default workspace build never links libpython. RNG-free —
+/// it wraps the pure 4a verify surface verbatim and exposes verification +
+/// provenance reading only (no signing/publish in this module).
+#[cfg(feature = "pyo3")]
+pub mod python;
 pub mod sign;
 pub mod tsa;
 pub mod verify;
