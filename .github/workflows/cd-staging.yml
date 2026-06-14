@@ -1,8 +1,12 @@
 name: Deploy to Staging
 
 on:
-  push:
-    branches: [main]
+  # Auto-deploy on push to main is intentionally DISABLED: this repo has no AWS
+  # credentials / OIDC wired, so `configure-aws-credentials` fails on every push
+  # and reds `main` for an infra reason unrelated to code. Staging deploy is
+  # manual (workflow_dispatch) until creds are configured — then re-add:
+  #   push:
+  #     branches: [main]
   workflow_dispatch:
 
 env:
