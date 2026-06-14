@@ -1,0 +1,34 @@
+# ke-artifact-py — the PyO3 wheel for the platform-api consumer (spec § 14).
+#
+# Verify-only bindings over the pure 4a `ke-artifact` verify surface. No new
+# crypto, no signing/publish (spec § 5, § 6, § 13).
+#
+# Build (authoritative on Linux/CI; locally attempted):
+#   maturin build --features pyo3 --release
+# A local windows-gnu link failure (Rust-gnu vs MSVC-CPython) is EXPECTED —
+# the wheel's consumer is the Linux platform-api, and CI builds it there. The
+# local gate is `cargo check -p ke-artifact --features pyo3`.
+
+[build-system]
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "ke-artifact-py"
+version = "0.0.0"
+description = "Verify-only Python bindings over the ke-artifact Rust verification surface (spec § 14)."
+requires-python = ">=3.9"
+license = { text = "Proprietary" }
+authors = [{ name = "ke-workbench" }]
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+
+[tool.maturin]
+# The extension module name Python imports (`import ke_artifact_py`).
+module-name = "ke_artifact_py"
+# One ABI3 wheel loads on CPython >= 3.9 (matches the abi3-py39 cargo feature).
+features = ["pyo3/extension-module"]
+# The binding compiles only under the crate's `pyo3` feature.
+cargo-extra-args = "--features pyo3"

@@ -1,7 +1,24 @@
 # Gate 4 — Artifact, registry, attestation, platform unblock (brief)
 
-**Status:** not started. **Blocked on the §2 prerequisite decisions** — several
-spec §21 open decisions must be resolved (as Gate-4 ADRs) before Phase 1 begins.
+**Status:** **ATLAS-side accept-ready** — **Phases 0–4 + the Phase-6 acceptance
+record complete** (3a + 3b; 4a + 4b; see `docs/gate-4-implementation-log.md` and
+`docs/gate-4-acceptance.md`). **Acceptance verdict (honest):** C3 (specific-policy
+rejection) is **MET in this repo** by named re-runnable tests + the cross-language
+contract test; **C4** (rollback → prior signed hash) is **PARTIALLY met** —
+rollback eligibility + pointer-move + mechanism proven, but the literal
+resolve-by-tag-to-previous-*distinct*-hash is not yet covered by a dedicated test
+(small follow-up); **C1** (platform verifies
+before execution) has the **verifier delivered and proven Rust ≡ Python ≡ WASM**,
+with platform **integration PENDING the separate platform-repo PR**; **C2**
+(execute parity) has its **runtime-parity foundation** in the Gate-3 equivalence
+harness, with artifact-based execute parity **platform-side, PENDING**. C1/C2 are
+**not** marked met here — they are cross-repo (the consumer does not yet consume
+ATLAS artifacts). Phase 4 shipped the consumer-agnostic verify surface +
+provenance export (4a) and the two thin verify-only bindings (PyO3 + WASM) plus
+the 3-language contract test (4b) — **build + local test only**; actual S3/npm
+publish and the COMPASS rewire remain Hossain follow-ups. The §2 prerequisite
+decisions were resolved as Gate-4 ADRs 0009–0014 in Phase 0 (Accepted
+2026-06-11), unblocking Phase 1.
 This brief is the contract; it mirrors the Gate 1–3 briefs and the mandatory §22
 brief sections.
 **Authoritative spec sections:** §8 (artifact contract), §9 (lifecycle state
@@ -112,9 +129,10 @@ These Gate-3 "Gate-4 readiness decisions" are inputs to this gate, not open:
 - **`ke-artifact-py` index v1 = S3-backed PEP 503 simple index**, exact version +
   hash pinned in the platform repo.
 - **Codec = postcard-1** (ADR 0002); **content hash = BLAKE3**; **signature =
-  ed25519** (spec §8). Canonical encoding profile + version triplet
-  (`0.3.0` / `ke-canon-3` / `postcard-1`) is the Gate-1–3 contract; any Gate-4
-  shape change bumps it and regenerates golden vectors atomically.
+  ed25519** (spec §8). Canonical encoding profile + version triplet is now
+  (`0.4.0` / `ke-canon-4` / `postcard-1`) — the ADR 0013 canon-4 landing bumped
+  the Gate-1–3 contract (`0.3.0` / `ke-canon-3`) and regenerated the golden
+  vectors atomically; any further Gate-4 shape change bumps it again.
 - **Initial registry lives inside `ke-cli`** (spec §6 deferred-splits); a
   `ke-registry` crate splits out only when persistence/policy APIs stabilize.
 
@@ -125,11 +143,30 @@ These Gate-3 "Gate-4 readiness decisions" are inputs to this gate, not open:
 Phased to keep the doc-each-phase convention; sequenced so each phase is
 independently verifiable.
 
-- **Phase 0 — prerequisite ADRs + attestation schema.** The §2 ADRs (0009–0012);
-  finalize the typed attestation schema (§10 bound fields) in
-  `docs/attestation-schema.md`; author/seed the **platform-repo brief** (separate
-  repo). *No code.*
+- **Phase 0 — prerequisite ADRs + attestation schema.** The §2 ADRs (0009–0012)
+  **plus ADR 0013** (revocation-policy reconciliation — the only canon-bumping
+  prerequisite, sequence first) and **ADR 0014** (§18 audit-contract ownership +
+  pre-freeze field model). All six are drafted **Proposed** and need Hossain +
+  security/domain sign-off before Phase 1. Finalize the typed attestation schema
+  (§10 bound fields) in `docs/attestation-schema.md` (done — Proposed). Author the
+  **platform-repo brief** (separate repo) against
+  `dev/briefs/gate-4-platform-consumption-OUTLINE.md`. *No code.*
+  - **Hard prerequisite, not in the original §23 checklist:** the T4
+    `contradictory_outcome` detector must first be fixed so `verify()` over the
+    clean corpus yields `has_blocking() == false` (done — Gate-2 remediation, ADR
+    0005 amendment + `crates/ke-compiler/tests/t4_corpus.rs`). Until that landed,
+    no artifact could reach `draft → structurally_verified` (§9) and Gate 4 had
+    nothing to attest.
+  - **Sequencing:** ADR 0013's canon bump (`0.3.0/ke-canon-3 → 0.4.0/ke-canon-4`)
+    was absorbed in a single Phase-1 "canon-4 landing" (**landed**: enum
+    reconciled, triplet bumped, corpus regenerated once); ADRs 0009/0011/schema
+    bind to the post-0013 `RevocationPolicy` names.
+    ADR 0014's static-field decision must be settled before the attestation schema
+    freezes (else a post-freeze §18 retrofit forces re-attestation).
 - **Phase 1 — `ke-artifact` core encoding + content addressing + signature.**
+  **Delivered 2026-06-12** — see `docs/gate-4-implementation-log.md` (Phase 1)
+  for what landed, the byte-range contract, and the verbatim gate evidence
+  (89/0 workspace, 16/0 ke-artifact, generator idempotence, key hygiene).
   - `crates/ke-artifact/src/artifact.rs` — the `Artifact` assembly (§8.1):
     `manifest`, `compiled_ir`, `source_span_index`, `consistency_block`,
     `compiler_signature`, `attestations`, `registry_state_metadata`.
@@ -140,37 +177,181 @@ independently verifiable.
   - `fixtures/artifacts/` extended with §8.3 golden vectors (signed; via a
     documented generator — never hand-edited).
 - **Phase 2 — typed attestations + verification + `ConsistencyBlock`.**
+  **Delivered 2026-06-12** — see `docs/gate-4-implementation-log.md` Phase 2
+  (117/0 workspace; R1–R8 + signature/class/TSA as typed variants, each pinned
+  by a named test; attested golden vectors with the Phase-1 content addresses
+  pinned unchanged — the §9 append property is now mechanical).
   - `crates/ke-artifact/src/attestation.rs` — `Attestation` (all §10 bound
     fields), signing, and the platform **rejection rules** (§10): unknown/expired/
     revoked/unauthorized key, not bound to the artifact hash, unsupported policy
     version, expired, legal-source-hash changed, missing required types.
   - `crates/ke-artifact/src/consistency.rs` — `ConsistencyBlock` (§11) carrying
-    T0–T4 evidence, policy mode, model/profile versions, overrides, timestamps.
-- **Phase 3 — registry state machine + S3 v1.**
+    T0–T4 evidence, policy mode, model/profile versions, overrides, timestamps
+    (builder only; evidence path is platform-owned per ADR 0011, adapter in
+    ke-cli Phase 3).
+  - Also landed: `tsa.rs` (deterministic MockTsa; ADR-0010 class binding),
+    `keydir.rs` (ADR-0009 directory shape).
+- **Phase 3 — registry state machine (local-FS backend). COMPLETE (3a + 3b); S3 v1 deferred (trait seam ready, see below).**
+  **Delivered 2026-06-13** — see `docs/gate-4-implementation-log.md` (Phase 3a +
+  Phase 3b) for what landed and the verbatim gate evidence. 3a stood up the
+  registry-core library, the hash-chained registry-root-signed event log, the
+  `can_transition` table, the `LocalFsBackend`, `resolve`, and `ke compile`/`ke
+  query`. **3b** drove the rest of the §9 lifecycle via six CLI commands —
+  `ml-check` (dev stand-in writing a `consistency/<hash>.json` sidecar, **not**
+  the envelope), `attest` (expert attestations re-written into `.kew`
+  post-envelope with `artifact_hash` asserted unchanged), `publish` (the
+  `verify_attestation_set` policy gate; typed `AttestationSetRejected` on a
+  missing required type), `deprecate`, `revoke` (revocation policy + severity
+  **recorded** in a `revocations/<hash>.json` sidecar — runtime enforcement is
+  platform/Gate 6), and `rollback` (ADR-0013 eligibility). `LifecycleEvent`
+  shape is unchanged, so the 3a canonical-event-head pin still holds; 3b adds
+  its own published/revoked event-head pins. Signing stays behind `test-keys`;
+  a no-feature build keeps each command a typed "requires `--features
+  test-keys`" error. Evidence: `cargo test -p ke-cli --features test-keys` =
+  16/0; `cargo test --workspace` = 0 failed; fmt + clippy (`-D warnings`, both
+  feature sets) clean; `bash scripts/lifecycle-smoke.sh` PASS with twice-run
+  byte-identical determinism across `events/artifacts/tags/consistency/
+  revocations`.
+  - **Deferred past Phase 3** (recorded honestly): real T2/T3 sidecar evidence
+    (platform-owned, ADR 0011 — `ml-check` is a loudly-marked dev stand-in);
+    **runtime** revocation **enforcement** (platform/Gate 6 — the registry only
+    records state + policy + severity); registry-root HSM custody + signed
+    key-directory object + root rotation (ADR 0009, infra); real S3 backend +
+    Object-Lock/versioning + attestations-as-separate-objects under WORM (trait
+    seam ready; the local-FS `.kew` re-write is the dev path); PyO3 (Phase 4);
+    `contract-test.sh` (Phase 5); `ke serve` (Gate 5). The §8.1-vs-§9
+    `consistency_block` placement (in-envelope slot reserved for compile-time
+    T0/T1/T4 and left `None`; T2/T3 lives in the registry sidecar) is **flagged
+    for a possible follow-up ADR**, not resolved here.
   - Registry inside `ke-cli` (`crates/ke-cli/src/registry/`): the §9 state
     machine (`draft → structurally_verified → ml_checked → expert_attested →
     published → deprecated → revoked`) as append-only signed events; transition
     authority rules (§9); rollback = move tag/policy pointer to a prior content
     hash (no byte mutation); revocation = append-only event (§15).
+    - **3a (done):** registry-core library — `LifecycleState` derived from a
+      hash-chained, registry-root-signed `LifecycleEvent` log (`current_state`),
+      the `can_transition` precondition table (the full §9 edge set, but only
+      `draft`+`structurally_verified` *executed*), `RegistryBackend` trait +
+      `LocalFsBackend` (ADR-0012 paths, `NON_AUTHORITATIVE` marker), `resolve`
+      (ByHash/ByTag/ByRegime) + the §18 `ResolutionRecord`,
+      `is_rollback_eligible`. Clock-free core (`now_unix` injected).
+    - **3b (done):** the `ml-check`/`attest`/`publish`/`deprecate`/`revoke`/
+      `rollback` *commands* + revocation-policy **recording** (§15; policy +
+      severity in a `revocations/<hash>.json` sidecar, runtime enforcement is
+      platform/Gate 6). Anti-backdating skew bound remains deferred (monotonic
+      `now_unix` + the hash chain are present; the bound itself is not built).
   - S3 layout per ADR 0012; **local filesystem backend allowed for dev/test
-    only**.
-  - `ke-cli` subcommands: `compile`, `verify`, `attest`, `publish`, `query`
-    (spec §6).
-- **Phase 4 — `ke-artifact-py` PyO3 binding + wheel + index.**
-  - `crates/ke-artifact/src/python.rs` behind a `pyo3` feature; the §14 Python
-    surface (`from_bytes`, `canonical_hash`, `verify_compiler_signature`,
-    `verify_attestations`, `iter_rules`, `consistency_block`, `attestations`,
-    `source_span_index`).
-  - Packaged wheel published to the S3-backed PEP 503 index (ADR 0012).
-- **Phase 5 — cross-language contract test + schema→Pydantic.**
-  - `scripts/contract-test.sh` — round-trips golden artifacts Rust↔Python,
-    verifies canonical hashes match across languages (§14 schema-drift
-    prevention); SHA-gated to the recorded `SOURCE.md` commit (mirrors
-    `differential-test.sh`).
-  - JSON Schema emission consumed by platform Pydantic-model generation
-    (platform side; contract fixtures provided here).
-- **Phase 6 — acceptance + platform coordination.** `docs/gate-4-implementation-log.md`;
-  confirm the platform-repo PR demonstrates end-to-end load + execute parity.
+    only** — and is what 3a ships (objects flagged `NON_AUTHORITATIVE`,
+    ADR 0012 §6). S3 slots behind the same `RegistryBackend` trait later.
+  - `ke-cli` subcommands: `compile` + `query` **(done, 3a)**; `ml-check` /
+    `attest` / `publish` / `deprecate` / `revoke` / `rollback` **(done, 3b)** —
+    signing behind `test-keys`, no-feature build returns a typed "requires
+    `--features test-keys`" error per command (spec §6).
+- **Phase 4 — consumer-agnostic verification + provenance export, with both
+  bindings (RESCOPED by ADR 0016; supersedes the original "Python-only" Phase 4
+  below).** Driver: the platform-api is a hypothetical consumer while **COMPASS
+  is a live consumer today** that surfaces ATLAS provenance "surfaced, not
+  re-verified," reads a sibling `fixtures/` dir absent on Vercel, and has **no
+  revocation channel**. So Phase 4 ships **one** pure verification surface with
+  two thin bindings, plus a provenance export carrying registry state.
+  - **Phase 4a (delivered): ADR 0016 + the pure Rust core, CI-testable.**
+    - `crates/ke-artifact/src/verify.rs` — the consumer surface, RNG-free and
+      backend-free (WASM-ready): `verify_artifact(kew, keydir, ctx, registry) ->
+      VerificationOutcome` wrapping the existing pure verifiers
+      (`decode_artifact` → `verify_hash` → `verify_signature` → `verify_attestation_set`),
+      then folding in registry state; `Verdict` / `RejectionReason`
+      (`HashMismatch` / `CompilerSignatureInvalid` / `Attestations` /
+      `NotPublished` / `StaleEventHead` / `Decode`); `RegistryStatus` /
+      `RegistryEvidence` (status + event-head hash, optional live head for
+      staleness); `ArtifactProvenance` / `AttestationSummary` (`artifact_provenance(...)`,
+      plain serde → one canonical JSON, `is_test_key` surfaces `test-*` keys).
+      **`verify_artifact` takes registry state as DATA — no I/O, no RNG.**
+    - `crates/ke-cli/src/commands/export_provenance.rs` + `ke export-provenance`
+      — the **only** registry-touching part: reads the `.kew` and the event log
+      (`current_state` → `RegistryStatus`, `head_event.chain_hash()` →
+      event-head hash), builds `RegistryEvidence`, calls `artifact_provenance`,
+      prints canonical JSON (and optionally writes `artifacts/<hash>/provenance.json`).
+      `--now` / `KE_NOW` for `exported_at`.
+  - **Phase 4b (delivered 2026-06-14): bindings + cross-language contract test —
+    build + local test only.** See `docs/gate-4-implementation-log.md` (Phase 4b)
+    for what landed and the verbatim gate evidence (141/0 workspace with **pyo3
+    absent from the default graph**; `bash scripts/contract-test.sh` PASS over both
+    goldens with all three legs running for real; independent pure-Python BLAKE3
+    recompute matching `GOLDEN.md`; RNG-free + no-signing grep).
+    - **PyO3 `ke_artifact_py` module** (`crates/ke-artifact/src/python.rs`) behind
+      the **optional, feature-gated** `pyo3` dep (`[features] pyo3 =
+      ["dep:pyo3"]`), so `cargo test --workspace` (default) never links Python;
+      `pyproject.toml` (maturin, abi3-py39). Verify-only §14 surface over the
+      4a/Phase-1–2 pure fns (`from_bytes`, `canonical_hash`,
+      `verify_compiler_signature`, `verify_attestations`, `verify_artifact`,
+      `provenance`, `iter_rules`, `consistency_block`, `attestations`,
+      `source_span_index`); no `SigningKey`/publish reachable.
+    - **`ke-wasm` verify-only wasm-bindgen binding** (`crates/ke-wasm/src/lib.rs`,
+      `verify_artifact` + a provenance reader, `wasm-bindgen = "=0.2.95"`) +
+      the `@platform/atlas-artifact` package (spec §6 — zero signing exports).
+    - **`scripts/contract-test.sh`** (Rust ≡ Python ≡ WASM — same `.kew` →
+      byte-identical verdict + canonical provenance + content hash), SHA-gated to
+      `fixtures/rules/SOURCE.md`, loud skip per absent leg; the shared verifier
+      inputs live in **`scripts/contract-inputs/`** (NOT `fixtures/`, which is
+      generator-only). A Linux CI job builds the wheel + WASM package and runs it.
+    - **windows-gnu wheel caveat (honest):** the local windows-gnu wheel was
+      *expected* to fail to LINK (Rust-gnu vs MSVC-CPython); in practice the
+      abi3 + extension-module wheel **built AND loaded locally** this session
+      (`maturin build --release` → `ke_artifact_py-…-cp39-abi3-win_amd64.whl`,
+      installed into the platform `.venv`, `verify_artifact` returned
+      verified/Published/`bcebbd1f…`) — `extension-module` leaves libpython
+      unlinked, CPython symbols resolve at load time. Linux CI stays the
+      authoritative consumer build; the windows-gnu floor stays `cargo check
+      --features pyo3`. The earlier "expected link failure" framing was corrected
+      in the CI workflow + the implementation log.
+    - **Follow-ups (NOT done — credentialed/downstream, Hossain):** actual publish
+      to the S3-backed PEP 503 index (ADR 0012) + the npm `@platform/atlas-artifact`
+      package; the **COMPASS Desk-MVP rewire** to the published WASM verifier
+      ("surfaced, not re-verified" → in-browser verified + revoked-pack flagging),
+      sequenced **after** the package ships.
+- **Phase 5 — cross-language contract test + schema→Pydantic. (SPLIT by the
+  ADR-0016 rescope: the contract test moved into Phase 4b and is DELIVERED; the
+  Pydantic half is platform-side.)**
+  - `scripts/contract-test.sh` — **delivered in Phase 4b (2026-06-14)** and
+    extended beyond the original Rust↔Python to **three languages
+    (Rust ≡ Python ≡ WASM)**: same `.kew` → byte-identical verdict + canonical
+    provenance + content hash; SHA-gated to `SOURCE.md` (mirrors
+    `differential-test.sh`). The rescope pulled it forward because it wraps the
+    same verify surface as the bindings — see the Phase 4b entry above.
+  - JSON Schema → platform **Pydantic-model generation** is **platform-repo
+    work** (§14 schema-drift prevention); this repo emits the schema + provides
+    the contract fixtures. Tracked under Phase 6 platform coordination / the
+    separate platform-repo brief — not an ATLAS-repo deliverable.
+- **Phase 6 — acceptance record + platform coordination. ATLAS-side DELIVERED
+  2026-06-14; platform integration PENDING.** The Gate-4 **acceptance record**
+  `docs/gate-4-acceptance.md` maps each §19 / §7 criterion (C1–C4) to ATLAS-side
+  evidence (file:line / named test / reproduce command) and an honest status;
+  the Phase-6 entry in `docs/gate-4-implementation-log.md` records the verdict.
+  - **C3 + C4 MET in-repo:** C3 by the typed R1–R8 rejection matrix
+    (`crates/ke-artifact/tests/attestation.rs`, one named test per variant) +
+    the revoked/stale surface rejections
+    (`crates/ke-artifact/tests/verify_surface.rs`
+    `rejected_when_revoked`/`stale_event_head`) + the contract test's
+    cross-language identical reason set; C4 by
+    `crates/ke-cli/tests/lifecycle.rs`
+    `rollback_to_published_ok_and_to_revoked_ineligible` +
+    `published_and_revoked_event_heads_are_pinned` + ADR-0013
+    `is_rollback_eligible`.
+  - **C1 verifier DELIVERED + 3-language-consistent** (`verify.rs`
+    `verify_artifact`; `bash scripts/contract-test.sh` PASS) — platform
+    verification-middleware **integration PENDING** the separate platform-repo PR.
+  - **C2 runtime-parity FOUNDATION DELIVERED** (Gate-3
+    `scripts/equivalence-harness.sh`, Rust runtime ≡ Python `RuleRuntime`) —
+    artifact-based execute parity is **platform-side, PENDING**.
+  - **Cannot close from this repo:** C1 + C2 require the platform to load +
+    execute; that change is a separate `institutional-defi-platform-api` PR
+    (brief §1, §10), instantiated from
+    `dev/briefs/gate-4-platform-consumption-OUTLINE.md`. This workflow does not
+    modify the sibling repo and does not fabricate platform execution.
+  - **Independent verification (reviewer commands, in the acceptance record):**
+    `cargo test --workspace` (141/0); `cargo test -p ke-artifact --features
+    test-keys --test attestation --test verify_surface`; `cargo test -p ke-cli
+    --features test-keys --test lifecycle`; `bash scripts/contract-test.sh`.
 
 ---
 

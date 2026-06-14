@@ -17,7 +17,7 @@
       }
     ]
   },
-  "revocation_policy": "FinishPinnedNoNew",
+  "revocation_policy": "FinishPinned",
   "effective_window": {
     "effective_from": {
       "year": 2024,

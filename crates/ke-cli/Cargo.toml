@@ -8,6 +8,24 @@ authors.workspace = true
 publish.workspace = true
 description = "ke-workbench command-line: compile, verify, attest, publish, query, serve"
 
+[features]
+default = []
+# Fixed-seed deterministic test keys for the compiler signature
+# (`ke_artifact::sign::test_keys`) AND the registry-root key used to sign
+# lifecycle events (`registry::event::test_keys`). Gate 4 Phase 3a:
+# `ke compile` / `ke query` only *sign* artifacts and events under this
+# feature, so the smoke script and the `ke` binary built for end-to-end runs
+# must enable it. `cargo build -p ke-cli` (no features) stays clean: the
+# registry-core types, `current_state`, `resolve`, and the precondition table
+# are all ungated; only the signing entry points are gated. NEVER enable in
+# production builds; every key here is loudly a fixed-seed test key and never
+# an ADR-0009 production key. NEVER use OsRng/getrandom for keys.
+test-keys = ["ke-artifact/test-keys"]
+
+[lib]
+name = "ke_cli"
+path = "src/lib.rs"
+
 [[bin]]
 name = "ke"
 path = "src/main.rs"
@@ -17,5 +35,20 @@ ke-core = { path = "../ke-core" }
 ke-compiler = { path = "../ke-compiler" }
 ke-runtime = { path = "../ke-runtime" }
 ke-artifact = { path = "../ke-artifact" }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+postcard = { workspace = true }
+blake3 = { workspace = true }
+ed25519-dalek = { workspace = true }
+thiserror = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
+
+[dev-dependencies]
+# Self-dependency so integration tests under tests/ see the gated test-key
+# modules (`registry::event::test_keys`, `ke_artifact::sign::test_keys`):
+# `cfg(test)` applies only to unit tests, not the lib/bin as compiled for the
+# integration-test target. Feature unification enables `test-keys` for all
+# test builds while `cargo build -p ke-cli` stays clean (mirrors ke-artifact).
+ke-cli = { path = ".", features = ["test-keys"] }

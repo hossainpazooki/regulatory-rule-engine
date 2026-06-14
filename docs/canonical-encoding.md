@@ -25,9 +25,9 @@ immediately diagnosable. Defined in `crates/ke-core/src/version.rs`:
 
 | Field | Value | Meaning |
 | ----- | ----- | ------- |
-| `ir_schema_version` | `0.3.0` | IR shape version (semver). `0.1.0`→`0.2.0` in Gate 2 (ADR 0006 made `effective_window` optional); `0.2.0`→`0.3.0` in Gate 3 (ADR 0007 made `EffectiveWindow.jurisdiction_time_zone` optional). |
+| `ir_schema_version` | `0.4.0` | IR shape version (semver). `0.1.0`→`0.2.0` in Gate 2 (ADR 0006 made `effective_window` optional); `0.2.0`→`0.3.0` in Gate 3 (ADR 0007 made `EffectiveWindow.jurisdiction_time_zone` optional); `0.3.0`→`0.4.0` at the start of Gate 4 Phase 1 (ADR 0013 reconciled `RevocationPolicy` with spec § 15: `HardStop` / `FinishPinned` / `AuditOnly`). |
 | `codec_version` | `postcard-1` | Wire codec (ADR 0002). |
-| `canonicalization_version` | `ke-canon-3` | This profile's version. `ke-canon-1`→`ke-canon-2` in Gate 2 (ADR 0006 changed the `effective_window` byte layout); `ke-canon-2`→`ke-canon-3` in Gate 3 (ADR 0007 added an `Option` presence byte for `jurisdiction_time_zone`). |
+| `canonicalization_version` | `ke-canon-4` | This profile's version. `ke-canon-1`→`ke-canon-2` in Gate 2 (ADR 0006 changed the `effective_window` byte layout); `ke-canon-2`→`ke-canon-3` in Gate 3 (ADR 0007 added an `Option` presence byte for `jurisdiction_time_zone`); `ke-canon-3`→`ke-canon-4` at the start of Gate 4 Phase 1 (ADR 0013 re-named and re-ordered the `RevocationPolicy` variants to § 15 order, changing the canonical varint discriminant layout). |
 
 **Any change to the byte layout — including reordering a struct field — is a
 breaking change that requires bumping `canonicalization_version`.**

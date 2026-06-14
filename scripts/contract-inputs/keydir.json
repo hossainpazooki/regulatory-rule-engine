@@ -1,0 +1,103 @@
+{
+  "entries": [
+    {
+      "key_id": "test-fixed-seed-1",
+      "public_key": [
+        230,
+        188,
+        54,
+        229,
+        140,
+        233,
+        206,
+        35,
+        89,
+        42,
+        208,
+        219,
+        192,
+        241,
+        93,
+        8,
+        176,
+        110,
+        106,
+        248,
+        38,
+        113,
+        82,
+        3,
+        223,
+        86,
+        98,
+        254,
+        115,
+        28,
+        209,
+        135
+      ],
+      "signer_roles": [
+        "Registry"
+      ],
+      "authorized_attestation_types": [],
+      "valid_from_unix": 0,
+      "valid_to_unix": 18446744073709551615,
+      "status": "Active",
+      "revoked_at_unix": null,
+      "revocation_reason": null,
+      "revocation_event_hash": null
+    },
+    {
+      "key_id": "test-expert-fixed-seed-1",
+      "public_key": [
+        101,
+        58,
+        29,
+        43,
+        137,
+        205,
+        243,
+        235,
+        132,
+        102,
+        224,
+        28,
+        14,
+        105,
+        58,
+        62,
+        44,
+        27,
+        243,
+        31,
+        130,
+        99,
+        194,
+        25,
+        103,
+        76,
+        127,
+        150,
+        166,
+        48,
+        141,
+        152
+      ],
+      "signer_roles": [
+        "DomainExpert",
+        "PublicationApprover"
+      ],
+      "authorized_attestation_types": [
+        "SourceFidelity",
+        "ScenarioCoverage",
+        "PublicationApproval"
+      ],
+      "valid_from_unix": 1000000000,
+      "valid_to_unix": 2000000000,
+      "status": "Active",
+      "revoked_at_unix": null,
+      "revocation_reason": null,
+      "revocation_event_hash": null
+    }
+  ]
+}

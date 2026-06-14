@@ -406,11 +406,7 @@ fn attestation_type() -> Value {
 }
 
 fn revocation_policy() -> Value {
-    s_enum(&[
-        "HaltImmediately",
-        "FinishPinnedThenHalt",
-        "FinishPinnedNoNew",
-    ])
+    s_enum(&["HardStop", "FinishPinned", "AuditOnly"])
 }
 
 fn attestation_count() -> Value {

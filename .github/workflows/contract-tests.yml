@@ -1,8 +1,18 @@
-name: Contract Tests (stub)
+name: Contract Tests (3-language artifact contract)
 
-# Stub workflow for Gate 0 — only proves the path/structure exists.
-# Cross-language artifact contract tests (Rust ↔ Python) land in Gate 4
-# (see docs/spec/ke-workbench-rust-migration-spec-v3.1.md § 14, § 19 Gate 4).
+# Gate 4 Phase 4b (ADR 0016): "the artifact is the contract" — a `.kew` must
+# yield the SAME verdict + canonical provenance in Rust, Python, and WASM.
+# This job builds the two bindings ON LINUX (the authoritative wheel target —
+# the platform-api consumer is Linux) and runs scripts/contract-test.sh with all
+# three legs present. NOTE: the local windows-gnu wheel was once expected to
+# fail to LINK (Rust-gnu vs MSVC-CPython); in practice the abi3 +
+# extension-module wheel builds AND loads on windows-gnu (Python symbols resolve
+# at load time, not link time), so 4b verified all three legs locally too. The
+# windows-gnu job below keeps `cargo check --features pyo3` as the minimal
+# compile gate regardless.
+#
+# Spec § 14, § 19 (Gate 4). The wasm-bindgen-cli version MUST equal the
+# ke-wasm crate's `wasm-bindgen` pin (=0.2.95) — kept in sync below.
 
 on:
   push:
@@ -14,13 +24,112 @@ concurrency:
   group: contract-tests-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Lock-step with crates/ke-wasm/Cargo.toml `wasm-bindgen = "=0.2.95"`.
+  WASM_BINDGEN_VERSION: "0.2.95"
+
 jobs:
-  noop:
-    name: Contract stub
+  wheel-wasm-contract:
+    name: Build wheel + wasm, run 3-language contract
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Confirm fixtures directory exists
-        run: test -d fixtures/artifacts
-      - name: Note
-        run: echo "Cross-language Rust ↔ Python contract tests wired in Gate 4."
+
+      - name: Confirm goldens + contract inputs exist
+        run: |
+          test -d fixtures/artifacts
+          test -f scripts/contract-inputs/keydir.json
+          test -f scripts/contract-inputs/context.json
+          test -f scripts/contract-inputs/policy.json
+          test -f scripts/contract-inputs/registry.json
+
+      - name: Install Rust toolchain (+ wasm target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # WASM leg needs node on PATH (contract-test.sh runs the nodejs-target glue
+      # via a node driver). ubuntu-latest ships node, but pin it explicitly so the
+      # leg is GUARANTEED present — otherwise the script would loud-SKIP wasm and
+      # the job could go green on only two legs.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # --- gate the green workspace + feature isolation (verification §1) ---
+      - name: cargo test --workspace (default features; pyo3 NOT linked)
+        run: cargo test --workspace --locked
+
+      - name: Prove pyo3 is feature-gated (absent by default)
+        run: |
+          if cargo tree -e features -p ke-artifact | grep -qi 'pyo3'; then
+            echo "FATAL: pyo3 present in the DEFAULT ke-artifact feature tree"; exit 1
+          fi
+          cargo tree -e features -p ke-artifact --features pyo3 | grep -qi 'pyo3 v' \
+            || { echo "FATAL: pyo3 missing even WITH --features pyo3"; exit 1; }
+
+      # --- Python leg: build + install the wheel (Linux authoritative) ---
+      - name: Install maturin
+        run: pip install "maturin>=1.5,<2.0"
+
+      - name: Build + install ke-artifact-py wheel
+        working-directory: crates/ke-artifact
+        run: |
+          maturin build --features pyo3 --release --out dist
+          pip install --no-index --find-links dist ke-artifact-py
+
+      # Fail fast if the wheel can't be imported: otherwise contract-test.sh would
+      # loud-SKIP the python leg and the job could pass on rust+wasm alone.
+      - name: Assert the wheel is importable (python leg must be PRESENT)
+        run: python -c "import ke_artifact_py; print('ke_artifact_py OK')"
+
+      # --- WASM leg: install the wasm-bindgen CLI pinned to the crate version.
+      # contract-test.sh itself builds the nodejs-target package (into pkg-node/
+      # with a {"type":"commonjs"} marker — the browser-facing pkg/ is ESM and
+      # cannot host the nodejs-target CJS glue), so no separate build step here.
+      - name: Install matching wasm-bindgen-cli (lock-step with the crate pin)
+        run: cargo install wasm-bindgen-cli --version "${WASM_BINDGEN_VERSION}" --locked
+
+      # --- the 3-language contract over all goldens ---
+      #
+      # PLATFORM CHECKOUT: this job does NOT clone the sibling platform repo
+      # (institutional-defi-platform-api). The contract test never invokes the
+      # platform — it verifies committed goldens with the ATLAS bindings only.
+      # The spec §4.5 SHA gate guards against a *wrong* platform checkout; with
+      # none present the script warns and proceeds (by design). So C1/C2 platform
+      # INTEGRATION acceptance is out of scope here; this proves verifier parity.
+      #
+      # We capture the script output and additionally FAIL if any leg loud-SKIPs:
+      # in CI all three legs are provisioned above, so a SKIP means a real break
+      # (wheel not importable, wasm not built, node missing) that must not pass.
+      - name: Run contract-test.sh (Rust ≡ Python ≡ WASM, all 3 legs required)
+        run: |
+          set -o pipefail
+          bash scripts/contract-test.sh 2>&1 | tee contract-test.out
+          if grep -q "SKIPPED" contract-test.out; then
+            echo "FATAL: a contract leg was SKIPPED in CI (all three are provisioned) — see log above"
+            exit 1
+          fi
+
+  windows-gnu-pyo3-check:
+    name: windows-gnu pyo3 compile gate (local-equivalent)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable-x86_64-pc-windows-gnu
+      - uses: Swatinem/rust-cache@v2
+      # Minimal windows-gnu compile gate for the binding. (The abi3 +
+      # extension-module wheel was verified to build AND load on windows-gnu in
+      # the 4b session; this job keeps `cargo check` as the always-cheap floor.)
+      - name: cargo check -p ke-artifact --features pyo3
+        run: cargo check -p ke-artifact --features pyo3 --locked

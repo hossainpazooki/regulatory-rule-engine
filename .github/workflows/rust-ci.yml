@@ -38,7 +38,15 @@ jobs:
 
   test:
     name: cargo test
-    runs-on: ubuntu-latest
+    # Matrix both OSes: the schema-determinism / byte-exact gates are
+    # checkout-environment-sensitive (autocrlf), so a Linux-only job can be
+    # green while a fresh Windows clone is red. Run both so the gate is
+    # platform-independent in CI, matching the .gitattributes eol=lf pin.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

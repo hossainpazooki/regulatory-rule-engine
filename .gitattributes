@@ -1,0 +1,19 @@
+# Enforce LF in the working tree on every platform.
+#
+# Rationale (audit, 2026-06): with core.autocrlf=true and no .gitattributes,
+# git checked out the LF-committed IR schema as CRLF on Windows. The Rust
+# emitter writes LF, so `committed_schema_matches_fresh_emit` (Gate 1
+# determinism acceptance) went RED on Windows-local while staying green on
+# the Linux-only CI -- a gate whose colour depended on the developer's OS.
+# Pinning eol=lf makes byte-exact / hash / schema-determinism checks
+# platform-independent, which the spec's determinism guarantees require.
+* text=auto eol=lf
+
+# Content-addressed canonical artifacts are binary; never line-ending-normalize
+# them (they already contain NUL bytes, but be explicit so the hash contract is
+# never at the mercy of attribute inference).
+*.bin binary
+
+# Shell scripts must stay LF regardless of inference (they run under Git Bash
+# on Windows and bash in CI).
+*.sh text eol=lf

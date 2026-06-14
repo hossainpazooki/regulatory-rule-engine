@@ -1,0 +1,29 @@
+[
+  {
+    "attestation_type": "SourceFidelity",
+    "key_id": "test-expert-fixed-seed-1",
+    "signer_role": "DomainExpert",
+    "tsa_authority_id": "test-mock-tsa-1",
+    "tsa_class": "Mock",
+    "claimed_time_unix": 1750000000,
+    "signature": "7148237e201676c749c9f599e661fa4b9e19be11165a3937637edf3e904db33fb29b141451133d1c0a4661808a249b9f0a82c01e4d58b3fc0ebc98523292280c"
+  },
+  {
+    "attestation_type": "ScenarioCoverage",
+    "key_id": "test-expert-fixed-seed-1",
+    "signer_role": "DomainExpert",
+    "tsa_authority_id": "test-mock-tsa-1",
+    "tsa_class": "Mock",
+    "claimed_time_unix": 1750000000,
+    "signature": "a78c4fdb7c68b84ee9860433bdfe8b6a3afdfcdd1228a6d1aeeaa81e14732e99c68a67b0fa8b80e5de44cb39f4046a39222f5b65f8351f439ce7972438f23609"
+  },
+  {
+    "attestation_type": "PublicationApproval",
+    "key_id": "test-expert-fixed-seed-1",
+    "signer_role": "PublicationApprover",
+    "tsa_authority_id": "test-mock-tsa-1",
+    "tsa_class": "Mock",
+    "claimed_time_unix": 1750000000,
+    "signature": "090d3348d726b3604608f92eccb3948694e29cd7e00d64f16b74674c7c29e9e43964620467db945fa932039feaa0333fc2a189b8426641f2a51b65616b139409"
+  }
+]

@@ -46,13 +46,18 @@ pub struct CanonicalizationVersion(pub String);
 
 /// Pinned IR schema version. Bumped to 0.2.0 in Gate 2 when
 /// `RuleIR.effective_window` became optional (ADR 0006); to 0.3.0 in Gate 3 when
-/// `EffectiveWindow.jurisdiction_time_zone` became optional (ADR 0007).
-pub const IR_SCHEMA_VERSION: SchemaVersion = SchemaVersion::new(0, 3, 0);
+/// `EffectiveWindow.jurisdiction_time_zone` became optional (ADR 0007); to
+/// 0.4.0 at the start of Gate 4 Phase 1 when `RevocationPolicy` was reconciled
+/// with spec § 15 (`HardStop` / `FinishPinned` / `AuditOnly`, ADR 0013).
+pub const IR_SCHEMA_VERSION: SchemaVersion = SchemaVersion::new(0, 4, 0);
 
 /// Pinned codec version. See ADR 0002 (`docs/adr/0002-canonical-codec-postcard.md`).
 pub const CODEC_VERSION: &str = "postcard-1";
 
 /// Pinned canonicalization-profile version. `ke-canon-2` in Gate 2 (ADR 0006);
 /// `ke-canon-3` in Gate 3 (ADR 0007 made `jurisdiction_time_zone` optional,
-/// adding an `Option` presence byte). See `docs/canonical-encoding.md`.
-pub const CANONICALIZATION_VERSION: &str = "ke-canon-3";
+/// adding an `Option` presence byte); `ke-canon-4` at the start of Gate 4
+/// Phase 1 (ADR 0013 re-named and re-ordered the `RevocationPolicy` variants
+/// to spec § 15 order, changing the canonical varint discriminant layout).
+/// See `docs/canonical-encoding.md`.
+pub const CANONICALIZATION_VERSION: &str = "ke-canon-4";

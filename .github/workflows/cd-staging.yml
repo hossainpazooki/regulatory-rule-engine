@@ -126,6 +126,10 @@ jobs:
     needs: [deploy-staging, smoke-test]
     if: always()
     runs-on: ubuntu-latest
+    env:
+      # The `secrets` context is not allowed in step-level `if:` expressions;
+      # surface it as job env so the conditional below can test it.
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
     steps:
       - name: Determine status
         id: status
@@ -141,7 +145,7 @@ jobs:
           fi
 
       - name: Send Slack notification
-        if: ${{ secrets.SLACK_WEBHOOK != '' }}
+        if: ${{ env.SLACK_WEBHOOK != '' }}
         uses: slackapi/slack-github-action@v1
         with:
           payload: |

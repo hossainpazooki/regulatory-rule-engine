@@ -10,13 +10,69 @@ description = "Canonical encoding, BLAKE3 content addressing, ed25519 signatures
 
 [features]
 default = []
-# Enable PyO3 bindings used by ke-artifact-py (see spec § 14).
-pyo3 = []
+# Enable PyO3 bindings used by ke-artifact-py (see spec § 14, Phase 4b).
+# HARD INVARIANT: pyo3 is an OPTIONAL, feature-gated dep. `cargo test
+# --workspace` (default features) must NOT pull it — pyo3 links libpython,
+# which breaks the windows-gnu host build. It compiles ONLY under
+# `--features pyo3`. `cargo tree -e features` must show pyo3 only there.
+pyo3 = ["dep:pyo3"]
+# Fixed-seed deterministic test keys (`sign::test_keys`). Gate 4 plan Rev 2
+# correction #2: `cfg(test)` is invisible to bin targets, so the fixed-seed
+# module is feature-gated instead. Never enable in production builds; every
+# signature produced with these keys carries `key_id = "test-fixed-seed-1"`.
+# NEVER use OsRng/getrandom for keys (windows-gnu toolchain, brief § 3.3).
+test-keys = []
 
 [dependencies]
 ke-core = { path = "../ke-core" }
 serde = { workspace = true }
+serde_json = { workspace = true }
 postcard = { workspace = true }
 blake3 = { workspace = true }
 ed25519-dalek = { workspace = true }
 thiserror = { workspace = true }
+
+# OPTIONAL: only compiled under `--features pyo3` (the ke-artifact-py wheel,
+# spec § 14). `extension-module` keeps libpython unlinked at build time;
+# `abi3-py39` builds one ABI3 wheel that loads on CPython >= 3.9. The wheel's
+# authoritative build target is Linux/CI (the platform-api consumer); a local
+# windows-gnu link failure (Rust-gnu vs MSVC-CPython) is expected — the local
+# gate is `cargo check -p ke-artifact --features pyo3`.
+pyo3 = { version = "0.22", features = ["extension-module", "abi3-py39"], optional = true }
+
+[dev-dependencies]
+# Self-dependency so integration tests under tests/ see `sign::test_keys`:
+# `cfg(test)` applies only to unit tests, not to the library as compiled for
+# integration-test targets. Feature unification enables `test-keys` for all
+# test builds of this crate while `cargo build -p ke-artifact` stays clean.
+ke-artifact = { path = ".", features = ["test-keys"] }
+
+[lib]
+# `cdylib` so maturin can build the ke-artifact-py extension module under
+# `--features pyo3`; `rlib` keeps the crate usable as a normal Rust dependency
+# (ke-cli, ke-wasm, tests). The cdylib target is harmless without the feature
+# (no pyo3 symbols are emitted).
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "gen-golden-artifacts"
+path = "src/bin/gen-golden-artifacts.rs"
+required-features = ["test-keys"]
+
+# Regenerates the shared 3-language contract inputs under
+# scripts/contract-inputs/ from the fixed-seed test keys, exactly mirroring
+# the Published happy-path the in-Rust `tests/verify_surface.rs` builds. Run:
+#   cargo run -p ke-artifact --features test-keys --example emit-contract-inputs
+[[example]]
+name = "emit-contract-inputs"
+path = "examples/emit-contract-inputs.rs"
+required-features = ["test-keys"]
+
+# A tiny verify CLI the contract test drives for the Rust leg: reads a .kew +
+# the shared keydir/policy/registry JSON and prints `{verdict, content_hash,
+# provenance}` as one canonical JSON line. Built with test-keys so the strict
+# policy mirrors the golden's attested types.
+[[example]]
+name = "contract-verify"
+path = "examples/contract-verify.rs"
+required-features = ["test-keys"]
