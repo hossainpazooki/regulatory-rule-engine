@@ -155,20 +155,25 @@ in PowerShell unless an ADR justifies it.
 
 ## Open decisions (spec § 21)
 
-These need answers before specific gates begin. Don't proceed past the gate
-that depends on them:
+Decisions that gate specific gates. **Resolved** rows are kept for traceability
+with the ADR that closed them — don't reopen them. Don't proceed past a gate
+whose row is still **Open**.
 
-| Decision | Gate gated by |
-|----------|---------------|
-| Expert key authority | Gate 4 |
-| T2/T3 production policy | Gate 4 |
-| T2/T3 sidecar deployment | Gate 4 |
-| Legal source text storage | document source coverage (Gate 2+ if promoted) |
-| Trusted timestamp authority | Gate 4 |
-| Revocation behavior | Gate 6 |
-| Review UI follow-up scope | Gate 5 (minimum scope is unblocked) |
-| Frontend visual regression tooling | Gate 5 polish |
-| Package-manager migration (pnpm) | not blocking — needs ADR if pursued |
+| Decision | Gate | Status |
+|----------|------|--------|
+| Expert key authority | Gate 4 | ✅ Resolved — ADR-0009 (Accepted 2026-06-11) |
+| T2/T3 production policy | Gate 4 | ✅ Resolved — ADR-0011 (Accepted) |
+| T2/T3 sidecar deployment | Gate 4 | ✅ Resolved — ADR-0011 (Accepted) |
+| Trusted timestamp authority | Gate 4 | ✅ Resolved — ADR-0010 (Accepted) |
+| Revocation behavior | Gate 6 | ✅ Policy decided — ADR-0009 §4 + ADR-0013 (Accepted); runtime enforcement at Gate 6 |
+| Legal source text storage | document source coverage (Gate 2+ if promoted) | ⬜ Open |
+| Review UI follow-up scope | Gate 5 | ⬜ Open — minimum scope unblocked; counterexamples/semantic-diff need promotion |
+| Frontend visual regression tooling | Gate 5 (5d) | ⬜ Open — §21.8; pick before the 5d visual-parity gate |
+| Package-manager migration (pnpm) | not blocking | ⬜ Open — needs ADR if pursued |
+
+The COMPASS federated-consumer trust boundary (how the consumer re-derives trust,
+treats non-`published` as blocked, fails closed on `unknown`) is recorded in
+**ADR-0019 (Accepted)** — gates the post-Gate-5 COMPASS rewire, not an ATLAS gate.
 
 Resolved in v3.1: registry persistence (S3-backed v1) and `ke-artifact-py`
 package index (S3-backed PEP 503 simple index).

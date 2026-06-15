@@ -60,9 +60,9 @@ Gate 4 (prerequisites — **Accepted** by Hossain 2026-06-11; see
 
 Gate 5:
 
-- [0017 Platform-api decoupled; Gate-4 C1/C2 redefined; Gate-5 proceeds](0017-gate5-sequencing-atlas-surfaces-independent.md) — spec § 19, § 14, § 16, § 6 — **Proposed** (platform-api is not the consumer — COMPASS is; C1 verifier + C2 equivalence foundation MET in-repo, consumer integration deferred to the post-Gate-5 COMPASS rewire; 5d/5e stay gated)
-- [0018 `ke serve` uses SSE (not WebSocket) and is strictly non-authoritative](0018-serve-transport-sse-and-non-authoritative-scope.md) — spec § 16, § 7.4, § 6, § 5/§10/§13 — **Proposed** (windows-gnu can't build WebSocket/tokio deps → tiny_http + SSE; serve never signs/publishes)
-- [0019 Agent-identity governance framing + COMPASS federated-consumer trust boundary](0019-agent-identity-governance-framing-and-consumer-trust-boundary.md) — spec § 5/§10/§13, § 9, § 14/§16, § 20 — **Proposed** (re-decides nothing in 0009/0013; adopts agent-identity vocabulary as the audit lens — lifecycle-as-control-point, credential ≠ authority — and records the normative consumer rule: COMPASS re-derives trust, treats non-`published` as blocked even with valid crypto, fails closed on `unknown`)
+- [0017 Platform-api decoupled; Gate-4 C1/C2 redefined; Gate-5 proceeds](0017-gate5-sequencing-atlas-surfaces-independent.md) — spec § 19, § 14, § 16, § 6 — **Accepted** (sign-off by Hossain, 2026-06-15; platform-api is not the consumer — COMPASS is; C1 verifier + C2 equivalence foundation MET in-repo, consumer integration deferred to the post-Gate-5 COMPASS rewire; 5d/5e stay gated)
+- [0018 `ke serve` uses SSE (not WebSocket) and is strictly non-authoritative](0018-serve-transport-sse-and-non-authoritative-scope.md) — spec § 16, § 7.4, § 6, § 5/§10/§13 — **Accepted** (sign-off by Hossain, 2026-06-15; windows-gnu can't build WebSocket/tokio deps → tiny_http + SSE; serve never signs/publishes)
+- [0019 Agent-identity governance framing + COMPASS federated-consumer trust boundary](0019-agent-identity-governance-framing-and-consumer-trust-boundary.md) — spec § 5/§10/§13, § 9, § 14/§16, § 20 — **Accepted** (sign-off by Hossain, 2026-06-15; re-decides nothing in 0009/0013; adopts agent-identity vocabulary as the audit lens — lifecycle-as-control-point, credential ≠ authority — and binds the consumer rule: COMPASS re-derives trust, treats non-`published` as blocked even with valid crypto, fails closed on `unknown`)
 
 Anticipated (later gates — numbers assigned when authored):
 

@@ -1,6 +1,6 @@
 # 0017. Platform-api decoupled: ATLAS+COMPASS are an independent producer→consumer pair; Gate-4 C1/C2 redefined; Gate-5 proceeds
 
-**Status:** Proposed (pending sign-off by Hossain)
+**Status:** Accepted (sign-off by Hossain, 2026-06-15)
 **Date:** 2026-06-15
 **Spec references:** § 19 (Gate 4 / Gate 5 acceptance), § 14 (consumer surface), § 16 (multi-surface access), § 6 (WASM/serve discipline)
 **Amends:** `CLAUDE.md` Git discipline ("No gate may begin until the prior gate's § 19 acceptance is green") and the spec § 19 Gate-4 acceptance C1/C2, both of which assumed `institutional-defi-platform-api` as the artifact consumer.
@@ -31,6 +31,10 @@ Consequences for the acceptance criteria:
   equivalence harness, as an internal property — not a consumer integration.
 
 ## Decision
+
+> Accepted 2026-06-15 (sign-off by Hossain). The platform-api decoupling, the
+> C1/C2 redefinition, and Gate-5 proceeding are binding. Amends `CLAUDE.md` Git
+> discipline and spec § 19 Gate-4 C1/C2 as stated above.
 
 1. **ATLAS and COMPASS are an independent producer→consumer pair.** No
    `ke-artifact` / `ke_artifact_py` code lands in platform-api. The

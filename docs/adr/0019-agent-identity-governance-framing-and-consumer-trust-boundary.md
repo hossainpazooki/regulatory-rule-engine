@@ -1,6 +1,6 @@
 # 0019. Agent-identity governance framing for the artifact trust chain, and the COMPASS federated-consumer trust boundary
 
-**Status:** Proposed
+**Status:** Accepted (sign-off by Hossain, 2026-06-15)
 **Date:** 2026-06-15
 **Spec references:** § 5/§ 10/§ 13 (authority boundaries), § 9 (lifecycle state machine), § 14/§ 16 (verification + multi-surface access), § 20 (threat model)
 **Relates to:** ADR 0009 (expert key authority / key directory / revocation), ADR 0013 (revocation policy + rollback eligibility), ADR 0016 (consumer-agnostic verification), ADR 0017 (platform-api decoupled; COMPASS is the consumer), ADR 0018 (`ke serve` non-authoritative)
@@ -17,6 +17,11 @@ A governance model written for **AI agent identity** (registering the actor, giv
 This ADR re-decides nothing in 0009/0013/0016/0017/0018. It (a) adopts a governance vocabulary as the documented audit lens over those decisions, and (b) records the consumer federation boundary that is currently only briefed.
 
 ## Decision
+
+> Accepted 2026-06-15 (sign-off by Hossain). Decision 2 (the COMPASS
+> federated-consumer trust boundary) is now **binding** on the post-Gate-5 COMPASS
+> rewire; Decisions 1 and 3 are the binding documentation/governance register for
+> the artifact trust chain. This ADR re-decides nothing in 0009/0013/0016/0017/0018.
 
 ### 1. Adopt three framing principles as the documented governance register for the trust chain
 
@@ -52,7 +57,7 @@ The article's central remedy — register each AI actor, give it credentials and
 
 ## Alternatives considered
 
-- **Amend ADR 0009 in place with the framing.** Rejected: 0009 is **Accepted** and records a decision at a point in time; bolting a later framing lens onto it muddies that record. A new **Proposed** ADR that references it is cleaner and reviewable on its own.
+- **Amend ADR 0009 in place with the framing.** Rejected: 0009 is **Accepted** and records a decision at a point in time; bolting a later framing lens onto it muddies that record. A new ADR that references it is cleaner and reviewable on its own.
 - **Build a full agent-identity registry for the AI actor.** Rejected: solves a problem ATLAS's authority boundary already removes by exclusion (Decision 3); it would add governance surface for an actor with no authority and risk implying the AI sits in the signing path.
 - **Leave the consumer federation boundary in the local brief only.** Rejected: it is a real cross-trust-boundary decision (what external claims may mean inside the consumer, fail-closed posture, snapshot-is-origin-not-validity) that gates the COMPASS rewire; a local, unpushed brief is not a durable normative home.
 - **Treat the article as inspiration and write nothing.** Rejected: the federation boundary is currently unrecorded and the "lifecycle-as-control-point / credential ≠ authority" framing is exactly the register the COMPASS revoked-pack acceptance needs; capturing it now prevents the rewire session from re-deriving it.

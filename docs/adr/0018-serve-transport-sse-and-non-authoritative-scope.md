@@ -1,6 +1,6 @@
 # 0018. `ke serve` uses SSE (not WebSocket) and is strictly non-authoritative
 
-**Status:** Proposed (pending sign-off by Hossain)
+**Status:** Accepted (sign-off by Hossain, 2026-06-15)
 **Date:** 2026-06-15
 **Spec references:** § 16 (multi-surface access), § 7.4 (frontend feature flags / live feed), § 6 (WASM/serve preview discipline), § 5 / § 10 / § 13 (authority boundaries)
 **Gate:** 5 (Phase 5a — `ke-cli serve`)
@@ -28,6 +28,10 @@ raises the authority question: an HTTP surface must not become a back door aroun
 the CLAUDE.md § 5/§ 10/§ 13 authority boundaries.
 
 ## Decision
+
+> Accepted 2026-06-15 (sign-off by Hossain). Both the SSE-over-`tiny_http`
+> transport and the strictly-non-authoritative scope are binding on `ke serve`;
+> any future bidirectional WebSocket needs a follow-up ADR + Linux-CI-only feature.
 
 1. **Transport: synchronous `tiny_http` + Server-Sent Events.** `ke serve` is a
    blocking, thread-per-request HTTP/1.1 server on `tiny_http`. The live feed is
