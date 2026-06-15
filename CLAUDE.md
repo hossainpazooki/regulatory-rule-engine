@@ -27,10 +27,14 @@ in `docs/adr/` to reconcile.
   `institutional-defi-platform-api/src/rules/data/` via `scripts/bootstrap.sh`
 - a registry of signed, content-addressed artifacts (Gate 4 onwards)
 
-The institutional DeFi platform (sibling repo) is the **consumer**. It
-executes Rust-compiled artifacts in Python `RuleRuntime` after verifying
-hash, signatures, registry state, and typed expert attestations. The platform
-does not link the compiler.
+**COMPASS** (`cross-border-compliance-navigator`) is the **consumer**. It
+verifies hash, signatures, registry state, and typed expert attestations
+in-browser via the `@platform/atlas-artifact` WASM verifier — consumer-only, it
+does not sign/publish or execute the rule engine, and does not link the compiler.
+`institutional-defi-platform-api` is **decoupled** (ADR-0017, 2026-06-15) and is
+not in the ATLAS artifact path; the consumer integration is gated post-Gate-5.
+The differential/equivalence harnesses still use the platform checkout as the
+Python reference oracle (see `fixtures/rules/SOURCE.md`).
 
 Authoritative spec: `docs/spec/ke-workbench-rust-migration-spec-v3.1.md`.
 
@@ -40,10 +44,20 @@ Authoritative spec: `docs/spec/ke-workbench-rust-migration-spec-v3.1.md`.
 
 ### Git discipline
 
-- **No commits or pushes from Claude Code.** Hossain owns git history.
+- **No commits or pushes from Claude Code.** Hossain owns git history. At a
+  checkpoint, Claude **outputs the exact `git`/`gh` commands** (push +
+  `gh pr create` + `gh pr merge`) for Hossain to run; it never runs them itself.
 - `git mv` is allowed for file moves that preserve history.
 - Gate work happens on per-gate branches named `migration/gate-N-*`.
-  Hossain merges each gate manually after review.
+- **Gates close via PR review on the remote — never a local pointer move.**
+  `origin/main` is the source of truth (a gate is *not* closed until its PR is
+  merged there; the local tree can be ahead/dirty and is not authoritative). The
+  gate (or gate-fix) branch is **pushed to `origin`**, opened as a **pull request
+  against `main`** (`gh pr create --base main`), reviewed, and merged **through
+  the PR** — the pattern every gate has followed: **PR #3** (gate-0), **#4**
+  (gate-1), **#5** (gate-2), **#6** (gate-3), **#8** (gate-4); **#7** was the
+  Gate-4 brief/preview. Local fast-forwards or `git branch -f main` are **not**
+  how gates land. Hossain merges each PR manually after review.
 - Gate boundaries are commit boundaries. **No gate may begin until the prior
   gate's acceptance criteria (spec § 19) are green.**
 
