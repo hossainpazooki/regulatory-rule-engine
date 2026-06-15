@@ -85,6 +85,39 @@ fn compile_into(tmp: &TempDir) -> (LocalFsBackend, [u8; 32]) {
     (backend, outcome.artifact_hash)
 }
 
+/// Variant of `compile_into` that compiles a *named* fixture into an existing
+/// backend (so a second, distinct artifact can share one registry). Used by the
+/// C4 prior-distinct-hash test.
+fn compile_named(backend: &LocalFsBackend, yaml_rel: &str, regime: &str) -> [u8; 32] {
+    let yaml = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join(yaml_rel)
+        .to_string_lossy()
+        .into_owned();
+    let args = compile::CompileArgs {
+        yaml_path: &yaml,
+        regime_id: regime,
+        env: "local",
+        now_unix: NOW,
+    };
+    let outcome = compile::run(backend, &args).expect("compile run (named)");
+    assert_eq!(outcome.final_state, LifecycleState::StructurallyVerified);
+    outcome.artifact_hash
+}
+
+/// Resolve `<env>/<tag>` to its current content hash via the registry view.
+fn resolve_tag(backend: &LocalFsBackend, env: &str, tag: &str) -> [u8; 32] {
+    let (resolved, _record) = ke_cli::registry::resolve(
+        backend,
+        &Selector::ByTag {
+            env: env.to_string(),
+            tag: tag.to_string(),
+        },
+        NOW,
+    )
+    .expect("resolve by tag");
+    resolved
+}
+
 fn state_of(backend: &LocalFsBackend, hash: &[u8; 32]) -> LifecycleState {
     let events = backend.read_events(hash).expect("read events");
     current_state(&events)
@@ -456,5 +489,65 @@ fn published_and_revoked_event_heads_are_pinned() {
     assert_eq!(
         revoked_hex, PINNED_REVOKED_HEAD_HEX,
         "revoked event-head-hash changed — if intentional, re-pin to: {revoked_hex}"
+    );
+}
+
+// ---- (h) C4: rollback re-resolves to the PREVIOUS DISTINCT hash -----------
+
+/// The literal spec §19 / brief C4 criterion: after a tag is moved to a newer
+/// artifact B and then rolled back, resolve-by-tag returns the **previous
+/// distinct** published hash A — not merely the same hash (which only proves
+/// eligibility + pointer-move). Two distinct artifacts (A = `mica_stablecoin`,
+/// B = `mica_authorization`, both `mica_2023`) share one registry; the tag
+/// `staging/current` moves A -> B on B's publish, then back to A on rollback.
+#[test]
+fn rollback_reresolves_to_previous_distinct_hash() {
+    let tmp = TempDir::new("c4_prior_distinct");
+
+    // A -> published; staging/current points at A.
+    let (backend, a) = compile_into(&tmp);
+    ml_check(&backend, a);
+    attest_with(&backend, a, &FULL_SET);
+    publish(&backend, a, "staging");
+    assert_eq!(resolve_tag(&backend, "staging", "current"), a);
+
+    // B (DISTINCT) -> published under the SAME env+tag -> pointer moves to B.
+    let b = compile_named(&backend, "../../fixtures/rules/mica_authorization.yaml", "mica_2023");
+    assert_ne!(a, b, "B must be a distinct artifact from A");
+    ml_check(&backend, b);
+    attest_with(&backend, b, &FULL_SET);
+    publish(&backend, b, "staging");
+    assert_eq!(
+        resolve_tag(&backend, "staging", "current"),
+        b,
+        "publishing B under the same env+tag must move the pointer to B"
+    );
+
+    // Rollback the tag to A (A is Published => is_rollback_eligible).
+    let out = rollback::run(
+        &backend,
+        &rollback::RollbackArgs {
+            env: "staging",
+            tag: "current",
+            to_hash: a,
+            now_unix: NOW,
+        },
+    )
+    .expect("rollback to prior published A");
+    assert_eq!(out.target_state, LifecycleState::Published);
+
+    // LITERAL C4 CRITERION: resolve-by-tag now returns the PREVIOUS DISTINCT hash.
+    assert_eq!(
+        resolve_tag(&backend, "staging", "current"),
+        a,
+        "after rollback, resolve-by-tag must return the previous distinct hash A"
+    );
+
+    // The chain still validates and a tag_moved event was appended to A's log.
+    let a_events = backend.read_events(&a).expect("events for A");
+    assert_eq!(a_events.last().unwrap().event_kind, "tag_moved");
+    assert!(
+        current_state(&a_events).expect("derive state").is_some(),
+        "A's event chain still validates after the rollback"
     );
 }
