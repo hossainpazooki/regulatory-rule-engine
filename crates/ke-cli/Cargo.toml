@@ -44,6 +44,13 @@ ed25519-dalek = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
+# `ke serve` (Gate 5): a thin, non-authoritative read/preview HTTP adapter over
+# the existing pure functions. tiny_http is a sync, dependency-light HTTP/1.1
+# server (thread-per-request) — no async, no tokio, no getrandom 0.3. The live
+# feed is SSE over a long-lived text/event-stream response (see the spec
+# deviation note in src/serve/mod.rs: WebSocket cannot build on this
+# windows-gnu toolchain).
+tiny_http = "0.12"
 
 [dev-dependencies]
 # Self-dependency so integration tests under tests/ see the gated test-key

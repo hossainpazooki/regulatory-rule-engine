@@ -27,7 +27,10 @@ use clap::{Parser, Subcommand};
 ///
 /// Implemented phases (shown per command in `[Gate 4 · Phase N]` tags below):
 /// 3a = compile/query; 3b = the lifecycle commands (ml-check/attest/publish/
-/// deprecate/revoke/rollback); 4a = export-provenance. `serve` is Gate 5.
+/// deprecate/revoke/rollback); 4a = export-provenance. `serve` (Gate 5) is the
+/// thin, non-authoritative read/preview HTTP adapter (resolve/verify/preview/
+/// dry-run + a read-only event feed); it signs/attests/publishes NOTHING — the
+/// authoritative compile path stays on `ke compile`.
 #[derive(Parser, Debug)]
 #[command(name = "ke", version, about, long_about = None)]
 pub struct Cli {
@@ -160,6 +163,20 @@ pub enum Command {
     /// [Gate 4 · Phase 4b — deferred] Standalone verification of an artifact's
     /// attestation set.
     Verify,
+    /// [Gate 5] Serve a thin, NON-AUTHORITATIVE HTTP read/preview adapter over
+    /// the canonical registry: resolve/verify (canonical registry view, G5-1),
+    /// compile/preview + dry-run (non-authoritative), and a read-only SSE event
+    /// feed. Signs, attests, publishes, revokes, and assembles NOTHING — the
+    /// authoritative compile path stays on `ke compile` (CLAUDE.md §5/§10/§13).
+    Serve {
+        /// Bind host (default `127.0.0.1`; loopback only).
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+        /// Bind port. `0` (default) picks an ephemeral port — read the actual
+        /// bound port from the log line / `server_addr()` (tests bind `0`).
+        #[arg(long, default_value_t = 0)]
+        port: u16,
+    },
 }
 
 /// Resolve the registry root from `--registry`, else `KE_REGISTRY_DIR` (when
@@ -412,6 +429,14 @@ fn dispatch(cli: &Cli) -> Result<i32> {
                  Use `ke publish --policy ...` for the publish-time policy gate."
             );
             Ok(2)
+        }
+        Command::Serve { host, port } => {
+            // serve reads the canonical registry; it sources its clock at the
+            // request edge (handlers), not once here — keep `--now`/`KE_NOW`
+            // honored per-request.
+            let root = registry_root(cli)?;
+            crate::serve::run(root, host, *port)?;
+            Ok(0)
         }
     }
 }
