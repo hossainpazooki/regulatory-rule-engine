@@ -43,7 +43,7 @@ behavior (the consumer rejects any non-verified / non-`Published` artifact).
 | **Gate 2 — Parser, compiler, T0/T1/T4** | **Accepted (2026-05-30)** — log: [`docs/gate-2-implementation-log.md`](docs/gate-2-implementation-log.md) | `ke-compiler` `marked-yaml` parser → AST → `RuleIR` lowering, semantic normal form + differential harness, T0/T1/T4. 23 test suites green; **live Rust↔Python differential PASS over all 7 corpus files** (platform @ recorded SOURCE.md SHA); ADR 0005 (T4 severities) signed off. ADRs 0004–0006. **Merged (PR #5)**. |
 | **Gate 3 — Preview runtime + equivalence harness** | **Merged 2026-05-31 (PR #6)** — log: [`docs/gate-3-implementation-log.md`](docs/gate-3-implementation-log.md) | `ke-runtime` tree-walk preview executor mirroring the Python `RuleRuntime` (CPython-faithful operators, normalized trace), deterministic scenario generator, property/metamorphic tests. **Live Rust↔Python equivalence PASS over 1326 generated scenarios** (platform @ recorded SOURCE.md SHA); 35 golden trace fixtures. tz-optional IR amendment (ADR 0007) — Gate 2 differential still 7/7. ADRs 0007–0008. 71 tests across 28 suites. |
 | **Gate 4 — Artifact, registry, attestation, consumer-agnostic verification** | **Complete (in-repo) — acceptance: [`docs/gate-4-acceptance.md`](docs/gate-4-acceptance.md); log: [`docs/gate-4-implementation-log.md`](docs/gate-4-implementation-log.md)** | ADRs 0009–0016 accepted. `ke-artifact`: BLAKE3 zero-then-patch content addressing + ed25519 compiler signature, typed expert attestations + R1–R8 rejection rules, a pure RNG-free `verify_artifact` surface + `ArtifactProvenance` export. `ke-cli`: the §9 registry lifecycle (`compile`→`revoke`+`rollback`) on a local-FS backend (S3 behind a trait seam). PyO3 wheel + WASM verifier (`@platform/atlas-artifact`) + a **3-language contract test** (Rust ≡ Python ≡ WASM). **§19 verdict:** C3 (specific-policy rejection) **met**; C4 (rollback → prior *distinct* hash) **met**; **C1 verifier + C2 equivalence foundation met in-repo** — per **ADR-0017** `institutional-defi-platform-api` is decoupled (not the consumer), so the consumer integration is COMPASS's (post-Gate-5) and the platform execute-parity is obsolete. |
-| **Gate 5 — Surface rollout + frontend rewire** | **In progress** — log: [`docs/gate-5-implementation-log.md`](docs/gate-5-implementation-log.md) | **5a ✅** `ke-cli serve` (tiny_http REST + SSE, non-authoritative; ADR-0018 — SSE not WebSocket because tokio/tungstenite don't build on windows-gnu). **5b-preview ✅** `ke-wasm` `compile_preview`/`dry_run` bindings + `frontend/src/wasm/` (G5-2 parity-proven; verifier untouched). **Ahead:** DuckDB SQL views; flat-file `.kew` export; lint integration; page-by-page frontend rewire behind `VITE_USE_LOCAL_KE_API` / `VITE_USE_WASM_PREVIEW` / `VITE_USE_REVIEW_UI` (default-off); minimum AI-provenance review UI (§13). |
+| **Gate 5 — Surface rollout + frontend rewire** | **In progress** — log: [`docs/gate-5-implementation-log.md`](docs/gate-5-implementation-log.md) | **5a ✅** `ke-cli serve` (tiny_http REST + SSE, non-authoritative; ADR-0018 — SSE not WebSocket because tokio/tungstenite don't build on windows-gnu). **5b-preview ✅** `ke-wasm` `compile_preview`/`dry_run` bindings + `frontend/src/wasm/` (G5-2 parity-proven; verifier untouched). **5b-data ✅** read-only DuckDB SQL views over registry metadata (G5-3, Linux-CI feature-gated). **Ahead:** flat-file `.kew` export/import; lint integration (`ke lint`, compiler T5); page-by-page frontend rewire behind `VITE_USE_LOCAL_KE_API` / `VITE_USE_WASM_PREVIEW` / `VITE_USE_REVIEW_UI` (default-off); minimum AI-provenance review UI (§13). |
 
 Gates 1–3 are **merged to `main`**; Gate 4 is **complete on the ATLAS side** on
 `migration/gate-4-artifact` (`ke-core`, `ke-compiler`, `ke-runtime`, `ke-artifact`,
@@ -150,7 +150,7 @@ ke-workbench/
 │   ├── canonical-encoding.md    # authoritative encoding profile (Gate 1)
 │   ├── dsl-gap-review-gate-2.md # regime coverage walk (Gate 2)
 │   ├── attestation-schema.md    # filled in pre-Gate 4
-│   └── adr/                     # architecture decision records (0001–0006)
+│   └── adr/                     # architecture decision records (0001–0019)
 ├── scripts/
 │   ├── bootstrap.sh             # snapshot platform rules → fixtures/rules/
 │   ├── generate-golden-fixtures.sh # Gate 1 golden fixtures (synthetic mode)
@@ -238,7 +238,7 @@ The script expects `institutional-defi-platform-api` as a sibling of
 | **2** | YAML parser, compiler, T0/T1/T4 verification + conflict taxonomy | **accepted** (live differential PASS + ADR 0005 signed) |
 | **3** | Rust preview runtime + fuzzed equivalence vs Python `RuleRuntime` | **merged (PR #6)** — live equivalence PASS over 1326 scenarios; ADRs 0007–0008 (incl. Gate-4 readiness decisions) |
 | **4** | `ke-artifact` signing + attestations + registry lifecycle + consumer-agnostic verify surface + PyO3/WASM verify bindings + 3-language contract test | **Complete (in-repo)** — ADRs 0009–0016; [acceptance](docs/gate-4-acceptance.md): C3 met, C4 met, **C1 verifier + C2 equivalence foundation met in-repo**. Per [ADR-0017](docs/adr/0017-gate5-sequencing-atlas-surfaces-independent.md), platform-api is decoupled (not the consumer); consumer integration is COMPASS's (post-Gate-5), platform execute-parity obsolete. |
-| **5** | `ke-cli serve` (REST + SSE), `ke-wasm` browser **preview** bindings + `frontend/src/wasm/`, DuckDB SQL views, flat-file export, lint integration, page-by-page frontend rewire behind `VITE_USE_*` flags, minimum AI-provenance review UI (§13) | **in progress** — [log](docs/gate-5-implementation-log.md): 5a `ke-cli serve` ✅ (tiny_http+SSE, [ADR-0018](docs/adr/0018-serve-transport-sse-and-non-authoritative-scope.md)); 5b-preview `ke-wasm` compile/dry-run ✅ (G5-2 parity). The WASM *verifier* already shipped in Gate 4 (ADR 0016); Gate 5 adds the *preview/dry-run* bindings + the surface rollout. |
+| **5** | `ke-cli serve` (REST + SSE), `ke-wasm` browser **preview** bindings + `frontend/src/wasm/`, DuckDB SQL views, flat-file export, lint integration, page-by-page frontend rewire behind `VITE_USE_*` flags, minimum AI-provenance review UI (§13) | **in progress** — [log](docs/gate-5-implementation-log.md): 5a `ke-cli serve` ✅ (tiny_http+SSE, [ADR-0018](docs/adr/0018-serve-transport-sse-and-non-authoritative-scope.md)); 5b-preview `ke-wasm` compile/dry-run ✅ (G5-2 parity); 5b-data DuckDB SQL views ✅ (G5-3, Linux-CI feature-gated). The WASM *verifier* already shipped in Gate 4 (ADR 0016); Gate 5 adds the *preview/dry-run* bindings + the surface rollout. |
 | **6** | Platform cutover: Temporal artifact pinning, removal of Python KE module | pending |
 
 Each gate produces a commit boundary on a `migration/gate-N-*` branch.
@@ -268,7 +268,7 @@ Source YAML lives in `fixtures/rules/`; the authoritative copy is in
 | Component | Platform |
 |-----------|----------|
 | **Frontend** | AWS EKS (Kustomize overlays under `kube/`) |
-| **Backend API** | `institutional-defi-platform-api` (separate repo) |
+| **Backend API** | `institutional-defi-platform-api` — **decoupled** (ADR-0017); not in the artifact path |
 | **Registry (Gate 4+)** | S3-backed, content-addressed; PEP 503 simple index for `ke-artifact-py` |
 
 The frontend image is built from the repo-root `Dockerfile` with the
@@ -281,7 +281,7 @@ CI/CD:
 |----------|---------|---------|
 | `rust-ci.yml` | Push, PR | `cargo fmt` / `clippy` / `check` / `test` on the workspace |
 | `frontend-ci.yml` | Push, PR | npm lint, typecheck, test, build, docker build |
-| `wasm-build.yml` | Push, PR | stub (Gate 5 wires the real `wasm-bindgen` build) |
+| `wasm-build.yml` | Push, PR | real `wasm-bindgen` preview build (Gate 5b); cli↔crate wasm-bindgen pin asserted |
 | `contract-tests.yml` | Push, PR | **3-language contract test** (Gate 4): builds the `ke-artifact-py` wheel + the WASM package, runs `scripts/contract-test.sh` (Rust ≡ Python ≡ WASM over golden `.kew`), SHA-gated to `SOURCE.md` |
 | `cd-staging.yml` | Push to `main` | Build + push image, deploy to EKS staging |
 | `cd-production.yml` | Manual | Approval-gated production deploy with rollback |
@@ -312,10 +312,10 @@ See spec § 5, § 10, § 13.
 - [Migration spec v3.1](docs/spec/ke-workbench-rust-migration-spec-v3.1.md) — authoritative plan, acceptance criteria, open decisions
 - [Gate 1 brief](docs/gate-1-canonical-ir.md) · [Gate 1 log](docs/gate-1-implementation-log.md) — canonical IR design + what landed
 - [Gate 2 brief](dev/briefs/gate-2-parser-compiler-verification.md) · [Gate 2 log](docs/gate-2-implementation-log.md) — parser/compiler/verification + what landed
-- [Canonical encoding profile](docs/canonical-encoding.md) — authoritative encoding rules (Gate 1; version `0.2.0` / `ke-canon-2`)
+- [Canonical encoding profile](docs/canonical-encoding.md) — authoritative encoding rules (version `0.4.0` / `postcard-1` / `ke-canon-4`)
 - [DSL gap review](docs/dsl-gap-review-gate-2.md) — regime coverage walk (Gate 2)
 - [Attestation schema](docs/attestation-schema.md) — filled in pre-Gate 4
-- [ADRs](docs/adr/) — architecture decision records (0001–0006)
+- [ADRs](docs/adr/) — architecture decision records (0001–0019); recent: 0017 (platform decoupled / Gate-5 sequencing), 0018 (`ke serve` SSE + non-authoritative), 0019 (governance framing + COMPASS consumer trust boundary)
 - [CLAUDE.md](CLAUDE.md) — session discipline and hard invariants
 
 ---
