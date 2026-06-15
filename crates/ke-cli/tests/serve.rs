@@ -263,7 +263,9 @@ impl TestServer {
             "GET {path} HTTP/1.1\r\nHost: {}\r\nAccept: text/event-stream\r\n\r\n",
             self.addr
         );
-        stream.write_all(req.as_bytes()).expect("write stream request");
+        stream
+            .write_all(req.as_bytes())
+            .expect("write stream request");
         stream.flush().expect("flush stream request");
         stream
     }
@@ -490,7 +492,10 @@ fn http_resolve_bad_hash_is_400() {
 
     let resp = server.get("/resolve?hash=not-a-real-hash");
     assert_eq!(resp.status, 400, "body: {:?}", resp.body);
-    let kind = resp.json()["error"].as_str().unwrap_or_default().to_string();
+    let kind = resp.json()["error"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
     assert!(
         kind == "bad_request" || kind == "bad_hash_hex",
         "a malformed hash is a 400 with a bad-request/bad-hash kind; got {kind:?}"
@@ -526,7 +531,8 @@ fn http_verify_published_artifact_returns_verified() {
     );
     let json = resp.json();
     assert_eq!(
-        json["verdict"], "verified",
+        json["verdict"],
+        "verified",
         "published + fully attested under strict local policy verifies; rejection={:?}",
         json.get("rejection")
     );
@@ -550,14 +556,21 @@ fn http_verify_non_local_env_rejects_mock_tsa() {
 
     let body = format!(r#"{{"hash":"{}","env":"staging"}}"#, hash_hex(&hash));
     let resp = server.post_json("/verify", &body);
-    assert_eq!(resp.status, 200, "a rejection is still HTTP 200; body: {:?}", resp.body);
+    assert_eq!(
+        resp.status, 200,
+        "a rejection is still HTTP 200; body: {:?}",
+        resp.body
+    );
     let json = resp.json();
     assert_eq!(
         json["verdict"], "rejected",
         "non-local env rejects the mock-TSA attestations (R8)"
     );
     assert!(
-        json["rejection"].as_str().map(|s| s.contains("R8")).unwrap_or(false),
+        json["rejection"]
+            .as_str()
+            .map(|s| s.contains("R8"))
+            .unwrap_or(false),
         "rejection names the R8 trusted-timestamp rule; got {:?}",
         json.get("rejection")
     );
@@ -579,7 +592,10 @@ fn http_compile_preview_returns_ir_and_report() {
     assert_eq!(resp.status, 200, "body: {:?}", resp.body);
     let json = resp.json();
     assert!(
-        json["rules"].as_array().map(|a| !a.is_empty()).unwrap_or(false),
+        json["rules"]
+            .as_array()
+            .map(|a| !a.is_empty())
+            .unwrap_or(false),
         "preview returns at least one compiled rule"
     );
     assert!(
@@ -618,7 +634,10 @@ fn http_dry_run_from_source_returns_evaluations() {
     assert_eq!(resp.status, 200, "body: {:?}", resp.body);
     let json = resp.json();
     assert!(
-        json["evaluations"].as_array().map(|a| !a.is_empty()).unwrap_or(false),
+        json["evaluations"]
+            .as_array()
+            .map(|a| !a.is_empty())
+            .unwrap_or(false),
         "dry-run returns one normalized evaluation per rule"
     );
 }

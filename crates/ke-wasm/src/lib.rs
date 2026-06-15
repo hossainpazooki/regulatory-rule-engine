@@ -299,6 +299,7 @@ fn project_finding(f: &ke_compiler::verify::Finding) -> FindingDto {
     let tier = match f.tier {
         Tier::T0 => "T0",
         Tier::T1 => "T1",
+        Tier::T5 => "T5",
     };
     FindingDto {
         tier: tier.to_string(),

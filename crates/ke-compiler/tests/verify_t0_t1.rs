@@ -1,13 +1,17 @@
 //! T0 (structural) and T1 (coverage + interpretation notes) findings.
 
 use ke_compiler::compile_rules;
-use ke_compiler::verify::verify;
+use ke_compiler::verify::{verify, Tier};
 
+/// Codes of the T0/T1 findings only. T5 (lint-beyond-compiler, Gate 5) shares
+/// the same `findings` vector but is advisory and orthogonal to the T0/T1
+/// structural/coverage checks this file exercises, so it is filtered out here.
 fn findings_codes(src: &str) -> Vec<String> {
     let rules = compile_rules(src).expect("compile");
     verify(&rules)
         .findings
         .into_iter()
+        .filter(|f| f.tier != Tier::T5)
         .map(|f| f.code.to_string())
         .collect()
 }

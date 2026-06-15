@@ -104,7 +104,8 @@ fn error_response(err: &ServeError) -> Response<Cursor<Vec<u8>>> {
         error: err.kind.to_string(),
         detail: err.detail.clone(),
     };
-    let body = serde_json::to_vec(&payload).unwrap_or_else(|_| b"{\"error\":\"internal\"}".to_vec());
+    let body =
+        serde_json::to_vec(&payload).unwrap_or_else(|_| b"{\"error\":\"internal\"}".to_vec());
     let header = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..])
         .expect("static content-type header is valid");
     Response::from_data(body)

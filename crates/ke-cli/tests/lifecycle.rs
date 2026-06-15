@@ -512,7 +512,11 @@ fn rollback_reresolves_to_previous_distinct_hash() {
     assert_eq!(resolve_tag(&backend, "staging", "current"), a);
 
     // B (DISTINCT) -> published under the SAME env+tag -> pointer moves to B.
-    let b = compile_named(&backend, "../../fixtures/rules/mica_authorization.yaml", "mica_2023");
+    let b = compile_named(
+        &backend,
+        "../../fixtures/rules/mica_authorization.yaml",
+        "mica_2023",
+    );
     assert_ne!(a, b, "B must be a distinct artifact from A");
     ml_check(&backend, b);
     attest_with(&backend, b, &FULL_SET);

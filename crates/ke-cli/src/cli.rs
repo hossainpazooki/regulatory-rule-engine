@@ -13,10 +13,12 @@
 //! `rollback`. Without the `test-keys` feature the signing commands return a
 //! typed "requires --features test-keys" error (the command surface still
 //! parses). `verify` remains a deferred exit-2 stub (standalone attestation-set
-//! verification is a later surface).
+//! verification is a later surface). `lint` (Gate 5) runs the non-authoritative
+//! T5 lint tier; it needs no registry and no `test-keys` (it signs nothing).
 
 use crate::commands::{
-    attest, compile, deprecate, export_provenance, ml_check, publish, query, revoke, rollback,
+    attest, compile, deprecate, export, export_provenance, import_kew, lint, ml_check, publish,
+    query, revoke, rollback, sql,
 };
 use crate::registry::backend::LocalFsBackend;
 use crate::registry::Selector;
@@ -176,6 +178,43 @@ pub enum Command {
         /// bound port from the log line / `server_addr()` (tests bind `0`).
         #[arg(long, default_value_t = 0)]
         port: u16,
+    },
+    /// [Gate 5] Lint a YAML rule document with the T5 lint tier (advisory by
+    /// default). NON-AUTHORITATIVE: compiles to IR and reports style/quality
+    /// findings; signs nothing, writes nothing, touches no registry.
+    Lint {
+        /// Path to the YAML rule document.
+        yaml: String,
+        /// Exit nonzero (2) if any blocking T5 finding fires.
+        #[arg(long)]
+        deny: bool,
+    },
+    /// [Gate 5] Export an artifact's `.kew` to a flat file (byte-identical copy).
+    /// NON-AUTHORITATIVE: reads stored bytes, re-hashes nothing, signs nothing.
+    Export {
+        /// Artifact content hash (64-char lowercase hex).
+        #[arg(long)]
+        hash: String,
+        /// Destination path for the flat `.kew` file.
+        #[arg(long)]
+        out: String,
+    },
+    /// [Gate 5] OFFLINE import: re-verify a flat `.kew` file's hash + signatures
+    /// via ke_artifact::verify_artifact and reject anything that does not verify.
+    /// NON-AUTHORITATIVE: trusts nothing blindly; signs/publishes nothing.
+    Import {
+        /// Path to the flat `.kew` file to re-verify offline.
+        #[arg(long = "in")]
+        in_path: String,
+    },
+    /// [Gate 5] Run a READ-ONLY SQL query over registry/artifact metadata views
+    /// (G5-3). NON-AUTHORITATIVE and read-only. Requires `--features sql-views`
+    /// (blocked on the windows-gnu toolchain: no C++ compiler for libduckdb-sys
+    /// — built on the Linux CI leg).
+    Sql {
+        /// The read-only SQL query.
+        #[arg(long)]
+        query: String,
     },
 }
 
@@ -438,6 +477,118 @@ fn dispatch(cli: &Cli) -> Result<i32> {
             crate::serve::run(root, host, *port)?;
             Ok(0)
         }
+        Command::Lint { yaml, deny } => {
+            // NON-AUTHORITATIVE: no registry, no backend, no clock — lint only
+            // compiles the YAML and runs the T5 tier.
+            let args = lint::LintArgs {
+                yaml_path: yaml,
+                deny: *deny,
+            };
+            let outcome = lint::run(&args)?;
+            for finding in &outcome.findings {
+                println!(
+                    "[{:?}] {} ({}): {}{}",
+                    finding.tier,
+                    finding.rule_id,
+                    finding.code,
+                    finding.message,
+                    if finding.blocking { " [blocking]" } else { "" }
+                );
+            }
+            println!(
+                "lint: findings={} blocking={}",
+                outcome.findings.len(),
+                outcome.blocking_count
+            );
+            Ok(if *deny && outcome.blocking_count > 0 {
+                2
+            } else {
+                0
+            })
+        }
+        Command::Export { hash, out } => {
+            // Reads the stored .kew and writes byte-identical bytes; no clock,
+            // no signing, no lifecycle change.
+            let root = registry_root(cli)?;
+            let backend = LocalFsBackend::open(&root)?;
+            let args = export::ExportArgs {
+                artifact_hash: crate::registry::hash_from_hex(hash)?,
+                out_path: out,
+            };
+            let outcome = export::run(&backend, &args)?;
+            println!(
+                "export: hash={} bytes={} out={}",
+                crate::registry::hash_hex(&outcome.artifact_hash),
+                outcome.bytes_written,
+                outcome.out_path
+            );
+            Ok(0)
+        }
+        Command::Import { in_path } => {
+            // OFFLINE: no backend read. Only the CLI-edge clock is needed for
+            // verify_artifact. import_kew::run hard-rejects integrity failures
+            // (Err -> exit 1); the expected offline NotPublished/StaleEventHead
+            // pass through as crypto-OK with a warning. Without `test-keys`,
+            // `run` returns a typed "requires --features test-keys" Err.
+            let now = now_unix(cli)?;
+            let args = import_kew::ImportArgs {
+                kew_path: in_path,
+                now_unix: now,
+            };
+            #[cfg(any(test, feature = "test-keys"))]
+            {
+                let outcome = import_kew::run(&args)?;
+                print_import_outcome(&outcome);
+                Ok(0)
+            }
+            #[cfg(not(any(test, feature = "test-keys")))]
+            {
+                let _ = import_kew::run(&args)?;
+                Ok(0)
+            }
+        }
+        Command::Sql { query } => {
+            // READ-ONLY: opens the backend and runs an in-memory DuckDB query
+            // over a projection of canonical artifact contents. Without
+            // `--features sql-views`, `sql::run` returns a typed error (duckdb
+            // is not linked on the default windows-gnu build).
+            let backend = open_backend(cli)?;
+            let outcome = sql::run(&backend, &sql::SqlArgs { query })?;
+            println!("{}", outcome.rows_json);
+            Ok(0)
+        }
+    }
+}
+
+/// Print the import verdict + provenance summary. Gated with `run`: the
+/// no-feature build's `run` returns a typed error before this is reached.
+#[cfg(any(test, feature = "test-keys"))]
+fn print_import_outcome(outcome: &import_kew::ImportOutcome) {
+    use ke_artifact::{RejectionReason, Verdict};
+    println!(
+        "import: hash={} verdict={:?} registry_state={:?} signer_key={} is_test_key={}",
+        crate::registry::hash_hex(&outcome.artifact_hash),
+        outcome.verdict,
+        outcome.registry_state,
+        outcome.provenance.signer_key_id,
+        outcome.provenance.is_test_key
+    );
+    match &outcome.verdict {
+        Verdict::Verified => {}
+        Verdict::Rejected(RejectionReason::NotPublished { .. }) => {
+            eprintln!(
+                "warning: crypto OK but not authoritative offline (no live registry; \
+                 status is not Published). This is expected for `ke import`."
+            );
+        }
+        Verdict::Rejected(RejectionReason::StaleEventHead { .. }) => {
+            eprintln!(
+                "warning: crypto OK but the embedded event-head is stale against the \
+                 supplied live head."
+            );
+        }
+        // Integrity failures never reach here — `run` returns Err for them.
+        _ => {}
     }
 }
 

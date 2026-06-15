@@ -16,7 +16,9 @@ use super::dto::{
 use super::router::{json_response, text_event_stream_headers, ServeError, ServeResult};
 use super::AppState;
 use crate::registry::backend::RegistryBackend;
-use crate::registry::{current_state, hash_from_hex, head_event, resolve as registry_resolve, Selector};
+use crate::registry::{
+    current_state, hash_from_hex, head_event, resolve as registry_resolve, Selector,
+};
 use ke_compiler::verify::{Conflict, Finding, Tier, VerificationReport};
 use std::io::Write;
 use tiny_http::Request;
@@ -91,7 +93,8 @@ pub fn resolve(state: &AppState, query: Option<&str>) -> ServeResult {
 pub fn verify(state: &AppState, body: &str) -> ServeResult {
     let req: VerifyRequest = serde_json::from_str(body)
         .map_err(|e| ServeError::bad_request(format!("parse verify body: {e}")))?;
-    let hash = hash_from_hex(&req.hash).map_err(|e| ServeError::bad_request(format!("hash: {e}")))?;
+    let hash =
+        hash_from_hex(&req.hash).map_err(|e| ServeError::bad_request(format!("hash: {e}")))?;
 
     // Canonical artifact bytes + canonical registry evidence (G5-1).
     let kew = state.backend.read_artifact_kew(&hash)?;
@@ -158,8 +161,11 @@ fn run_verify(
 ) -> Result<ke_artifact::VerificationOutcome, ServeError> {
     use ke_artifact::{decode_artifact, verify_artifact, PolicyContext};
 
-    let (artifact, _envelope_len) =
-        decode_artifact(kew).map_err(|e| ServeError::from(crate::registry::RegistryError::ArtifactDecode(e.to_string())))?;
+    let (artifact, _envelope_len) = decode_artifact(kew).map_err(|e| {
+        ServeError::from(crate::registry::RegistryError::ArtifactDecode(
+            e.to_string(),
+        ))
+    })?;
 
     // Supported policy versions = exactly the versions the artifact's own
     // attestations declare (so R3 reflects the artifact under test, not a guess).
@@ -330,6 +336,7 @@ fn project_finding(f: &Finding) -> FindingDto {
     let tier = match f.tier {
         Tier::T0 => "T0",
         Tier::T1 => "T1",
+        Tier::T5 => "T5",
     };
     FindingDto {
         tier: tier.to_string(),
@@ -378,7 +385,9 @@ pub fn dry_run(state: &AppState, body: &str) -> ServeResult {
                 registry_resolve(&*state.backend, &Selector::ByHash(hash), now_unix())?;
             let kew = state.backend.read_artifact_kew(&resolved)?;
             let (artifact, _envelope_len) = ke_artifact::decode_artifact(&kew).map_err(|e| {
-                ServeError::from(crate::registry::RegistryError::ArtifactDecode(e.to_string()))
+                ServeError::from(crate::registry::RegistryError::ArtifactDecode(
+                    e.to_string(),
+                ))
             })?;
             artifact.compiled_ir
         }
