@@ -1,0 +1,15 @@
+# wasm-bindgen --target web output. The Build phase / CI regenerates these from
+# the pinned ke-wasm crate (wasm-bindgen =0.2.95) and OVERWRITES the committed
+# scaffold stubs:
+#
+#   - ke_wasm.js          : a committed SCAFFOLD STUB (throws if called) so the
+#                           adapter + smoke test resolve their import before the
+#                           real glue exists. The build overwrites it. TRACKED.
+#   - ke_wasm.d.ts        : the committed pinned type contract. TRACKED.
+#
+# Only the compiled binary wasm + its bindgen-emitted helper d.ts are ignored
+# (binary / large; CI regenerates). Flagged to Hossain (see README): commit the
+# .wasm too if a zero-build frontend dev experience is preferred, and make the
+# wasm-bindgen-cli pin a review gate on every regeneration.
+ke_wasm_bg.wasm
+ke_wasm_bg.wasm.d.ts

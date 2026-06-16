@@ -16,9 +16,13 @@
 pub mod attest;
 pub mod compile;
 pub mod deprecate;
+pub mod export;
 pub mod export_provenance;
+pub mod import_kew;
+pub mod lint;
 pub mod ml_check;
 pub mod publish;
 pub mod query;
 pub mod revoke;
 pub mod rollback;
+pub mod sql;

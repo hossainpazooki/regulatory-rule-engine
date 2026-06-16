@@ -27,10 +27,14 @@ in `docs/adr/` to reconcile.
   `institutional-defi-platform-api/src/rules/data/` via `scripts/bootstrap.sh`
 - a registry of signed, content-addressed artifacts (Gate 4 onwards)
 
-The institutional DeFi platform (sibling repo) is the **consumer**. It
-executes Rust-compiled artifacts in Python `RuleRuntime` after verifying
-hash, signatures, registry state, and typed expert attestations. The platform
-does not link the compiler.
+**COMPASS** (`cross-border-compliance-navigator`) is the **consumer**. It
+verifies hash, signatures, registry state, and typed expert attestations
+in-browser via the `@platform/atlas-artifact` WASM verifier — consumer-only, it
+does not sign/publish or execute the rule engine, and does not link the compiler.
+`institutional-defi-platform-api` is **decoupled** (ADR-0017, 2026-06-15) and is
+not in the ATLAS artifact path; the consumer integration is gated post-Gate-5.
+The differential/equivalence harnesses still use the platform checkout as the
+Python reference oracle (see `fixtures/rules/SOURCE.md`).
 
 Authoritative spec: `docs/spec/ke-workbench-rust-migration-spec-v3.1.md`.
 
@@ -40,10 +44,20 @@ Authoritative spec: `docs/spec/ke-workbench-rust-migration-spec-v3.1.md`.
 
 ### Git discipline
 
-- **No commits or pushes from Claude Code.** Hossain owns git history.
+- **No commits or pushes from Claude Code.** Hossain owns git history. At a
+  checkpoint, Claude **outputs the exact `git`/`gh` commands** (push +
+  `gh pr create` + `gh pr merge`) for Hossain to run; it never runs them itself.
 - `git mv` is allowed for file moves that preserve history.
 - Gate work happens on per-gate branches named `migration/gate-N-*`.
-  Hossain merges each gate manually after review.
+- **Gates close via PR review on the remote — never a local pointer move.**
+  `origin/main` is the source of truth (a gate is *not* closed until its PR is
+  merged there; the local tree can be ahead/dirty and is not authoritative). The
+  gate (or gate-fix) branch is **pushed to `origin`**, opened as a **pull request
+  against `main`** (`gh pr create --base main`), reviewed, and merged **through
+  the PR** — the pattern every gate has followed: **PR #3** (gate-0), **#4**
+  (gate-1), **#5** (gate-2), **#6** (gate-3), **#8** (gate-4); **#7** was the
+  Gate-4 brief/preview. Local fast-forwards or `git branch -f main` are **not**
+  how gates land. Hossain merges each PR manually after review.
 - Gate boundaries are commit boundaries. **No gate may begin until the prior
   gate's acceptance criteria (spec § 19) are green.**
 
@@ -141,20 +155,25 @@ in PowerShell unless an ADR justifies it.
 
 ## Open decisions (spec § 21)
 
-These need answers before specific gates begin. Don't proceed past the gate
-that depends on them:
+Decisions that gate specific gates. **Resolved** rows are kept for traceability
+with the ADR that closed them — don't reopen them. Don't proceed past a gate
+whose row is still **Open**.
 
-| Decision | Gate gated by |
-|----------|---------------|
-| Expert key authority | Gate 4 |
-| T2/T3 production policy | Gate 4 |
-| T2/T3 sidecar deployment | Gate 4 |
-| Legal source text storage | document source coverage (Gate 2+ if promoted) |
-| Trusted timestamp authority | Gate 4 |
-| Revocation behavior | Gate 6 |
-| Review UI follow-up scope | Gate 5 (minimum scope is unblocked) |
-| Frontend visual regression tooling | Gate 5 polish |
-| Package-manager migration (pnpm) | not blocking — needs ADR if pursued |
+| Decision | Gate | Status |
+|----------|------|--------|
+| Expert key authority | Gate 4 | ✅ Resolved — ADR-0009 (Accepted 2026-06-11) |
+| T2/T3 production policy | Gate 4 | ✅ Resolved — ADR-0011 (Accepted) |
+| T2/T3 sidecar deployment | Gate 4 | ✅ Resolved — ADR-0011 (Accepted) |
+| Trusted timestamp authority | Gate 4 | ✅ Resolved — ADR-0010 (Accepted) |
+| Revocation behavior | Gate 6 | ✅ Policy decided — ADR-0009 §4 + ADR-0013 (Accepted); runtime enforcement at Gate 6 |
+| Legal source text storage | document source coverage (Gate 2+ if promoted) | ⬜ Open |
+| Review UI follow-up scope | Gate 5 | ⬜ Open — minimum scope unblocked; counterexamples/semantic-diff need promotion |
+| Frontend visual regression tooling | Gate 5 (5d) | ⬜ Open — §21.8; pick before the 5d visual-parity gate |
+| Package-manager migration (pnpm) | not blocking | ⬜ Open — needs ADR if pursued |
+
+The COMPASS federated-consumer trust boundary (how the consumer re-derives trust,
+treats non-`published` as blocked, fails closed on `unknown`) is recorded in
+**ADR-0019 (Accepted)** — gates the post-Gate-5 COMPASS rewire, not an ATLAS gate.
 
 Resolved in v3.1: registry persistence (S3-backed v1) and `ke-artifact-py`
 package index (S3-backed PEP 503 simple index).

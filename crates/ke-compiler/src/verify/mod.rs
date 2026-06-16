@@ -1,11 +1,13 @@
 //! Verification passes (spec §11, §12): T0 (structural), T1 (source coverage +
-//! interpretation notes), T4 (cross-rule conflicts). T0/T1 are per-rule and
-//! blocking; T4 is cross-rule and severity-dependent (ADR 0005).
+//! interpretation notes), T4 (cross-rule conflicts), T5 (lint-beyond-compiler).
+//! T0/T1 are per-rule and blocking; T4 is cross-rule and severity-dependent
+//! (ADR 0005); T5 (Gate 5) is per-rule and advisory by default (see [`t5`]).
 
 pub mod conflict;
 pub mod t0;
 pub mod t1;
 pub mod t4;
+pub mod t5;
 
 pub use conflict::{Conflict, ConflictClass, Severity};
 
@@ -16,6 +18,8 @@ use ke_core::ir::rule::RuleIR;
 pub enum Tier {
     T0,
     T1,
+    /// T5 — lint-beyond-compiler (Gate 5). Advisory by default; see [`t5`].
+    T5,
 }
 
 /// A per-rule verification finding (T0/T1).
@@ -53,6 +57,7 @@ pub fn verify(rules: &[RuleIR]) -> VerificationReport {
     for rule in rules {
         findings.extend(t0::check(rule));
         findings.extend(t1::check(rule));
+        findings.extend(t5::check(rule));
     }
     VerificationReport {
         findings,

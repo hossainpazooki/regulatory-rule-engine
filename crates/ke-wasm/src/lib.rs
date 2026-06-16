@@ -21,8 +21,23 @@
 //! The registry read happens off-WASM (at the `ke-cli` edge); the browser
 //! passes registry state in as JSON data.
 //!
-//! The preview compile + dry-run bindings (the original Gate 5 scope) are not
-//! implemented here yet; this file currently ships the verify-only surface.
+//! # Preview compile + dry-run (Gate 5, G5-2) — NON-AUTHORITATIVE
+//!
+//! [`compile_preview`] and [`dry_run`] are thin browser adapters over the SAME
+//! pure functions the native `ke-cli serve` handlers call
+//! ([`ke_compiler::compile_rules`], [`ke_compiler::verify::verify`],
+//! [`ke_runtime::facts_from_json`], [`ke_runtime::evaluate`],
+//! [`ke_runtime::Evaluation::normalized_json`]) and emit the SAME JSON shapes
+//! via the SAME projection. They COMPUTE + RETURN only: no `Artifact::assemble`,
+//! no signing, no registry mutation is reachable. Parity with the canonical
+//! native compute therefore holds by construction (one algorithm, not two) and
+//! is asserted in `tests/parity.rs`; any difference the browser leg observes
+//! against a canonical `ke-cli serve` endpoint is SURFACED, never silently used.
+//!
+//! WASM binds only the inline-`source` dry-run path. The native by-`hash` path
+//! resolves the CANONICAL registry backend (off-WASM, G5-1) and is intentionally
+//! NOT bound here (authority boundary): the browser uses the canonical endpoint
+//! for stored artifacts.
 
 #![deny(unsafe_code)]
 // wasm-bindgen 0.2.95's `#[wasm_bindgen]` macro emits a `cfg(wasm_bindgen_unstable_test_coverage)`
@@ -113,6 +128,195 @@ pub fn read_provenance(
     artifact_provenance(&artifact, &registry, exported_at_unix)
         .to_canonical_json()
         .map_err(|e| JsError::new(&format!("provenance json: {e}")))
+}
+
+/// Compile + verify a YAML rule document for in-browser PREVIEW.
+///
+/// NON-AUTHORITATIVE (spec § 6, § 16; CLAUDE.md authority boundary): this
+/// computes and returns only. It never reaches `Artifact::assemble`, never
+/// signs, attests, publishes, or mutates a registry. It is the byte-identical
+/// twin of the native `POST /compile/preview` handler — same
+/// [`ke_compiler::compile_rules`] + [`ke_compiler::verify::verify`] calls, same
+/// projection, same JSON shape.
+///
+/// Returns a JSON string mirroring the native `CompilePreviewResponse`:
+/// ```json
+/// {"rules": RuleIR[], "report": {"has_blocking": bool,
+///   "findings": [{"tier":"T0"|"T1","rule_id":..,"code":..,"message":..,"blocking":..}],
+///   "conflicts": [{"class":..,"severity":..,"message":..}]}}
+/// ```
+/// On a [`ke_compiler::CompileError`], throws a `JsError` whose message is the
+/// SAME `{"error":"compile_error","detail":"<{e:?}>"}` body the native 422
+/// returns (encoded as a thrown error rather than an HTTP status).
+#[wasm_bindgen]
+pub fn compile_preview(source: &str) -> Result<String, JsError> {
+    compile_preview_impl(source).map_err(|msg| JsError::new(&msg))
+}
+
+/// The pure compute body behind [`compile_preview`], free of any
+/// `wasm-bindgen`/`JsError` types so it is callable on the NATIVE target (the
+/// `tests/parity.rs` equality assertion runs this directly — `JsValue`
+/// operations abort off-wasm). On error returns the SAME JSON body the wrapper
+/// throws and the native handler returns as a 422: a `String` holding
+/// `{"error":"compile_error","detail":"<{e:?}>"}`.
+pub fn compile_preview_impl(source: &str) -> Result<String, String> {
+    let rules = ke_compiler::compile_rules(source).map_err(|e| compile_error_body(&e))?;
+    let report = ke_compiler::verify::verify(&rules);
+
+    let response = CompilePreviewResponse {
+        rules,
+        report: project_report(&report),
+    };
+    serde_json::to_string(&response).map_err(|e| format!("serialize compile/preview: {e}"))
+}
+
+/// Evaluate inline YAML `source` against `facts_json` for in-browser PREVIEW.
+///
+/// NON-AUTHORITATIVE: computes + returns only; stores/signs nothing. Byte-
+/// identical twin of the native `POST /dry-run` handler's `source` path —
+/// [`ke_compiler::compile_rules`] → [`ke_runtime::facts_from_json`] →
+/// [`ke_runtime::evaluate`] → [`ke_runtime::Evaluation::normalized_json`]. The
+/// native handler receives `facts` already-deserialized from the request body;
+/// the WASM edge deserializes the `facts_json` string first
+/// ([`serde_json::from_str`]) to reach the SAME `facts_from_json` call.
+///
+/// WASM binds ONLY this inline-`source` path. The native by-`hash` path needs
+/// the canonical registry backend (off-WASM, G5-1) and is intentionally not
+/// bound here.
+///
+/// Returns a JSON string mirroring the native `DryRunResponse`:
+/// `{"evaluations": Value[]}` where each element is
+/// `Evaluation::normalized_json()`. On a compile error, throws a `JsError`
+/// carrying `{"error":"compile_error",...}`; on a facts error, throws a
+/// `JsError` carrying `{"error":"facts_error","detail":<from facts_from_json>}`.
+#[wasm_bindgen]
+pub fn dry_run(source: &str, facts_json: &str) -> Result<String, JsError> {
+    dry_run_impl(source, facts_json).map_err(|msg| JsError::new(&msg))
+}
+
+/// The pure compute body behind [`dry_run`], free of `wasm-bindgen`/`JsError`
+/// types so it is callable on the NATIVE target (see [`compile_preview_impl`]).
+/// On a compile error returns the `{"error":"compile_error",...}` body; on a
+/// facts error returns `{"error":"facts_error","detail":<from facts_from_json>}`.
+pub fn dry_run_impl(source: &str, facts_json: &str) -> Result<String, String> {
+    let rules = ke_compiler::compile_rules(source).map_err(|e| compile_error_body(&e))?;
+
+    // Deserialize the facts string at the JS edge, then hand the SAME
+    // serde_json::Value to facts_from_json the native handler receives.
+    let facts_value: serde_json::Value = serde_json::from_str(facts_json)
+        .map_err(|e| facts_error_body(&format!("parse facts JSON: {e}")))?;
+    let facts = ke_runtime::facts_from_json(&facts_value).map_err(|e| facts_error_body(&e))?;
+
+    let evaluations: Vec<serde_json::Value> = rules
+        .iter()
+        .map(|rule| ke_runtime::evaluate(rule, &facts).normalized_json())
+        .collect();
+
+    let response = DryRunResponse { evaluations };
+    serde_json::to_string(&response).map_err(|e| format!("serialize dry-run: {e}"))
+}
+
+/// The `{"error":"compile_error","detail":"<{e:?}>"}` body — the SAME body the
+/// native handler returns as a 422 (`ServeError::unprocessable("compile_error",
+/// format!("{e:?}"))`), returned here as a `String` the wrapper wraps in a
+/// `JsError`.
+fn compile_error_body(e: &ke_compiler::CompileError) -> String {
+    serde_json::json!({ "error": "compile_error", "detail": format!("{e:?}") }).to_string()
+}
+
+/// The `{"error":"facts_error","detail":<String>}` body — the SAME body the
+/// native handler returns as a 422 (`ServeError::unprocessable("facts_error",
+/// e)`), returned as a `String` the wrapper wraps in a `JsError`.
+fn facts_error_body(detail: &str) -> String {
+    serde_json::json!({ "error": "facts_error", "detail": detail }).to_string()
+}
+
+// ---------------------------------------------------------------------------
+// Preview response DTOs + projection helpers.
+//
+// These mirror `ke-cli`'s `serve::dto` + `serve::handlers` byte-for-byte: the
+// non-`Serialize` verify types (`Finding`/`Conflict`/`VerificationReport`) are
+// projected with the EXACT same match arms the native `project_report` /
+// `project_finding` / `project_conflict` use (tier T0/T1; class/severity via
+// `Debug`). Duplicated here (not lifted to a shared crate — that crate-boundary
+// refactor is Plan-Mode territory, flagged to Hossain) and pinned by the
+// `tests/parity.rs` equality assertion so the two copies cannot drift.
+// ---------------------------------------------------------------------------
+
+use serde::Serialize;
+
+/// Mirrors `ke-cli` `serve::dto::CompilePreviewResponse`.
+#[derive(Serialize)]
+struct CompilePreviewResponse {
+    rules: Vec<ke_core::ir::RuleIR>,
+    report: VerificationReportDto,
+}
+
+/// Mirrors `ke-cli` `serve::dto::DryRunResponse`.
+#[derive(Serialize)]
+struct DryRunResponse {
+    evaluations: Vec<serde_json::Value>,
+}
+
+/// Mirrors `ke-cli` `serve::dto::VerificationReportDto`.
+#[derive(Serialize)]
+struct VerificationReportDto {
+    has_blocking: bool,
+    findings: Vec<FindingDto>,
+    conflicts: Vec<ConflictDto>,
+}
+
+/// Mirrors `ke-cli` `serve::dto::FindingDto`.
+#[derive(Serialize)]
+struct FindingDto {
+    tier: String,
+    rule_id: String,
+    code: String,
+    message: String,
+    blocking: bool,
+}
+
+/// Mirrors `ke-cli` `serve::dto::ConflictDto`.
+#[derive(Serialize)]
+struct ConflictDto {
+    class: String,
+    severity: String,
+    message: String,
+}
+
+/// Byte-identical to `ke-cli` `serve::handlers::project_report`.
+fn project_report(report: &ke_compiler::verify::VerificationReport) -> VerificationReportDto {
+    VerificationReportDto {
+        has_blocking: report.has_blocking(),
+        findings: report.findings.iter().map(project_finding).collect(),
+        conflicts: report.conflicts.iter().map(project_conflict).collect(),
+    }
+}
+
+/// Byte-identical to `ke-cli` `serve::handlers::project_finding`.
+fn project_finding(f: &ke_compiler::verify::Finding) -> FindingDto {
+    use ke_compiler::verify::Tier;
+    let tier = match f.tier {
+        Tier::T0 => "T0",
+        Tier::T1 => "T1",
+        Tier::T5 => "T5",
+    };
+    FindingDto {
+        tier: tier.to_string(),
+        rule_id: f.rule_id.clone(),
+        code: f.code.to_string(),
+        message: f.message.clone(),
+        blocking: f.blocking,
+    }
+}
+
+/// Byte-identical to `ke-cli` `serve::handlers::project_conflict`.
+fn project_conflict(c: &ke_compiler::verify::Conflict) -> ConflictDto {
+    ConflictDto {
+        class: format!("{:?}", c.class),
+        severity: format!("{:?}", c.severity),
+        message: c.detail.clone(),
+    }
 }
 
 /// Parse a JSON string into a serde type, surfacing decode errors as JS errors.

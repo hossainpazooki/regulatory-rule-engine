@@ -1,7 +1,12 @@
-name: WASM Build (stub)
+name: WASM Build
 
-# Stub workflow for Gate 0 — only proves the path/structure exists.
-# Real wasm-bindgen build lands in Gate 5 (see docs/spec/ke-workbench-rust-migration-spec-v3.1.md § 19 Gate 5).
+# Gate 5 (G5-2): the real wasm32 build + wasm-bindgen generation for the browser
+# preview/dry-run + verify-only bindings. NON-AUTHORITATIVE surface (spec § 6 /
+# § 16): the browser bindings cannot sign, attest, publish, or mutate a registry.
+#
+# The wasm-bindgen CRATE pin (crates/ke-wasm/Cargo.toml: wasm-bindgen =0.2.95)
+# and the wasm-bindgen-cli version installed here MUST MATCH EXACTLY — the
+# classic footgun this job guards against by pinning both to 0.2.95.
 
 on:
   push:
@@ -13,13 +18,70 @@ concurrency:
   group: wasm-build-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -Dwarnings
+  # Single source of truth for the matched pin (crate + CLI).
+  WASM_BINDGEN_VERSION: "0.2.95"
+
 jobs:
-  noop:
-    name: WASM stub
+  build:
+    name: wasm32 build + wasm-bindgen
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Confirm ke-wasm crate exists
-        run: test -f crates/ke-wasm/Cargo.toml
-      - name: Note
-        run: echo "wasm-bindgen build wired in Gate 5; this is a structure check only."
+
+      - name: Assert the crate pin matches WASM_BINDGEN_VERSION
+        run: |
+          pin="$(grep -E '^wasm-bindgen = "=' crates/ke-wasm/Cargo.toml | sed -E 's/.*"=([0-9.]+)".*/\1/')"
+          echo "crate pin: $pin ; cli target: $WASM_BINDGEN_VERSION"
+          test "$pin" = "$WASM_BINDGEN_VERSION" || {
+            echo "::error::wasm-bindgen crate pin ($pin) != wasm-bindgen-cli version ($WASM_BINDGEN_VERSION). They MUST match exactly.";
+            exit 1;
+          }
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      # The native parity test (crates/ke-wasm/tests/parity.rs) is the
+      # load-bearing G5-2 equality proof: it asserts the wasm-bound compute is
+      # byte-identical to the canonical native compute. Run it before building
+      # the wasm so a parity drift fails fast.
+      - name: Parity proof (native) — wasm preview == canonical native compute
+        run: cargo test -p ke-wasm --test parity
+
+      - name: Build ke-wasm for wasm32
+        run: cargo build -p ke-wasm --target wasm32-unknown-unknown
+
+      - name: Install wasm-bindgen-cli (pinned to the crate version)
+        run: cargo install wasm-bindgen-cli --version "$WASM_BINDGEN_VERSION" --locked
+
+      - name: Generate web-target bindings
+        run: |
+          wasm-bindgen --target web \
+            --out-dir frontend/src/wasm \
+            target/wasm32-unknown-unknown/debug/ke_wasm.wasm
+
+      - name: Confirm the expected bindings emitted
+        run: |
+          test -f frontend/src/wasm/ke_wasm.js
+          test -f frontend/src/wasm/ke_wasm_bg.wasm
+          # The generated glue must export the two new preview fns + the
+          # unchanged verify surface.
+          for sym in compile_preview dry_run verify_artifact read_provenance; do
+            grep -q "$sym" frontend/src/wasm/ke_wasm.js || {
+              echo "::error::generated ke_wasm.js is missing export: $sym"; exit 1;
+            }
+          done
+
+      - name: Upload generated bindings
+        uses: actions/upload-artifact@v4
+        with:
+          name: ke-wasm-bindings
+          path: |
+            frontend/src/wasm/ke_wasm.js
+            frontend/src/wasm/ke_wasm_bg.wasm
+          if-no-files-found: error

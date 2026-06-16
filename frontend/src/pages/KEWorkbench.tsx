@@ -3,6 +3,7 @@ import { useRules, useRule, useRuleTree, useDecision } from '@/hooks'
 import { useWorkbenchStore } from '@/store'
 import { LoadingOverlay, ErrorMessage, StatusBadge } from '@/components/common'
 import { DecisionTree } from '@/components/visualizations'
+import { LocalKePreviewPane } from '@/components/workbench/LocalKePreviewPane'
 import type { RuleInfo, DecideRequest, TreeNode } from '@/types'
 
 // Mock legal analysis data
@@ -347,6 +348,10 @@ export function KEWorkbench() {
               <p className="text-slate-400 text-sm">Run a trace to see results</p>
             )}
           </div>
+
+          {/* Gate-5 (5d) local-surface preview + 5e review — self-gated, hidden
+              with flags off so this page is byte-unchanged vs main. */}
+          <LocalKePreviewPane />
         </div>
       </div>
       )}

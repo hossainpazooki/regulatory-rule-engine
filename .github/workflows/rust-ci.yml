@@ -52,4 +52,26 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace --all-targets
-      - run: cargo test --workspace --all-features
+      # Explicit feature list, NOT --all-features: `sql-views` (bundled DuckDB)
+      # is deliberately excluded from this matrix — it is default-off and builds
+      # only on the dedicated Linux `sql-views` job below. Letting --all-features
+      # sweep it in would force a heavy bundled-DuckDB C++ build on the
+      # windows-latest leg, against its design. `test-keys,pyo3` reproduces the
+      # prior --all-features coverage minus sql-views; add new non-sql features
+      # here explicitly.
+      - run: cargo test --workspace --features test-keys,pyo3
+
+  # Gate 5 (workstream 5b SQL views, G5-3): the `sql-views` feature pulls in
+  # `duckdb` (bundled, via libduckdb-sys's cc-rs), which CANNOT build on the
+  # local `x86_64-pc-windows-gnu` toolchain — no C++ compiler on PATH (the
+  # DuckDB probe: `g++.exe` not found, EXITCODE=101). It is therefore default-off
+  # and exercised on this dedicated Linux leg, where a C++ toolchain exists. This
+  # is the only place `ke sql` / the SQL views are compiled + tested.
+  sql-views:
+    name: ke sql (DuckDB, Linux only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p ke-cli --features sql-views

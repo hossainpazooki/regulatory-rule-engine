@@ -21,6 +21,17 @@ default = []
 # production builds; every key here is loudly a fixed-seed test key and never
 # an ADR-0009 production key. NEVER use OsRng/getrandom for keys.
 test-keys = ["ke-artifact/test-keys"]
+# Gate 5 (workstream 5b SQL views, G5-3): READ-ONLY DuckDB SQL over a projection
+# of canonical registry/artifact metadata (`ke sql`). DEFAULT-OFF and never built
+# on the default windows-gnu profile: the DuckDB probe is unambiguous that on
+# `1.85.0-x86_64-pc-windows-gnu` there is no C/C++ compiler on PATH (`g++.exe` not
+# found), so `libduckdb-sys`'s `cc-rs` build script fails (ToolNotFound,
+# EXITCODE=101). Per the probe recommendation this surface is feature-gated and
+# exercised on a Linux CI leg (`.github/workflows/rust-ci.yml` job `sql-views`,
+# ubuntu-latest) where a C++ toolchain exists. The `Sql` CLI variant is always
+# present (so `ke --help` lists it); only `sql::run` is gated — on the default
+# build it returns a typed "requires --features sql-views" error.
+sql-views = ["dep:duckdb"]
 
 [lib]
 name = "ke_cli"
@@ -44,6 +55,21 @@ ed25519-dalek = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
+# `ke serve` (Gate 5): a thin, non-authoritative read/preview HTTP adapter over
+# the existing pure functions. tiny_http is a sync, dependency-light HTTP/1.1
+# server (thread-per-request) — no async, no tokio, no getrandom 0.3. The live
+# feed is SSE over a long-lived text/event-stream response (see the spec
+# deviation note in src/serve/mod.rs: WebSocket cannot build on this
+# windows-gnu toolchain).
+tiny_http = "0.12"
+# `ke sql` (Gate 5, G5-3): READ-ONLY SQL over registry metadata. OPTIONAL and
+# gated behind the default-off `sql-views` feature; bundled (vendored DuckDB,
+# built via libduckdb-sys's cc-rs) so a Linux CI leg needs only a C++ toolchain,
+# no system libduckdb. NEVER built on the default windows-gnu profile (no C++
+# compiler — see the `sql-views` feature comment and the DuckDB probe:
+# `g++.exe` not found, cc-rs EXITCODE=101). Pinned to the `=1.1.1` line the probe
+# reached. Not in `default`; `default = []` stays clean and links no duckdb.
+duckdb = { version = "=1.1.1", features = ["bundled"], optional = true }
 
 [dev-dependencies]
 # Self-dependency so integration tests under tests/ see the gated test-key
