@@ -63,8 +63,9 @@ Gate 5:
 - [0017 Platform-api decoupled; Gate-4 C1/C2 redefined; Gate-5 proceeds](0017-gate5-sequencing-atlas-surfaces-independent.md) — spec § 19, § 14, § 16, § 6 — **Accepted** (sign-off by Hossain, 2026-06-15; platform-api is not the consumer — COMPASS is; C1 verifier + C2 equivalence foundation MET in-repo, consumer integration deferred to the post-Gate-5 COMPASS rewire; 5d/5e stay gated)
 - [0018 `ke serve` uses SSE (not WebSocket) and is strictly non-authoritative](0018-serve-transport-sse-and-non-authoritative-scope.md) — spec § 16, § 7.4, § 6, § 5/§10/§13 — **Accepted** (sign-off by Hossain, 2026-06-15; windows-gnu can't build WebSocket/tokio deps → tiny_http + SSE; serve never signs/publishes)
 - [0019 Agent-identity governance framing + COMPASS federated-consumer trust boundary](0019-agent-identity-governance-framing-and-consumer-trust-boundary.md) — spec § 5/§10/§13, § 9, § 14/§16, § 20 — **Accepted** (sign-off by Hossain, 2026-06-15; re-decides nothing in 0009/0013; adopts agent-identity vocabulary as the audit lens — lifecycle-as-control-point, credential ≠ authority — and binds the consumer rule: COMPASS re-derives trust, treats non-`published` as blocked even with valid crypto, fails closed on `unknown`)
+- [0020 Gate-5 frontend rewire: G5-5 redefined for the platform decoupling](0020-gate5-frontend-rewire-honest-acceptance.md) — spec § 19 (G5-5), § 7.4, § 13, § 16, § 6 — **Proposed** (pending sign-off; artifact-path pages — KEWorkbench compile/dry-run/verify→review, ProductionDemo health — rewire to local serve/WASM; the 7 ML/analytics off-path pages stay on the external API by ADR-0017; flags default-off so `main` is unchanged)
 
 Anticipated (later gates — numbers assigned when authored):
 
 - Package-manager choice (spec § 21.9) — only if pnpm is later adopted
-- Frontend visual-regression tooling (spec § 21.8) — assigned at the start of 5d
+- Frontend visual-regression tooling (spec § 21.8) — Playwright self-hosted chosen for 5d as **experimental / non-gating** (Linux-CI-canonical baselines); no formal ADR unless it is promoted to a required gate
