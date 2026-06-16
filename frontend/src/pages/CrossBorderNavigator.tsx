@@ -1,3 +1,18 @@
+/**
+ * CrossBorderNavigator — Gate-5 data-source status: SCAFFOLD-ONLY (not-yet-rewired).
+ *
+ * Per the Gate-5 page→surface mapping, this page has NO local `ke-cli serve` or
+ * WASM equivalent: the serve surface (ADR-0018) exposes only `/healthz`,
+ * `/resolve`, `/verify`, `/compile/preview`, `/dry-run`, `/events`, none of which
+ * answer the jurisdiction-navigation calls (`GET /navigate/jurisdictions`,
+ * `POST /navigate`). The `USE_LOCAL_KE_API` flag + fallback is therefore wired in
+ * `useJurisdiction.ts` (the data layer this page consumes), where flag-on
+ * transparently falls through to the canonical `VITE_API_URL` path. This page's
+ * RENDER is intentionally unchanged — Gate 5 is a data-source rewire, never a
+ * render rewrite — so with every flag off (and on, given the scaffold) it behaves
+ * byte-for-byte as on `main`. When a real local jurisdiction surface lands, only
+ * the hook's `local` variant changes; no edit to this file is required.
+ */
 import { useState } from 'react'
 import { MetricCard, LoadingOverlay, ErrorMessage, StatusBadge } from '@/components/common'
 import { useJurisdictions, useNavigate } from '@/hooks'

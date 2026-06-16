@@ -13,6 +13,15 @@ dist-ssr
 *.local
 *.tsbuildinfo
 
+# Local env overrides (keep flags out of history; .env.example is the doc).
+.env
+.env.local
+.env.*.local
+
+# Playwright transient artifacts (committed baselines live in e2e/__screenshots__/).
+test-results/
+playwright-report/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
