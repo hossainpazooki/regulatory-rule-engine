@@ -580,7 +580,7 @@ fn http_verify_non_local_env_rejects_mock_tsa() {
 }
 
 /// `POST /compile/preview {source}` compiles the fixture YAML and returns its IR
-/// + verification report. NON-authoritative: signs/stores nothing. No registry
+/// and verification report. NON-authoritative: signs/stores nothing. No registry
 /// or test-keys needed (compile is pure).
 #[test]
 fn http_compile_preview_returns_ir_and_report() {
