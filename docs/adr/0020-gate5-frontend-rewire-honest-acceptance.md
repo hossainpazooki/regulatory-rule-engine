@@ -1,83 +1,107 @@
-# 0020. Gate-5 frontend rewire: G5-5 redefined for the platform decoupling (artifact-path pages rewire locally; ML/analytics stay external)
+# 0020. Gate-5: defer the ATLAS frontend rewire — COMPASS is the consumer
 
 **Status:** Proposed (pending sign-off by Hossain)
-**Date:** 2026-06-16
+**Date:** 2026-06-17
 **Spec references:** § 19 (Gate 5 acceptance, G5-5), § 7.4 (frontend feature flags), § 13 (review-first UI), § 16 (multi-surface access), § 6 (WASM/serve discipline)
 **Relates to:** ADR-0017 (platform-api decoupled; COMPASS is the consumer), ADR-0018 (`ke serve` surface = `/healthz,/resolve,/verify,/compile/preview,/dry-run,/events`, non-authoritative), ADR-0019 (re-derive trust; non-`published` blocked; fail-closed on `unknown`)
 **Amends:** the spec § 19 Gate-5 acceptance criterion G5-5 ("when every previously-working page is loaded post-rewire, then it functions against local Rust surfaces"), which predated the ADR-0017 decoupling.
 
 ## Context
 
-G5-5 as written assumes every frontend page can be served by a *local Rust
-surface*. After the ADR-0017 decoupling, that is **not achievable, by design**, for
-most pages:
+G5-5 as written assumes the ATLAS frontend's pages should be rewired off
+`VITE_API_URL` onto **local Rust surfaces** (`ke serve` REST), page by page. After
+the ADR-0017 decoupling, that rewire is **low-value**, and for most pages **not
+achievable by design**:
 
+- The **real consumer of the ATLAS artifact path is COMPASS**
+  (`cross-border-compliance-navigator`). COMPASS verifies hash, signatures,
+  registry state, and typed expert attestations **in-browser** via the
+  `@platform/atlas-artifact` WASM verifier (`ke-wasm`). It is **consumer-only**: it
+  does **not** sign, publish, or execute the rule engine. The COMPASS integration is
+  gated **post-Gate-5** (ADR-0017, ADR-0019).
+- **ATLAS's own React frontend is producer-side authoring/review tooling, not the
+  consumer.** Rewiring those pages to talk to a local `ke serve` does not advance the
+  producer→consumer story — the consumer is a separate repo (COMPASS), and the
+  binding it consumes is the WASM verifier, not the ATLAS frontend's data fetches.
 - `ke-cli serve` (ADR-0018) deliberately exposes only the **artifact/rule-engine**
-  surface: `/healthz, /resolve, /verify, /compile/preview, /dry-run, /events`.
-- The ATLAS frontend has 9 pages. Only **KEWorkbench** (compile/dry-run/verify) and
-  **ProductionDemo** (health) consume the artifact/rule-engine surface. The other
-  seven — analytics, embeddings, similarity search, graph, cross-border navigator,
-  document ingestion, home rule-list — consume **ML / analytics / jurisdiction /
-  credit** data that is *off the ATLAS artifact path*. There is no local endpoint to
-  call, and adding one would re-import exactly the coupling ADR-0017 removed.
+  surface: `/healthz, /resolve, /verify, /compile/preview, /dry-run, /events`. Of the
+  ATLAS frontend's 9 pages, **8 are off the artifact path** — analytics, embeddings,
+  similarity search, graph, cross-border navigator, document ingestion, home
+  rule-list, plus the off-path data on others draw **ML / analytics / jurisdiction /
+  credit** data. There is no local endpoint to call, and adding one would re-import
+  exactly the coupling ADR-0017 removed.
 
 Adversarial verification of the 5d/5e build surfaced this directly: the workflow
-marketed KEWorkbench and the review UI as "rewired", but only ProductionDemo
-genuinely reached a local surface, and KEWorkbench's compile-preview/dry-run
-affordance and the 5e `ReviewSurface` were **built but mounted on no page**. The
-honest options were to (a) extend serve with off-path endpoints (rejected —
-re-couples), (b) land as scaffold and defer, or (c) mount the genuinely-local
-affordances and redefine G5-5. Hossain chose (c).
+**over-built** and marketed KEWorkbench and the review UI as "rewired", but only
+ProductionDemo genuinely reached a local surface, and KEWorkbench's
+compile-preview/dry-run affordance and the 5e `ReviewSurface` were **built but
+mounted on no page**. The honest reading is that the ATLAS frontend does not need
+the local surfaces today — the consumer that does is COMPASS, and it consumes the
+WASM verifier, not these pages. So the rewire is **deferred, not delivered**.
 
 This mirrors how ADR-0017 redefined Gate-4 C1/C2 (`docs/gate-4-acceptance.md`):
-keep the in-repo deliverable honest and mark the part that the decoupling made
-inapplicable as out-of-scope-by-design, not as a failure.
+keep the in-repo deliverable honest, and mark the part the decoupling made
+inapplicable as deferred-by-design, not as delivered.
 
 ## Decision
 
-> Accepted reading of G5-5: **every page that depends on the ATLAS artifact /
-> rule-engine surface functions against local Rust surfaces; pages whose data is
-> off the artifact path (ML / analytics / jurisdiction / credit, per ADR-0017)
-> remain on the external `VITE_API_URL` by design**, behind the same default-off
-> flags with a transparent fallback.
+> **Defer the ATLAS frontend rewire.** The 5d page-by-page move of the ATLAS
+> frontend from `VITE_API_URL` to `ke serve` REST is **DEFERRED**, not delivered.
+> G5-5 → **DEFERRED**. Revisit only if/when the ATLAS frontend genuinely needs the
+> local surfaces.
 
-Concretely, the genuinely-local surfaces delivered in 5d/5e:
+**Why low-value:** COMPASS is the main / real consumer of the ATLAS artifact path
+and verifies in-browser via the `@platform/atlas-artifact` WASM verifier; ATLAS's own
+frontend is producer-side authoring/review tooling, not the consumer. Most ATLAS
+pages are off the artifact path (ML / analytics / jurisdiction / credit) and cannot
+be rewired at all.
 
-- **KEWorkbench** — compile-preview + dry-run of inline YAML (WASM adapter when
-  `USE_WASM_PREVIEW`, else serve `POST /compile/preview` // `/dry-run`), and verify
-  an artifact by hash (serve `POST /verify`) feeding **canonical provenance** into
-  the 5e `ReviewSurface`. Mounted via the flag-gated `LocalKePreviewPane`.
-- **ProductionDemo** — health via serve `GET /healthz`.
+**What stays — engine surfaces, with independent value (NOT deferred):**
 
-The off-path pages keep their `*Local` variant that throws `ServeUnsupportedError`
-(never fabricates data) so the hook falls back to the untouched `VITE_API_URL` path.
-All `VITE_USE_*` flags stay **default-off**, so `main` is byte-unchanged.
+- **5a `ke serve`** — the non-authoritative HTTP/SSE surface (ADR-0018).
+- **5b-preview WASM bindings** — the `ke-wasm` binding **COMPASS consumes**.
+- **5b-data `.kew` export/import** — closes **G5-4 (MET)**.
+- **5c lint** — the linting surface.
 
-The 5e `ReviewSurface` is fed only the two provenance classes the canonical artifact
-actually carries (compiler-validity, expert-attestation); ml-evidence / ai-suggestion
-are caller-supplied proposal metadata with no canonical source yet, so they render
-empty rather than fabricated.
+**What stays inert (kept in-tree, NOT claimed as a delivered rewire):** the
+KEWorkbench in-browser WASM compile/dry-run **preview pane** (`LocalKePreviewPane`)
+and the **5e review components** (`ReviewSurface`) remain in the tree behind
+**default-off** `VITE_USE_*` flags as **inert optional affordances**. No code is
+deleted (Option 1). With every `VITE_USE_*` flag default-off, `main` is byte-unchanged.
+
+**G5-1** is closed by **5a (`ke serve`) + 5b-data**, per ADR-0018 (every response
+reads the canonical on-disk registry/artifact view). The 5d frontend panes do **not**
+close G5-1 — drop any claim that they do.
 
 ## Consequences
 
-- G5-5 is closeable in-repo on honest terms: artifact-path pages rewired and
-  verified (`npm run typecheck`/`test:run`/`build` green, flags-off ⇒ `main`
-  unchanged); off-path pages explicitly scoped out, not silently "passed".
-- The frontend stays decoupled from the ML/analytics backends — consistent with
+- **G5-5 is DEFERRED, honestly:** the ATLAS frontend rewire is not delivered;
+  COMPASS is the consumer and its integration is the post-Gate-5 work that actually
+  exercises the artifact path in a browser. The deferral does not lower the bar — it
+  records that the rewire was the wrong target post-ADR-0017.
+- **The frontend stays decoupled** from the ML/analytics backends — consistent with
   ADR-0017 — instead of growing serve endpoints that re-couple them.
-- A future AI-proposal source (post-Gate-5) can feed ReviewSurface's remaining two
-  classes without re-opening this decision.
+- **The inert scaffolding costs nothing on `main`** (flags default-off) and is
+  available if the ATLAS frontend later needs a genuine local affordance, without
+  re-opening this decision.
+- **The over-build is on the record, not erased.** The 5d/5e workflow built more than
+  the artifact path warranted; this ADR defers it rather than pretending it was never
+  built or dressing the inert scaffolding as delivered.
 - The Playwright visual harness remains experimental / non-gating; its baselines are
   Linux-CI-canonical.
 
 ## Alternatives considered
 
+- **Redefine G5-5 as "met" against the artifact-path pages (the prior draft of this
+  ADR).** Rejected: it dresses inert, default-off scaffolding (an unmounted-then-mounted
+  preview pane and review surface) as a delivered rewire. The honest status is
+  *deferred*, because the consumer that needs the local/WASM surface is COMPASS, not
+  these pages.
 - **Extend `ke-cli serve` with the off-path endpoints (rules-list, analytics, …).**
   Rejected: it re-imports the coupling ADR-0017 removed, and the ML/analytics data is
-  not on the artifact path at all — serve would become a proxy to the very backend
-  the decoupling separated.
-- **Land 5d/5e as scaffold and defer the mounts + redefinition.** Rejected by
-  Hossain: leaves two built affordances inert and G5-5 ambiguously "pending".
-- **Keep G5-5 literal and mark Gate 5 incomplete.** Rejected: the literal criterion
-  is unachievable post-decoupling for off-path pages; redefining (as with C1/C2) is
-  the honest closure, not lowering the bar.
+  not on the artifact path at all — serve would become a proxy to the very backend the
+  decoupling separated (re-couples).
+- **Pare back the inert scaffolding (delete `LocalKePreviewPane` / `ReviewSurface`).**
+  Optional later. Option 1 keeps them in-tree behind default-off flags so a future
+  genuine need can adopt them without rebuilding; removal can be a follow-up if the
+  scaffolding proves to be dead weight.
