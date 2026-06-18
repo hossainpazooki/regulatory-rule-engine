@@ -1,7 +1,7 @@
 # 0020. Gate-5: defer the ATLAS frontend rewire — COMPASS is the consumer
 
-**Status:** Proposed (pending sign-off by Hossain)
-**Date:** 2026-06-17
+**Status:** Accepted (sign-off by Hossain, 2026-06-18)
+**Date:** 2026-06-17 (accepted 2026-06-18)
 **Spec references:** § 19 (Gate 5 acceptance, G5-5), § 7.4 (frontend feature flags), § 13 (review-first UI), § 16 (multi-surface access), § 6 (WASM/serve discipline)
 **Relates to:** ADR-0017 (platform-api decoupled; COMPASS is the consumer), ADR-0018 (`ke serve` surface = `/healthz,/resolve,/verify,/compile/preview,/dry-run,/events`, non-authoritative), ADR-0019 (re-derive trust; non-`published` blocked; fail-closed on `unknown`)
 **Amends:** the spec § 19 Gate-5 acceptance criterion G5-5 ("when every previously-working page is loaded post-rewire, then it functions against local Rust surfaces"), which predated the ADR-0017 decoupling.
