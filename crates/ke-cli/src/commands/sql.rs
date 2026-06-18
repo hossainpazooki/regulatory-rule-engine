@@ -275,15 +275,23 @@ pub fn run<B: RegistryBackend>(backend: &B, args: &SqlArgs<'_>) -> Result<SqlOut
         }
     }
 
-    // Run the caller's query and serialize the result set to JSON.
+    // Run the caller's query and serialize the result set to JSON. DuckDB only
+    // populates the result schema *after* the query executes, so column names
+    // must be read from the executed statement (via `Rows::as_ref`), never from
+    // the freshly-prepared one — calling `column_names()` before `query()`
+    // panics on the unset schema (duckdb-rs `raw_statement.rs` schema unwrap; cf.
+    // its own `test_unexecuted_schema_panics`).
     let mut stmt = conn
         .prepare(args.query)
         .map_err(|e| anyhow::anyhow!("prepare query: {e}"))?;
-    let column_names: Vec<String> = stmt.column_names().to_vec();
     let mut json_rows: Vec<serde_json::Map<String, serde_json::Value>> = Vec::new();
     let mut duck_rows = stmt
         .query([])
         .map_err(|e| anyhow::anyhow!("run query: {e}"))?;
+    let column_names: Vec<String> = duck_rows
+        .as_ref()
+        .map(|s| s.column_names())
+        .unwrap_or_default();
     while let Some(r) = duck_rows
         .next()
         .map_err(|e| anyhow::anyhow!("read query row: {e}"))?

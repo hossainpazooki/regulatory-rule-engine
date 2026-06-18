@@ -31,7 +31,7 @@ test-keys = ["ke-artifact/test-keys"]
 # ubuntu-latest) where a C++ toolchain exists. The `Sql` CLI variant is always
 # present (so `ke --help` lists it); only `sql::run` is gated — on the default
 # build it returns a typed "requires --features sql-views" error.
-sql-views = ["dep:duckdb"]
+sql-views = ["dep:duckdb", "dep:libduckdb-sys"]
 
 [lib]
 name = "ke_cli"
@@ -70,6 +70,13 @@ tiny_http = "0.12"
 # `g++.exe` not found, cc-rs EXITCODE=101). Pinned to the `=1.1.1` line the probe
 # reached. Not in `default`; `default = []` stays clean and links no duckdb.
 duckdb = { version = "=1.1.1", features = ["bundled"], optional = true }
+# Pin the C-lib sys crate to the same release line as the `duckdb 1.1.1`
+# bindings. duckdb-rs ships `duckdb` + `libduckdb-sys` in lockstep and tests the
+# matched pair; left unpinned the sys crate floats to a far-newer bundled DuckDB
+# C library — an untested combination. NB: this is ABI hygiene, NOT the G5-3
+# runtime fix — that panic was a code-ordering bug (`column_names()` called
+# before the query executed; see `commands/sql.rs`), independent of this pin.
+libduckdb-sys = { version = "=1.1.1", optional = true }
 
 [dev-dependencies]
 # Self-dependency so integration tests under tests/ see the gated test-key
