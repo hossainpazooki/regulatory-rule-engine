@@ -34,6 +34,39 @@ behavior (the consumer rejects any non-verified / non-`Published` artifact).
 
 ---
 
+## How ATLAS works
+
+Interpretation is **advisory** (AI proposes candidates); the **verification gates
+decide** what becomes trusted; the **deterministic engine executes only** verified,
+signed, content-addressed artifacts — the core invariant. The consumer (COMPASS)
+re-verifies in-browser and fails closed.
+
+```mermaid
+flowchart TB
+  Src["Legal source documents<br/>contradictory · multi-jurisdiction"]:::ai
+  AI["AI interpretation — advisory only<br/>candidate rules · provisions · obligations · citations"]:::ai
+  Gates{"Verification gates decide trust<br/>schema · semantic · source-span · conflict · expert attestation"}:::gate
+  Reject["Rejected / review-required<br/>never executed"]:::reject
+  Artifact["Verified rule artifact<br/>stable IR · ed25519-signed · content-addressed"]:::trust
+  Registry["Registry lifecycle<br/>Published · Deprecated · Revoked"]:::trust
+  Engine["Deterministic engine<br/>executes ONLY verified artifacts"]:::trust
+  Trace["Decision traces<br/>audited · replayable · governed"]:::trust
+  Consumer["Consumer — COMPASS<br/>in-browser verify · fail-closed"]:::trust
+
+  Src --> AI --> Gates
+  Gates -->|all gates pass| Artifact
+  Gates -->|any gate fails| Reject
+  Artifact --> Registry --> Engine --> Trace
+  Registry -->|"content hash + signed evidence"| Consumer
+
+  classDef ai fill:#fef3c7,stroke:#b45309,color:#1f2937;
+  classDef gate fill:#dbeafe,stroke:#1d4ed8,color:#1f2937;
+  classDef trust fill:#dcfce7,stroke:#15803d,color:#1f2937;
+  classDef reject fill:#fee2e2,stroke:#b91c1c,color:#1f2937;
+```
+
+---
+
 ## Status
 
 | Gate | State | Notes |
@@ -43,7 +76,7 @@ behavior (the consumer rejects any non-verified / non-`Published` artifact).
 | **Gate 2 — Parser, compiler, T0/T1/T4** | **Accepted (2026-05-30)** — log: [`docs/gate-2-implementation-log.md`](docs/gate-2-implementation-log.md) | `ke-compiler` `marked-yaml` parser → AST → `RuleIR` lowering, semantic normal form + differential harness, T0/T1/T4. 23 test suites green; **live Rust↔Python differential PASS over all 7 corpus files** (platform @ recorded SOURCE.md SHA); ADR 0005 (T4 severities) signed off. ADRs 0004–0006. **Merged (PR #5)**. |
 | **Gate 3 — Preview runtime + equivalence harness** | **Merged 2026-05-31 (PR #6)** — log: [`docs/gate-3-implementation-log.md`](docs/gate-3-implementation-log.md) | `ke-runtime` tree-walk preview executor mirroring the Python `RuleRuntime` (CPython-faithful operators, normalized trace), deterministic scenario generator, property/metamorphic tests. **Live Rust↔Python equivalence PASS over 1326 generated scenarios** (platform @ recorded SOURCE.md SHA); 35 golden trace fixtures. tz-optional IR amendment (ADR 0007) — Gate 2 differential still 7/7. ADRs 0007–0008. 71 tests across 28 suites. |
 | **Gate 4 — Artifact, registry, attestation, consumer-agnostic verification** | **Complete (in-repo) — acceptance: [`docs/gate-4-acceptance.md`](docs/gate-4-acceptance.md); log: [`docs/gate-4-implementation-log.md`](docs/gate-4-implementation-log.md)** | ADRs 0009–0016 accepted. `ke-artifact`: BLAKE3 zero-then-patch content addressing + ed25519 compiler signature, typed expert attestations + R1–R8 rejection rules, a pure RNG-free `verify_artifact` surface + `ArtifactProvenance` export. `ke-cli`: the §9 registry lifecycle (`compile`→`revoke`+`rollback`) on a local-FS backend (S3 behind a trait seam). PyO3 wheel + WASM verifier (`@platform/atlas-artifact`) + a **3-language contract test** (Rust ≡ Python ≡ WASM). **§19 verdict:** C3 (specific-policy rejection) **met**; C4 (rollback → prior *distinct* hash) **met**; **C1 verifier + C2 equivalence foundation met in-repo** — per **ADR-0017** `institutional-defi-platform-api` is decoupled (not the consumer), so the consumer integration is COMPASS's (post-Gate-5) and the platform execute-parity is obsolete. |
-| **Gate 5 — Surface rollout + frontend rewire** | **ATLAS surfaces complete (in-repo)** — log: [`docs/gate-5-implementation-log.md`](docs/gate-5-implementation-log.md) | **5a ✅** `ke-cli serve` (tiny_http REST + SSE, non-authoritative; ADR-0018 — SSE not WebSocket because tokio/tungstenite don't build on windows-gnu). **5b-preview ✅** `ke-wasm` `compile_preview`/`dry_run` bindings + `frontend/src/wasm/` (G5-2 parity-proven; verifier untouched). **5b-data ✅** DuckDB SQL views (G5-3, Linux-CI feature-gated) + `.kew` export/import (G5-4, skeptic-proven over a 14.7k-tamper sweep). **5c ✅** lint (compiler advisory `T5` + `ke lint`). **5d/5e 🟡 DEFERRED** — the ATLAS frontend rewire (5d) + the §13 AI-provenance review UI (5e) are **deferred, not delivered**. They are low-value post-ADR-0017: **COMPASS** (`cross-border-compliance-navigator`) is the **MAIN / real CONSUMER** of the ATLAS artifact path — it verifies hash, signatures, registry state, and typed expert attestations **in-browser** via the `@platform/atlas-artifact` WASM verifier; **consumer-only** (it does not sign, publish, or execute the rule engine), gated post-Gate-5 (**ADR-0017/0019**). ATLAS's own React frontend is **producer-side authoring/review tooling, not the consumer**, and most of its pages (ML/analytics/jurisdiction/credit) are off the artifact path and cannot be rewired at all. What **landed** are the **engine surfaces** (5a serve, 5b-preview WASM, 5b-data export/import, 5c lint, above); the KEWorkbench in-browser WASM compile/dry-run **preview pane** + the 5e review components remain in the tree behind **default-off** flags (`VITE_USE_LOCAL_KE_API` / `VITE_USE_WASM_PREVIEW` / `VITE_USE_REVIEW_UI`) as **inert** optional affordances — kept, but **not** claimed as a delivered rewire. **G5-5 🟡 DEFERRED** (was "met, redefined"): the ATLAS frontend rewire is deferred; COMPASS is the consumer; revisit only if/when the ATLAS frontend genuinely needs the local surfaces. See **ADR-0020** (Status: Proposed). Playwright visual harness is experimental/non-gating. |
+| **Gate 5 — Surface rollout + frontend rewire** | **ATLAS surfaces complete (in-repo)** — log: [`docs/gate-5-implementation-log.md`](docs/gate-5-implementation-log.md) | **5a ✅** `ke-cli serve` (tiny_http REST + SSE, non-authoritative; ADR-0018 — SSE not WebSocket because tokio/tungstenite don't build on windows-gnu). **5b-preview ✅** `ke-wasm` `compile_preview`/`dry_run` bindings + `frontend/src/wasm/` (G5-2 parity-proven; verifier untouched). **5b-data** `.kew` export/import **✅** (G5-4, skeptic-proven over a 14.7k-tamper sweep); DuckDB SQL views **🟡 G5-3 not yet green on CI** (column-names read before query execution → schema panic; fixed by reordering, pending first CI run). **5c ✅** lint (compiler advisory `T5` + `ke lint`). **5d/5e 🟡 DEFERRED** — the ATLAS frontend rewire (5d) + the §13 AI-provenance review UI (5e) are **deferred, not delivered**. They are low-value post-ADR-0017: **COMPASS** (`cross-border-compliance-navigator`) is the **MAIN / real CONSUMER** of the ATLAS artifact path — it verifies hash, signatures, registry state, and typed expert attestations **in-browser** via the `@platform/atlas-artifact` WASM verifier; **consumer-only** (it does not sign, publish, or execute the rule engine), gated post-Gate-5 (**ADR-0017/0019**). ATLAS's own React frontend is **producer-side authoring/review tooling, not the consumer**, and most of its pages (ML/analytics/jurisdiction/credit) are off the artifact path and cannot be rewired at all. What **landed** are the **engine surfaces** (5a serve, 5b-preview WASM, 5b-data export/import, 5c lint, above); the KEWorkbench in-browser WASM compile/dry-run **preview pane** + the 5e review components remain in the tree behind **default-off** flags (`VITE_USE_LOCAL_KE_API` / `VITE_USE_WASM_PREVIEW` / `VITE_USE_REVIEW_UI`) as **inert** optional affordances — kept, but **not** claimed as a delivered rewire. **G5-5 🟡 DEFERRED** (was "met, redefined"): the ATLAS frontend rewire is deferred; COMPASS is the consumer; revisit only if/when the ATLAS frontend genuinely needs the local surfaces. See **ADR-0020** (Status: Proposed). Playwright visual harness is experimental/non-gating. |
 
 Gates 1–3 are **merged to `main`**; Gate 4 is **complete on the ATLAS side** on
 `migration/gate-4-artifact` (`ke-core`, `ke-compiler`, `ke-runtime`, `ke-artifact`,
@@ -238,7 +271,7 @@ The script expects `institutional-defi-platform-api` as a sibling of
 | **2** | YAML parser, compiler, T0/T1/T4 verification + conflict taxonomy | **accepted** (live differential PASS + ADR 0005 signed) |
 | **3** | Rust preview runtime + fuzzed equivalence vs Python `RuleRuntime` | **merged (PR #6)** — live equivalence PASS over 1326 scenarios; ADRs 0007–0008 (incl. Gate-4 readiness decisions) |
 | **4** | `ke-artifact` signing + attestations + registry lifecycle + consumer-agnostic verify surface + PyO3/WASM verify bindings + 3-language contract test | **Complete (in-repo)** — ADRs 0009–0016; [acceptance](docs/gate-4-acceptance.md): C3 met, C4 met, **C1 verifier + C2 equivalence foundation met in-repo**. Per [ADR-0017](docs/adr/0017-gate5-sequencing-atlas-surfaces-independent.md), platform-api is decoupled (not the consumer); consumer integration is COMPASS's (post-Gate-5), platform execute-parity obsolete. |
-| **5** | `ke-cli serve` (REST + SSE), `ke-wasm` browser **preview** bindings + `frontend/src/wasm/`, DuckDB SQL views, flat-file export, lint integration, page-by-page frontend rewire behind `VITE_USE_*` flags, minimum AI-provenance review UI (§13) | **in progress** — [log](docs/gate-5-implementation-log.md): 5a `ke-cli serve` ✅ (tiny_http+SSE, [ADR-0018](docs/adr/0018-serve-transport-sse-and-non-authoritative-scope.md)); 5b-preview `ke-wasm` compile/dry-run ✅ (G5-2 parity); 5b-data DuckDB SQL views ✅ (G5-3, Linux-CI feature-gated). The WASM *verifier* already shipped in Gate 4 (ADR 0016); Gate 5 adds the *preview/dry-run* bindings + the surface rollout. |
+| **5** | `ke-cli serve` (REST + SSE), `ke-wasm` browser **preview** bindings + `frontend/src/wasm/`, DuckDB SQL views, flat-file export, lint integration, page-by-page frontend rewire behind `VITE_USE_*` flags, minimum AI-provenance review UI (§13) | **in progress** — [log](docs/gate-5-implementation-log.md): 5a `ke-cli serve` ✅ (tiny_http+SSE, [ADR-0018](docs/adr/0018-serve-transport-sse-and-non-authoritative-scope.md)); 5b-preview `ke-wasm` compile/dry-run ✅ (G5-2 parity); 5b-data `.kew` export/import ✅ (G5-4); DuckDB SQL views 🟡 (G5-3 — column-ordering fix pending first green CI). The WASM *verifier* already shipped in Gate 4 (ADR 0016); Gate 5 adds the *preview/dry-run* bindings + the surface rollout. |
 | **6** | Platform cutover: Temporal artifact pinning, removal of Python KE module | pending |
 
 Each gate produces a commit boundary on a `migration/gate-N-*` branch.
