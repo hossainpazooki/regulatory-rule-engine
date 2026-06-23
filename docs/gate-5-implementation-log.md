@@ -301,3 +301,54 @@ page-consumed (no longer comment/test-only). **Commit:** handed to Hossain.
   (off the ATLAS artifact path, ADR-0017) — not a gap, a boundary (ADR-0020).
 - **A real AI-proposal source** to feed ReviewSurface's ml-evidence/ai-suggestion
   classes (post-Gate-5).
+
+---
+
+## Live verifier unblock (2026-06-23) — loop is now demonstrably green
+
+Earlier status: the live-verifier loop was blocked on three ATLAS-side items the
+COMPASS consumer needs — the `@platform/atlas-artifact` browser build did not
+exist, the npm package was unpublished, and no `ke serve` instance held
+**Published** artifacts (so `/verify` correctly returned `Unknown`). All three are
+now resolved in-repo, on the windows-gnu toolchain, against **fixed-seed TEST
+keys** (`is_test_key:true`; production-key authority remains the open ADR-0009
+decision — this makes the loop *real*, not *production-trusted*).
+
+**Browser build.** `cargo build -p ke-wasm --target wasm32-unknown-unknown
+--release` + `wasm-bindgen --target bundler` produces `crates/ke-wasm/pkg/`
+(generated, gitignored). The wasm32 path is RNG-free (no `getrandom`, no `cc`
+linking — the dlltool issue does not apply). `cargo test -p ke-wasm --test parity`
+green (WASM ≡ native). The four exports (`verify_artifact`, `read_provenance`,
+`compile_preview`, `dry_run`) are present in `pkg/ke_wasm.d.ts`.
+
+**Publish-ready package.** `crates/ke-wasm/package.json` bumped to `0.1.0`,
+`private:false`, `publishConfig` → GitHub Packages, `repository` set, and the
+previously-missing `pkg/ke_wasm_bg.js` added to `files` (the bundler `ke_wasm.js`
+imports it — the package would otherwise publish broken). `npm pack --dry-run` →
+6 files, ~380 kB. Publish runbook + GitHub-Packages scope caveat in
+`docs/publish-atlas-artifact.md`. `npm publish` is Hossain's (credentialed).
+
+**Running Published registry.** `scripts/serve-published-registry.sh` (reuses the
+`lifecycle-smoke.sh` pattern) builds `ke-cli --features test-keys`, seeds a
+registry to `Published` (mica_stablecoin) plus a compile-only `Unknown` artifact
+(fca_crypto), and execs `ke serve`. Consumer contract documented in
+`docs/consumer-serve-contract.md`.
+
+**End-to-end proof (captured live, not asserted):**
+- Published → `{"verdict":"verified", "registry_state":"Published"}`.
+- Fully attested but NOT published → `{"verdict":"rejected", "rejection":"registry
+  state not Published: Unknown", "registry_state":"Unknown"}` — **valid crypto +
+  complete attestations still blocked**, the core ADR-0019 fail-closed guarantee.
+- Unattested → rejected (`attestations: R6 ... missing`).
+- Unknown hash → **HTTP 404**.
+- `/resolve?hash=` of the published artifact → `registry_state_at_resolution:
+  "Published"`, `resolving_event_key:"published"`.
+
+**Verification (re-run by the session):** both `cargo build` targets clean; `cargo
+test -p ke-wasm --test parity` → 4/4; `cargo test --workspace --features
+test-keys` → exit 0, zero failures. **Commit + `npm publish`: handed to Hossain.**
+
+**Scope note:** ATLAS-only change (no COMPASS-repo edits; consumer wiring is the
+separate post-Gate-5 task). New files: `scripts/serve-published-registry.sh`,
+`docs/consumer-serve-contract.md`, `docs/publish-atlas-artifact.md`. Edited:
+`crates/ke-wasm/package.json`. Generated (gitignored): `crates/ke-wasm/pkg/`.

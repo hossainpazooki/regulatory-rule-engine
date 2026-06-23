@@ -1,15 +1,24 @@
 {
   "name": "@platform/atlas-artifact",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Verify-only WASM bindings over the ke-artifact verification surface (spec § 6, § 14; ADR 0016). Verifies a .kew artifact in the browser; cannot sign, attest, or publish.",
   "type": "module",
   "license": "UNLICENSED",
-  "private": true,
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hossainpazooki/regulatory-rule-engine.git",
+    "directory": "crates/ke-wasm"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "main": "pkg/ke_wasm.js",
   "module": "pkg/ke_wasm.js",
   "types": "pkg/ke_wasm.d.ts",
   "files": [
     "pkg/ke_wasm.js",
+    "pkg/ke_wasm_bg.js",
     "pkg/ke_wasm_bg.wasm",
     "pkg/ke_wasm.d.ts",
     "pkg/ke_wasm_bg.wasm.d.ts"
