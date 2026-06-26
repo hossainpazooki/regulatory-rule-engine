@@ -8,11 +8,15 @@
 > corrections to the ACH pack. Source brief authored 2026-06-21; this assessment
 > 2026-06-24. Nothing here is built.
 >
-> **Revised 2026-06-26** after an adversarial verification pass (recompute from
-> primary sources + re-read of the actual IR source). Five corrections folded in:
-> the §6 verdict and the ACH domain corrections survived; one mis-citation, one
-> tier mislabel, two regulatory field/threshold overstatements, and one
-> undercounted gap were fixed. Changes are marked inline.
+> **Revised 2026-06-26** after a verification pass run with **`rigor`** — the
+> portable verification-discipline plugin (designed, not yet built), exercised here
+> by hand as a production battle-test of its `refute` spine. Part of this brief's
+> purpose is to be that test: a real, high-stakes document for rigor to break.
+> Five corrections folded in: the §6 verdict and the ACH domain corrections
+> survived; one mis-citation, one tier mislabel, two regulatory field/threshold
+> overstatements, and one undercounted gap were fixed. The pass also surfaced two
+> design gaps in rigor itself. Changes are marked inline; see **Verification pass**
+> at the end.
 
 ## Verdict
 
@@ -136,15 +140,23 @@ two ACH corrections into the ACH pack (R29 in its own corporate short-window cla
 `2020-04-01` semantic effective date). Settle the authoring-path/equivalence-harness-oracle
 ADR before the first payments artifact is published.
 
-## Verification pass (2026-06-26)
+## Verification pass (2026-06-26) — rigor battle-test
 
-This brief was adversarially verified before being trusted: every load-bearing
-claim was re-checked by **recomputing from the primary source** (FinCEN/eCFR/Federal
-Register for regulatory figures; Nacha-via-Federal-Reserve for ACH) and by
-**re-reading the actual IR source** (not the prose) for engine claims, with three
-independent skeptics owning disjoint claim-sets plus an independent re-read by the
-orchestrator. The §6 verdict and the ACH domain corrections (R5/R6) survived intact.
-Five issues were surfaced and corrected (all marked inline above).
+This pass had a **dual purpose**: verify the brief, *and* exercise **`rigor`** — the
+portable verification-discipline plugin (designed + Phase-1-planned, **not yet
+built**) — against a real, high-stakes document instead of a toy fixture. So rigor's
+core method was run **by hand** here, as a production dry-run of the spine before it
+ships as code; the findings below are therefore evidence about *both* the brief and
+rigor's own design.
+
+rigor's `refute` spine is three moves, all applied: **recompute from the primary
+source** (FinCEN/eCFR/Federal Register for regulatory figures; Nacha-via-Federal-Reserve
+for ACH), **re-execute the real gate** (re-read the actual IR source — `condition.rs`,
+`exec.rs`, the dsl-gap doc, the spec §11 tier table — not the brief's prose), and
+**dispatch independent skeptics** (three `skeptic-verifier` agents owning disjoint
+claim-sets: IR/code, BSA/AML thresholds, Nacha ACH) — plus an independent re-read by
+the orchestrating session. The §6 verdict and the ACH domain corrections (R5/R6)
+survived intact. Five issues were surfaced and corrected (all marked inline above).
 
 | # | Claim | Verdict | Correction folded in |
 |---|---|---|---|
@@ -171,3 +183,37 @@ XML), the Federal Register JSON API, and the Federal Reserve's verbatim restatem
 of the Nacha R10/R11/R29 rules — rather than the originally-cited FAQ/Nacha HTML. The
 substantive claims are confirmed in primary law; the *exact wording* of the FinCEN
 FAQ and the paywalled Nacha pages remains unverified.
+
+### What this battle-test told us about rigor
+
+How each finding actually surfaced is the useful part — it maps to which spine move
+caught it, and exposes two gaps in rigor's current design:
+
+- **The two regulatory overstatements (R2, R4) were caught by *recompute-from-source*.**
+  The skeptics pulled 31 CFR 1010.410(f) and 1022.320 directly and saw the field list
+  was longer than four items and that MSBs sit at $2,000 — neither is visible if you
+  trust the brief's restatement. Working as designed.
+- **The worst defect (C5, the fabricated citation) was caught by *re-execute-the-real-gate*.**
+  Reading `docs/dsl-gap-review-gate-2.md` and `grep`-ing the repo showed the fact names
+  `ofac_hit` / `aggregate_24h_amount` appear **only in this brief** — the cited doc never
+  contains them. **This exposed a gap in rigor's spine:** that miss is not a wrong number
+  (`refute`'s recompute move) and not an implemented-vs-planned slip (`implemented-vs-planned`),
+  so *no current rigor move explicitly owns it.* The fix: rigor needs a **citation-fidelity
+  move** — "every named identifier/quote in a claim must `grep`-hit its cited source or it's
+  flagged" — cheap and mechanical, a natural extension of the executable `surface-scrub` gate.
+- **The tier mislabel (C6) was caught by *re-execute-the-real-gate*** — reading the spec §11
+  table showed T3 = NLI, so the Rust↔Python harness was mis-named. A prose-only review misses
+  this; reading the authoritative table doesn't.
+- **The undercounted ACH gap was caught by the *orchestrator's own re-read*, which all three
+  skeptics missed.** Reading `ir/time.rs` showed `EffectiveWindow` is the *rule's* legal window,
+  not per-tx date math, so `return_date − settlement_date` has no native operator. **Second
+  design lesson:** orchestrator self-re-execution is load-bearing, not optional — a pure-delegation
+  harness would have shipped this gap. rigor should make the "re-run ≥1 load-bearing check
+  yourself" step explicit, not implicit.
+- **Positive signal worth keeping:** the disjoint-fan-out + structured-verdict shape held, and
+  each skeptic **self-reported its sourcing degradation** (the Nacha/FinCEN/eCFR fetch blocks)
+  unprompted — the honesty discipline fired without being asked. That earns `skeptic-verifier`
+  its spine-first slot in rigor v1.
+
+Both design gaps (citation-fidelity move; explicit orchestrator self-re-execution) are recorded
+for the rigor build; this brief is their first production datapoint.
