@@ -8,8 +8,8 @@
 use ke_artifact::sign::test_keys;
 use ke_artifact::{decode_artifact, Artifact, ArtifactError, ArtifactPayload, AuditVersions};
 use ke_core::examples;
-use ke_core::ir::{IdempotencyDef, IntentSpecIR};
 use ke_core::ir::JurisdictionDate;
+use ke_core::ir::{IdempotencyDef, IntentSpecIR};
 use ke_core::manifest::ArtifactKind;
 
 /// A real, signed `RegimePack` artifact (manifest kind = RegimePack, payload =
@@ -58,7 +58,10 @@ fn regimepack_kind_with_intentspec_payload_is_rejected() {
     let bytes = postcard::to_stdvec(&mismatched).expect("encode");
     let err = decode_artifact(&bytes).expect_err("kind<->payload mismatch must be rejected");
     assert!(
-        matches!(err, ArtifactError::KindPayloadMismatch(ArtifactKind::RegimePack)),
+        matches!(
+            err,
+            ArtifactError::KindPayloadMismatch(ArtifactKind::RegimePack)
+        ),
         "expected KindPayloadMismatch(RegimePack), got {err:?}"
     );
 }
