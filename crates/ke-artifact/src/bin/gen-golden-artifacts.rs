@@ -28,8 +28,10 @@
 //!    ([`Artifact::with_attestations`]) — `artifact_hash`, `envelope_len`,
 //!    and the compiler signature are asserted **unchanged** (spec § 9);
 //! 5. writes `fixtures/artifacts/<id>/artifact.kew` (authoritative) plus
-//!    `signature.json` and `attestations.json` review views (regenerated,
-//!    never authoritative).
+//!    `manifest.json`, `signature.json`, and `attestations.json` review views
+//!    (regenerated, never authoritative). The `manifest.json` review view is
+//!    rewritten here so consumers (e.g. COMPASS `sync:atlas`) read the CURRENT
+//!    canon triplet / artifact_kind, not a stale copy from before a canon bump.
 //!
 //! It **also** builds one **IntentSpec** golden (ADR-0021 / Stage-A canon-5).
 //! The envelope payload is now polymorphic ([`ArtifactPayload`]), so alongside
@@ -339,6 +341,13 @@ fn attest_and_write(
         dir.join("attestations.json"),
         attestations_json(&artifact.attestations),
     )?;
+    // manifest.json review view (regenerated): the canonical Manifest as pretty
+    // JSON, so downstream consumers (e.g. COMPASS `sync:atlas`) read the CURRENT
+    // canon triplet / artifact_kind rather than a stale copy. Regenerating this
+    // alongside the .kew keeps the review views from drifting on a canon bump.
+    let manifest_json =
+        serde_json::to_string_pretty(&artifact.manifest).expect("serialize manifest.json");
+    fs::write(dir.join("manifest.json"), manifest_json + "\n")?;
 
     Ok(Row {
         id: id.to_string(),
