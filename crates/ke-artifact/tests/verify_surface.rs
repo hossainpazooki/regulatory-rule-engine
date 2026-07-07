@@ -336,10 +336,11 @@ fn provenance_canonical_json_is_stable() {
     let parsed: ke_artifact::ArtifactProvenance =
         serde_json::from_str(&ja).expect("provenance round-trips");
     assert_eq!(parsed, a, "canonical JSON round-trips to an equal value");
-    // Field order is stable: regime_id is the first key.
+    // Field order is stable: artifact_kind is the first key (ADR-0021 made the
+    // kind discriminator the leading provenance field, ahead of regime_id).
     assert!(
-        ja.starts_with("{\"regime_id\":"),
-        "canonical JSON leads with regime_id (stable field order); got: {}",
+        ja.starts_with("{\"artifact_kind\":"),
+        "canonical JSON leads with artifact_kind (stable field order); got: {}",
         &ja[..ja.len().min(40)]
     );
 }

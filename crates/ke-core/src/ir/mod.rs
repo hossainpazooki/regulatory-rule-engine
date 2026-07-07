@@ -17,6 +17,7 @@
 pub mod check;
 pub mod condition;
 pub mod decision;
+pub mod intent;
 pub mod obligation;
 pub mod rule;
 pub mod source_span;
@@ -25,6 +26,7 @@ pub mod time;
 pub use check::CompiledCheck;
 pub use condition::{Condition, ConditionGroupSpec, ConditionOrGroup, Operator, ScalarValue};
 pub use decision::{DecisionEntry, DecisionLeaf, DecisionNode};
+pub use intent::{AuthorizationCriterion, IdempotencyDef, IntentSpecIR, Volatility};
 pub use obligation::ObligationSpec;
 pub use rule::{ProvenanceMarker, RuleIR};
 pub use source_span::{ByteRange, DocumentRef, SourceSpan};

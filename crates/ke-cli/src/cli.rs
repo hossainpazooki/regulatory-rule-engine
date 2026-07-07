@@ -63,6 +63,21 @@ pub enum Command {
         #[arg(long, default_value = "local")]
         env: String,
     },
+    /// [Gate 4 · ADR-0021] Author an IntentSpec artifact from a JSON document
+    /// (action_class + criteria + idempotency), signing and recording its
+    /// draft / structurally_verified lifecycle on the same test-keys path as
+    /// `compile`. The input is JSON IntentSpec, not rule YAML.
+    #[command(name = "compile-intent")]
+    CompileIntent {
+        /// Path to the JSON IntentSpec document.
+        json: String,
+        /// Regime id recorded on the synthetic manifest.
+        #[arg(long)]
+        regime: String,
+        /// Named environment (default `local`).
+        #[arg(long, default_value = "local")]
+        env: String,
+    },
     /// [Gate 4 · Phase 3a] Resolve an artifact and print its hash, current
     /// state, and §18 record.
     Query {
@@ -328,6 +343,24 @@ fn dispatch(cli: &Cli) -> Result<i32> {
                 now_unix: now,
             };
             let outcome = compile::run(&backend, &args)?;
+            println!(
+                "compiled: hash={} state={:?}",
+                crate::registry::hash_hex(&outcome.artifact_hash),
+                outcome.final_state
+            );
+            Ok(0)
+        }
+        Command::CompileIntent { json, regime, env } => {
+            let root = registry_root(cli)?;
+            let now = now_unix(cli)?;
+            let backend = LocalFsBackend::open(root)?;
+            let args = compile::IntentSpecArgs {
+                json_path: json,
+                regime_id: regime,
+                env,
+                now_unix: now,
+            };
+            let outcome = compile::run_intent_spec(&backend, &args)?;
             println!(
                 "compiled: hash={} state={:?}",
                 crate::registry::hash_hex(&outcome.artifact_hash),

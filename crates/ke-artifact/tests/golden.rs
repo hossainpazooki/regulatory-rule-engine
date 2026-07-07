@@ -44,13 +44,13 @@ const GOLDEN_IDS: [&str; 2] = ["rule_reserve_assets", "rule_significant_threshol
 const PHASE_1_PINS: [(&str, &str, usize); 2] = [
     (
         "rule_reserve_assets",
-        "bcebbd1f89619efbab253e9fb463fa089b0d487a28064006ec6fd7a43a0ccb87",
-        862,
+        "13a414cf7f6b25c6b6049c0953a83ff5697044aabafbd44b87e87fc4ed90f8a9",
+        863,
     ),
     (
         "rule_significant_thresholds",
-        "a0a06ee4cd592d557d42e9f1a0c5177a64a4c080f0677ef73a706542798f66bf",
-        598,
+        "72a60976bcd55fc9a9b088cada4aae10cfbb4aabf066a8e85c403dbeae893d94",
+        599,
     ),
 ];
 

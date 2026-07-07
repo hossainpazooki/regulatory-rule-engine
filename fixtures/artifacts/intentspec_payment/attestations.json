@@ -1,0 +1,20 @@
+[
+  {
+    "attestation_type": "SourceFidelity",
+    "key_id": "test-expert-fixed-seed-1",
+    "signer_role": "DomainExpert",
+    "tsa_authority_id": "test-mock-tsa-1",
+    "tsa_class": "Mock",
+    "claimed_time_unix": 1750000000,
+    "signature": "a45e41103a02c88535bba1b907b814359da6144e326ec5d21b64483d88b681ce71d5cd87b6204866c74e073989788ecae5793ad751c196bdfdf4326d0fc2cd03"
+  },
+  {
+    "attestation_type": "PublicationApproval",
+    "key_id": "test-expert-fixed-seed-1",
+    "signer_role": "PublicationApprover",
+    "tsa_authority_id": "test-mock-tsa-1",
+    "tsa_class": "Mock",
+    "claimed_time_unix": 1750000000,
+    "signature": "922d05e6563bba4c24ee2335285ad5eef80293057cb468f9efd170da70f541c7aa0bf1c5e3a3362035bff931a46519c06a22aa92f463a3fc72cf511c2e9c3b00"
+  }
+]

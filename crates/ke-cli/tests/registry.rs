@@ -402,7 +402,7 @@ fn bad_signature_event_is_rejected() {
 /// Value computed during the first run and hardcoded (see the assert message if
 /// it ever needs re-pinning after an intentional change).
 const PINNED_HEAD_CHAIN_HASH_HEX: &str =
-    "3ded38e468316b59cf8afe2cd46fe36bb13632ca2b159085324dd3102282ce3e";
+    "18506c3c262902ce6586eaa03b766cdcdd1f358a1773f4dd8ffcf236eb1159d3";
 
 #[test]
 fn canonical_event_head_hash_is_pinned() {

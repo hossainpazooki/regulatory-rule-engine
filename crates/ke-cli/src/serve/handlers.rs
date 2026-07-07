@@ -389,7 +389,14 @@ pub fn dry_run(state: &AppState, body: &str) -> ServeResult {
                     e.to_string(),
                 ))
             })?;
-            artifact.compiled_ir
+            match artifact.payload {
+                ke_artifact::ArtifactPayload::Rules(rules) => rules,
+                ke_artifact::ArtifactPayload::IntentSpec(_) => {
+                    return Err(ServeError::bad_request(
+                        "dry-run supports rule artifacts only, not intent-spec artifacts",
+                    ));
+                }
+            }
         }
         (None, None) => {
             return Err(ServeError::bad_request(

@@ -6,7 +6,7 @@
     "tsa_authority_id": "test-mock-tsa-1",
     "tsa_class": "Mock",
     "claimed_time_unix": 1750000000,
-    "signature": "2f3b8b3e5288b8336779e0975c568ab59241ac8568cc1a3e6d23a30f3a9125737b402afebea743dc6c408c5254ad7aee8d8d531cc62b24b0dcb7b173da3c0707"
+    "signature": "3bb962483e379cf1ae83386654b15943279dfe0e08cac4590a6cad9494f7a073ae029924b80f3e1988e99bfb174c3587ec803b223a32b786f3aa5f553eebfa08"
   },
   {
     "attestation_type": "ScenarioCoverage",
@@ -15,7 +15,7 @@
     "tsa_authority_id": "test-mock-tsa-1",
     "tsa_class": "Mock",
     "claimed_time_unix": 1750000000,
-    "signature": "4456b8c531987c501bb98f7e16e2d2083187015a7fbeafb01b771efae736261f9e358d205c89716ed4aa6052b04d0f85439edf80fd2db56910f9bcc9f8dc680b"
+    "signature": "049a31f2e6c2ed0208497b14bfbddb30ab362cf66ef7928b8bc41665feece4ee49d7e3b99969d8551ab5b9e4876e54ecc3c900fa95c3cc8ba1e29ea730945202"
   },
   {
     "attestation_type": "PublicationApproval",
@@ -24,6 +24,6 @@
     "tsa_authority_id": "test-mock-tsa-1",
     "tsa_class": "Mock",
     "claimed_time_unix": 1750000000,
-    "signature": "a7aacb52fed0908a3ad9ea45c5f3ae50aabe571924e1d69412d47542d552192a420c04bd8769ce27d255cf1ef93319e647e348e5a287bc7e07c2263fcf348b0a"
+    "signature": "8b5a9e9bf0adbd4e329820cb877bd8f106c6589d59c85be991d42bc4f562f361c7035bbd6b1a3b814fa4407c91ccc4785fac1caf2ffc061a3906e1b8c9b3a20d"
   }
 ]

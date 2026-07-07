@@ -221,7 +221,7 @@ pub fn run<B: RegistryBackend>(backend: &B, args: &AttestArgs<'_>) -> Result<Att
     }
     let manifest_json = serde_json::to_string_pretty(&attested.manifest)
         .map_err(|e| anyhow::anyhow!("manifest json: {e}"))?;
-    let schema_json = serde_json::to_string_pretty(&attested.compiled_ir)
+    let schema_json = serde_json::to_string_pretty(&attested.payload)
         .map_err(|e| anyhow::anyhow!("schema json: {e}"))?;
     backend.put_artifact(&pre_hash, &attested_kew, &manifest_json, &schema_json)?;
 

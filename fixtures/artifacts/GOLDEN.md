@@ -6,27 +6,37 @@ Do not hand-edit; re-run the generator. `artifact.kew` is authoritative;
 authoritative.
 This ledger is separate from `MANIFEST.md` (ke-core's `gen-fixtures` ledger).
 
-- ir_schema_version: 0.4.0
+- ir_schema_version: 0.5.0
 - codec_version: postcard-1
-- canonicalization_version: ke-canon-4
+- canonicalization_version: ke-canon-5
 - signing key: fixed-seed test key `test-fixed-seed-1` — loudly a test key,
   never an ADR-0009 production key
 - `artifact_hash` = BLAKE3 over the envelope prefix `[0, envelope_len)` with
   the 32-byte hash slot zeroed, then patched in. `blake3(raw .kew bytes)` does
   NOT equal `artifact_hash` — by construction; verifiers re-zero the slot first.
-- `policy_production_eu` (PolicyBundle) is skipped: the Phase-1 Artifact
-  envelope is RuleIR-oriented (`compiled_ir: Vec<RuleIR>`), so only the two
-  RegimePack rule fixtures carry signed artifacts.
-- Phase 2 attestation set: each rule artifact carries three attestations
-  (`SourceFidelity`, `ScenarioCoverage`, `PublicationApproval`) signed by the
-  fixed-seed expert test key `test-expert-fixed-seed-1`, scope `WholeArtifact`,
-  attestation_policy_version `ap-1`, mock-TSA
-  (`test-mock-tsa-1`) stamped at fixed claimed_time_unix
-  1750000000. Attestations live OUTSIDE the hashed+signed
-  envelope (spec § 9), so every `artifact_hash` and `envelope_len` below is
-  UNCHANGED from Phase 1 — the golden suite pins them as constants.
+- Payload is polymorphic (ADR-0021): `ArtifactPayload::Rules(_)` for the
+  two RegimePack fixtures, `ArtifactPayload::IntentSpec(_)` for the
+  `intentspec_payment` fixture. This is the canon-5 re-pin — every
+  `artifact_hash`/`envelope_len` below is a fresh canon-5 value, NOT the
+  canon-4 Phase-1 value.
+- `policy_production_eu` (PolicyBundle) is still skipped: `PolicyBundle`
+  (like `EquivalenceMatrix`/`TestCorpus`) has no `ArtifactPayload` variant
+  yet, so only the two RegimePack rule fixtures and the one IntentSpec
+  fixture carry signed artifacts.
+- Phase 2 attestation set: each **rule** artifact carries three
+  attestations (`SourceFidelity`, `ScenarioCoverage`, `PublicationApproval`);
+  the **IntentSpec** artifact carries the kind-selected two-type set
+  (`SourceFidelity`, `PublicationApproval` — no `ScenarioCoverage`). All are
+  signed by the fixed-seed expert test key `test-expert-fixed-seed-1`, scope
+  `WholeArtifact`, attestation_policy_version
+  `ap-1`, mock-TSA (`test-mock-tsa-1`)
+  stamped at fixed claimed_time_unix 1750000000. Attestations
+  live OUTSIDE the hashed+signed envelope (spec § 9), so appending them does
+  not change any `artifact_hash`/`envelope_len` below — the golden suite pins
+  them as constants.
 
 | artifact_id | artifact_hash | envelope_len |
 | ----------- | ------------- | ------------ |
-| `rule_reserve_assets` | `bcebbd1f89619efbab253e9fb463fa089b0d487a28064006ec6fd7a43a0ccb87` | 862 |
-| `rule_significant_thresholds` | `a0a06ee4cd592d557d42e9f1a0c5177a64a4c080f0677ef73a706542798f66bf` | 598 |
+| `intentspec_payment` | `c7a36959bfaafc03e0abfb86fce7e1c0c6efebc812b55f83313724c3d024dc51` | 422 |
+| `rule_reserve_assets` | `13a414cf7f6b25c6b6049c0953a83ff5697044aabafbd44b87e87fc4ed90f8a9` | 863 |
+| `rule_significant_thresholds` | `72a60976bcd55fc9a9b088cada4aae10cfbb4aabf066a8e85c403dbeae893d94` | 599 |

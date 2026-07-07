@@ -31,7 +31,7 @@ use crate::hash::verify_hash;
 use crate::keydir::KeyDirectory;
 use crate::sign::{verify_signature, VerifyingKey};
 use crate::tsa::TimestampAuthorityClass;
-use ke_core::manifest::{AttestationType, VerificationPolicy};
+use ke_core::manifest::{ArtifactKind, AttestationType, VerificationPolicy};
 use serde::{Deserialize, Serialize};
 
 /// The `ke-artifact`-local mirror of the `ke-cli` registry `LifecycleState`
@@ -136,6 +136,10 @@ pub struct AttestationSummary {
 /// consumer refuses non-`Published` packs and detects staleness.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArtifactProvenance {
+    /// The artifact kind (from `manifest.artifact_kind`) — the kind
+    /// discrimination a consumer keys off. `None` only when the `.kew` did not
+    /// decode (no manifest was available to read a kind from).
+    pub artifact_kind: Option<ArtifactKind>,
     /// The regime the artifact encodes (from the manifest).
     pub regime_id: String,
     /// The artifact content hash (`manifest.artifact_hash`).
@@ -197,6 +201,7 @@ pub fn artifact_provenance(
 ) -> ArtifactProvenance {
     let manifest = &artifact.manifest;
     ArtifactProvenance {
+        artifact_kind: Some(manifest.artifact_kind),
         regime_id: manifest.regime_id.clone(),
         artifact_hash: manifest.artifact_hash,
         ir_schema_version: manifest.ir_schema_version.to_string(),
@@ -337,14 +342,15 @@ fn verdict_for(
 }
 
 /// Minimal provenance when the `.kew` did not decode: no artifact fields are
-/// available, so the regime/version/signer fields are empty and the hash is
-/// zero. Carries the registry evidence and export time so a consumer still sees
-/// the state/head it asked about.
+/// available, so the kind is `None`, the regime/version/signer fields are empty,
+/// and the hash is zero. Carries the registry evidence and export time so a
+/// consumer still sees the state/head it asked about.
 fn decode_failed_provenance(
     registry: &RegistryEvidence,
     exported_at_unix: u64,
 ) -> ArtifactProvenance {
     ArtifactProvenance {
+        artifact_kind: None,
         regime_id: String::new(),
         artifact_hash: [0u8; 32],
         ir_schema_version: String::new(),
