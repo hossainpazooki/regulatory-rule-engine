@@ -335,11 +335,17 @@ fn compiled_check() -> Value {
 }
 
 fn artifact_kind() -> Value {
+    // Append-only, mirroring the `ArtifactKind` Rust enum (manifest.rs): a
+    // mid-list insert would shift later encoded discriminants and rehash
+    // existing artifacts (ADR-0002). `IntentSpec` is appended last (ADR-0021).
+    // The `artifact_kind_s_enum_matches_variant_set` test below binds this list
+    // to the enum's variant set so the two cannot silently drift.
     s_enum(&[
         "RegimePack",
         "EquivalenceMatrix",
         "TestCorpus",
         "PolicyBundle",
+        "IntentSpec",
     ])
 }
 
@@ -455,4 +461,63 @@ fn policy_bundle() -> Value {
             "effective_window",
         ],
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::artifact_kind;
+    use crate::manifest::ArtifactKind;
+
+    /// The canonical string name each `ArtifactKind` variant serializes to in
+    /// the schema's `ArtifactKind` `enum` list.
+    ///
+    /// This `match` is **exhaustive with no wildcard**: adding a variant to
+    /// `ArtifactKind` (manifest.rs) that is not listed here fails to compile,
+    /// which is the compile-time tripwire that forces this test — and, through
+    /// the assertion below, the hand-maintained `artifact_kind()` `s_enum` list
+    /// — to be updated in lockstep. That closes the silent-drift gap between the
+    /// Rust enum and the hand-written schema list.
+    fn variant_name(kind: ArtifactKind) -> &'static str {
+        match kind {
+            ArtifactKind::RegimePack => "RegimePack",
+            ArtifactKind::EquivalenceMatrix => "EquivalenceMatrix",
+            ArtifactKind::TestCorpus => "TestCorpus",
+            ArtifactKind::PolicyBundle => "PolicyBundle",
+            ArtifactKind::IntentSpec => "IntentSpec",
+        }
+    }
+
+    /// Every `ArtifactKind` variant, in declaration (append-only) order. Kept in
+    /// sync with the enum by `variant_name`'s exhaustive match above.
+    const ALL_KINDS: &[ArtifactKind] = &[
+        ArtifactKind::RegimePack,
+        ArtifactKind::EquivalenceMatrix,
+        ArtifactKind::TestCorpus,
+        ArtifactKind::PolicyBundle,
+        ArtifactKind::IntentSpec,
+    ];
+
+    /// The hand-maintained `artifact_kind()` `s_enum` list must equal the
+    /// `ArtifactKind` variant set, in the same append-only order.
+    #[test]
+    fn artifact_kind_s_enum_matches_variant_set() {
+        let expected: Vec<&str> = ALL_KINDS.iter().copied().map(variant_name).collect();
+
+        let schema = artifact_kind();
+        let listed: Vec<&str> = schema["enum"]
+            .as_array()
+            .expect("artifact_kind() must be an { enum: [...] } object")
+            .iter()
+            .map(|v| {
+                v.as_str()
+                    .expect("every ArtifactKind enum value must be a string")
+            })
+            .collect();
+
+        assert_eq!(
+            listed, expected,
+            "artifact_kind() s_enum list drifted from the ArtifactKind variant set; \
+             keep the schema list append-only and in lockstep with manifest.rs"
+        );
+    }
 }

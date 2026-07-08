@@ -1,6 +1,6 @@
 {
   "key_id": "test-fixed-seed-1",
-  "signature": "caa72fe29d01a59bb8b7e179bc549132e10115187b66d1de8114945f4b1f4331234a9899b58f0dbc35643d7064590f13ba69187df26ca446c96c97ae057ba501",
-  "envelope_len": 598,
+  "signature": "bccdc7b8f2f9386062cc646df00a2631278691985c233a2d2e24222d68e3e35067d280195feddac50c45a6949274d1f4f422abff44294f2d4bacf2f8d5f4f10e",
+  "envelope_len": 599,
   "hashed_range": "BLAKE3 over [0,envelope_len) with hash slot zeroed"
 }

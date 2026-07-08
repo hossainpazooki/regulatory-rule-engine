@@ -82,11 +82,11 @@
   ],
   "ir_schema_version": {
     "major": 0,
-    "minor": 4,
+    "minor": 5,
     "patch": 0
   },
   "codec_version": "postcard-1",
-  "canonicalization_version": "ke-canon-4",
+  "canonicalization_version": "ke-canon-5",
   "corpus_root_hash": [
     143,
     218,

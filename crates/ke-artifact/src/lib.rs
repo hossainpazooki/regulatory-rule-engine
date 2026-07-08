@@ -37,7 +37,7 @@ pub mod tsa;
 pub mod verify;
 
 pub use artifact::{
-    build_span_index, decode_artifact, Artifact, AuditVersions, CompilerSignature,
+    build_span_index, decode_artifact, Artifact, ArtifactPayload, AuditVersions, CompilerSignature,
     RegistryStateMetadata, SourceSpanIndex, SpanIndexEntry,
 };
 pub use attestation::{
@@ -103,6 +103,15 @@ pub enum ArtifactError {
     /// fields completed decoding, so no envelope prefix can be recovered.
     #[error("artifact bytes truncated before the envelope completed")]
     EnvelopeTruncated,
+
+    /// The manifest's `artifact_kind` disagrees with the envelope payload
+    /// variant — e.g. a `RegimePack` manifest carrying an `IntentSpec` payload,
+    /// or an `IntentSpec` manifest carrying rules. Such a crafted `.kew` would be
+    /// dispatched under the wrong kind's (potentially weaker) policy downstream,
+    /// so decode rejects it (ADR-0021 §Decision-4). The `ArtifactKind` is the
+    /// manifest's claimed kind.
+    #[error("artifact_kind {0:?} does not match the envelope payload variant")]
+    KindPayloadMismatch(ke_core::manifest::ArtifactKind),
 }
 
 /// Lowercase hex for a 32-byte hash (error display only).

@@ -54,13 +54,18 @@ pub fn run<B: RegistryBackend>(backend: &B, args: &PublishArgs<'_>) -> Result<Pu
         anyhow::bail!("publish requires prior state expert_attested, found {prior_state:?}");
     }
 
-    // Resolve the verification policy (default or --policy bundle).
-    let policy = crate::policy::resolve_policy(args.policy_path)?;
-
-    // Decode the stored artifact and run the policy gate.
+    // Decode the stored artifact first — its `artifact_kind` selects the
+    // kind-aware default policy (an IntentSpec requires a different attestation
+    // set than a RegimePack; ADR-0021 §5).
     let kew = backend.read_artifact_kew(&hash)?;
     let (artifact, _envelope_len) =
         decode_artifact(&kew).map_err(|e| RegistryError::ArtifactDecode(e.to_string()))?;
+
+    // Resolve the verification policy: a `--policy` bundle overrides for every
+    // kind; otherwise the built-in default is chosen by the artifact's kind.
+    let policy = crate::policy::resolve_policy(args.policy_path, artifact.manifest.artifact_kind)?;
+
+    // Run the policy gate against the decoded artifact.
     let key_directory = test_expert_key_directory();
     let context = local_policy_context(args.now_unix);
     if let Err(rejections) = verify_attestation_set(&artifact, &policy, &key_directory, &context) {

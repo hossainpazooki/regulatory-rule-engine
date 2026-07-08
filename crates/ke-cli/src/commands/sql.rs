@@ -106,6 +106,7 @@ fn artifact_kind_name(kind: ke_core::manifest::ArtifactKind) -> &'static str {
         EquivalenceMatrix => "EquivalenceMatrix",
         TestCorpus => "TestCorpus",
         PolicyBundle => "PolicyBundle",
+        IntentSpec => "IntentSpec",
     }
 }
 

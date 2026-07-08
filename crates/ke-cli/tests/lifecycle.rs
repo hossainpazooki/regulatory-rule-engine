@@ -437,13 +437,13 @@ fn revoke_auditonly_records_high_severity() {
 /// event encoding + signing scheme across the ml_checked/expert_attested/
 /// published chain. Re-pin (see assert message) only on an intentional change.
 const PINNED_PUBLISHED_HEAD_HEX: &str =
-    "24ca20b500735f2fe3840c89f3a9e9ebc39faf98508834c86cfd6422f7614328";
+    "bff874d0bb75c42aae0d35249817753e849368fc997d15ee6154f78261f38ffd";
 
 /// The blake3 of the `revoked` event's canonical bytes for the same fixed
 /// lifecycle, revoked from Published with HardStop (the revoke event shape is
 /// policy-free; the policy lives in the sidecar).
 const PINNED_REVOKED_HEAD_HEX: &str =
-    "c7429bba9673837c21749fb99de690ea0c1b8cc5bd9e1a513b3e283686ed6b74";
+    "7edee48a59108338eb2501a6ce5e6ddd249d4b915aa30a676aff91a4f6d8f8ee";
 
 #[test]
 fn published_and_revoked_event_heads_are_pinned() {

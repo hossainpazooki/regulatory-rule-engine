@@ -48,8 +48,10 @@ pub struct CanonicalizationVersion(pub String);
 /// `RuleIR.effective_window` became optional (ADR 0006); to 0.3.0 in Gate 3 when
 /// `EffectiveWindow.jurisdiction_time_zone` became optional (ADR 0007); to
 /// 0.4.0 at the start of Gate 4 Phase 1 when `RevocationPolicy` was reconciled
-/// with spec § 15 (`HardStop` / `FinishPinned` / `AuditOnly`, ADR 0013).
-pub const IR_SCHEMA_VERSION: SchemaVersion = SchemaVersion::new(0, 4, 0);
+/// with spec § 15 (`HardStop` / `FinishPinned` / `AuditOnly`, ADR 0013); to
+/// 0.5.0 when the `IntentSpec` artifact kind and the polymorphic
+/// `ArtifactPayload` were added (new IR type + payload variant, ADR 0021).
+pub const IR_SCHEMA_VERSION: SchemaVersion = SchemaVersion::new(0, 5, 0);
 
 /// Pinned codec version. See ADR 0002 (`docs/adr/0002-canonical-codec-postcard.md`).
 pub const CODEC_VERSION: &str = "postcard-1";
@@ -58,6 +60,9 @@ pub const CODEC_VERSION: &str = "postcard-1";
 /// `ke-canon-3` in Gate 3 (ADR 0007 made `jurisdiction_time_zone` optional,
 /// adding an `Option` presence byte); `ke-canon-4` at the start of Gate 4
 /// Phase 1 (ADR 0013 re-named and re-ordered the `RevocationPolicy` variants
-/// to spec § 15 order, changing the canonical varint discriminant layout).
+/// to spec § 15 order, changing the canonical varint discriminant layout);
+/// `ke-canon-5` when the envelope payload became the sum type `ArtifactPayload`
+/// (ADR 0021 — a sum type prepends a discriminant to the payload bytes, so the
+/// envelope layout changes for every artifact). `CODEC_VERSION` is unchanged.
 /// See `docs/canonical-encoding.md`.
-pub const CANONICALIZATION_VERSION: &str = "ke-canon-4";
+pub const CANONICALIZATION_VERSION: &str = "ke-canon-5";

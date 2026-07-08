@@ -11,7 +11,7 @@
 //!   manifest                    (13 Gate-1-frozen fields; the 32-byte
 //!                                artifact_hash slot immediately follows
 //!                                artifact_kind)
-//!   compiled_ir                 Vec<RuleIR>
+//!   payload                     ArtifactPayload (Rules(Vec<RuleIR>) | IntentSpec)
 //!   source_span_index           SourceSpanIndex
 //!   audit_versions              AuditVersions (ADR 0014 static slots)
 //!   consistency_block           Option<ConsistencyBlock> (None in Phase 1)
@@ -63,7 +63,7 @@ use ed25519_dalek::SigningKey;
 use ke_core::canonical::decode::{validate_manifest, validate_rule};
 use ke_core::canonical::encode::{canonicalize_manifest, canonicalize_rule};
 use ke_core::canonical::CanonicalError;
-use ke_core::ir::{DecisionEntry, RuleIR, SourceSpan};
+use ke_core::ir::{DecisionEntry, IntentSpecIR, RuleIR, SourceSpan};
 use ke_core::manifest::Manifest;
 use serde::{Deserialize, Serialize};
 
@@ -73,6 +73,23 @@ pub use crate::attestation::{Attestation, AttestationScope};
 pub use crate::consistency::ConsistencyBlock;
 pub use crate::tsa::{TimestampAuthorityClass, TimestampToken};
 
+/// The envelope payload (ADR-0021). A sum type so a non-rule artifact kind
+/// (`IntentSpec`, and future `EquivalenceMatrix` / `TestCorpus` /
+/// `PolicyBundle`) can travel through the identical hash/sign/attest/registry
+/// lifecycle. `Rules(_)` carries exactly what the former `compiled_ir` field
+/// carried. Under postcard, a sum type prepends a discriminant varint to the
+/// payload bytes — the envelope layout change that forces the `ke-canon-5`
+/// canonicalization bump.
+///
+/// Variants are **append-only** (canonical discriminant stability, ADR-0002).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ArtifactPayload {
+    /// Compiled rule IR — the `RegimePack` payload.
+    Rules(Vec<RuleIR>),
+    /// Authorization criteria — the `IntentSpec` payload (ADR-0021).
+    IntentSpec(IntentSpecIR),
+}
+
 /// The signed, content-addressed artifact record (spec § 8). **Field
 /// declaration order is the `.kew` byte contract** — see the module doc.
 /// The first five fields are the envelope (hashed + signed prefix); the last
@@ -81,7 +98,7 @@ pub use crate::tsa::{TimestampAuthorityClass, TimestampToken};
 pub struct Artifact {
     // ---- ENVELOPE (hashed + signed prefix) ----
     pub manifest: Manifest,
-    pub compiled_ir: Vec<RuleIR>,
+    pub payload: ArtifactPayload,
     pub source_span_index: SourceSpanIndex,
     pub audit_versions: AuditVersions,
     /// `None` until a T2/T3 evidence path exists (platform-owned, ADR 0011);
@@ -185,7 +202,7 @@ pub(crate) mod serde_bytes_64 {
 #[derive(Serialize)]
 struct EnvelopeRef<'a> {
     manifest: &'a Manifest,
-    compiled_ir: &'a [RuleIR],
+    payload: &'a ArtifactPayload,
     source_span_index: &'a SourceSpanIndex,
     audit_versions: &'a AuditVersions,
     consistency_block: &'a Option<ConsistencyBlock>,
@@ -196,7 +213,7 @@ struct EnvelopeRef<'a> {
 #[derive(Deserialize)]
 struct EnvelopeView {
     manifest: Manifest,
-    compiled_ir: Vec<RuleIR>,
+    payload: ArtifactPayload,
     source_span_index: SourceSpanIndex,
     audit_versions: AuditVersions,
     consistency_block: Option<ConsistencyBlock>,
@@ -227,21 +244,56 @@ impl Artifact {
         signing_key: &SigningKey,
         key_id: &str,
     ) -> Result<(Artifact, Vec<u8>), ArtifactError> {
+        // The rule-payload entry point (unchanged signature): wrap the compiled
+        // rules in `ArtifactPayload::Rules` and defer to the payload-generic
+        // assembler.
+        Self::assemble_payload(
+            manifest,
+            ArtifactPayload::Rules(rules),
+            audit_versions,
+            signing_key,
+            key_id,
+        )
+    }
+
+    /// Assemble a signed, content-addressed artifact from any
+    /// [`ArtifactPayload`] (ADR-0021). Identical order to [`Artifact::assemble`]
+    /// (canonicalize → zeroed-encode → BLAKE3 → patch → sign → append), but the
+    /// payload may be `Rules(_)` **or** `IntentSpec(_)`. The `source_span_index`
+    /// is built from the rule payload; a non-rule payload (which carries its own
+    /// spans) gets an empty index.
+    pub fn assemble_payload(
+        manifest: Manifest,
+        payload: ArtifactPayload,
+        audit_versions: AuditVersions,
+        signing_key: &SigningKey,
+        key_id: &str,
+    ) -> Result<(Artifact, Vec<u8>), ArtifactError> {
         // 1. Canonicalize envelope content via ke-core's public surface.
         let mut manifest = manifest;
         manifest.artifact_hash = [0u8; 32];
         canonicalize_manifest(&mut manifest)?;
-        let mut compiled_ir = rules;
-        for rule in &mut compiled_ir {
-            canonicalize_rule(rule)?;
-        }
-        let source_span_index = build_span_index(&compiled_ir);
+        let mut payload = payload;
+        let source_span_index = match &mut payload {
+            ArtifactPayload::Rules(rules) => {
+                for rule in rules.iter_mut() {
+                    canonicalize_rule(rule)?;
+                }
+                build_span_index(rules)
+            }
+            // IntentSpec canonicalization is handled by ke-core's canonical
+            // profile; its spans travel on the payload, so the rule-oriented
+            // index is empty.
+            ArtifactPayload::IntentSpec(_) => SourceSpanIndex {
+                entries: Vec::new(),
+            },
+        };
         let consistency_block: Option<ConsistencyBlock> = None;
 
         // 2. Encode the envelope prefix with the hash slot zeroed.
         let mut envelope = postcard::to_stdvec(&EnvelopeRef {
             manifest: &manifest,
-            compiled_ir: &compiled_ir,
+            payload: &payload,
             source_span_index: &source_span_index,
             audit_versions: &audit_versions,
             consistency_block: &consistency_block,
@@ -268,7 +320,7 @@ impl Artifact {
 
         let artifact = Artifact {
             manifest,
-            compiled_ir,
+            payload,
             source_span_index,
             audit_versions,
             consistency_block,
@@ -337,13 +389,35 @@ pub fn decode_artifact(bytes: &[u8]) -> Result<(Artifact, usize), ArtifactError>
     }
 
     validate_manifest(&envelope.manifest)?;
-    for rule in &envelope.compiled_ir {
-        validate_rule(rule)?;
+    // Kind <-> payload agreement (ADR-0021 §Decision-4): the manifest's
+    // artifact_kind must match the payload variant. Without this, a crafted .kew
+    // could carry an IntentSpec payload under a rule-shaped kind (or rules under
+    // an IntentSpec kind) and be dispatched under the wrong kind's policy
+    // downstream. Decode does not check the hash/signature, so this agreement
+    // check is the only decode-time guard against the mismatch.
+    use ke_core::manifest::ArtifactKind;
+    let kind = envelope.manifest.artifact_kind;
+    match &envelope.payload {
+        ArtifactPayload::Rules(rules) => {
+            if kind == ArtifactKind::IntentSpec {
+                return Err(ArtifactError::KindPayloadMismatch(kind));
+            }
+            for rule in rules {
+                validate_rule(rule)?;
+            }
+        }
+        // IntentSpec payload validation rides ke-core's canonical decode
+        // profile; no rule-level re-validation applies.
+        ArtifactPayload::IntentSpec(_) => {
+            if kind != ArtifactKind::IntentSpec {
+                return Err(ArtifactError::KindPayloadMismatch(kind));
+            }
+        }
     }
 
     let artifact = Artifact {
         manifest: envelope.manifest,
-        compiled_ir: envelope.compiled_ir,
+        payload: envelope.payload,
         source_span_index: envelope.source_span_index,
         audit_versions: envelope.audit_versions,
         consistency_block: envelope.consistency_block,

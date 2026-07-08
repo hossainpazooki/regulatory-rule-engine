@@ -29,7 +29,7 @@
 // never a hand-written `.into()`.)
 #![allow(clippy::useless_conversion)]
 
-use crate::artifact::{decode_artifact, Artifact};
+use crate::artifact::{decode_artifact, Artifact, ArtifactPayload};
 use crate::attestation::{verify_attestation_set, PolicyContext};
 use crate::hash::{content_hash, verify_hash};
 use crate::keydir::KeyDirectory;
@@ -99,13 +99,51 @@ impl PyArtifact {
         hex32(&self.artifact.manifest.artifact_hash)
     }
 
-    /// Rule ids carried by `compiled_ir`, in IR order (§14 `iter_rules`).
+    /// Rule ids carried by the payload, in IR order (§14 `iter_rules`).
+    ///
+    /// The envelope payload is polymorphic (ADR-0021): only a `Rules(_)`
+    /// payload (a `RegimePack`) carries rules, so this yields ids **only** for
+    /// that variant and an empty list for an `IntentSpec` payload — the
+    /// kind-correct reading now that `compiled_ir` is gone.
     fn iter_rules(&self) -> Vec<String> {
-        self.artifact
-            .compiled_ir
-            .iter()
-            .map(|r| r.rule_id.clone())
-            .collect()
+        match &self.artifact.payload {
+            ArtifactPayload::Rules(rules) => rules.iter().map(|r| r.rule_id.clone()).collect(),
+            ArtifactPayload::IntentSpec(_) => Vec::new(),
+        }
+    }
+
+    /// Authorization-criterion names carried by an `IntentSpec` payload, in
+    /// declared order — the direct structural analog of [`Self::iter_rules`]
+    /// for the IntentSpec kind (ADR-0021). Empty for a `Rules(_)` payload,
+    /// mirroring how `iter_rules` is empty for an IntentSpec. Single-consumer
+    /// (the treasury resolver); like `iter_rules`/`source_span_index` it is
+    /// deliberately **not** on the 3-language contract-test path.
+    fn iter_criteria(&self) -> Vec<String> {
+        match &self.artifact.payload {
+            ArtifactPayload::IntentSpec(spec) => {
+                spec.criteria.iter().map(|c| c.name.clone()).collect()
+            }
+            ArtifactPayload::Rules(_) => Vec::new(),
+        }
+    }
+
+    /// The full `IntentSpec` payload (`action_class`, typed `criteria` with
+    /// exact-decimal thresholds + volatility tags, the `idempotency`
+    /// definition, and payload-carried `source_spans`) as JSON-derived Python
+    /// objects, or `None` for a `Rules(_)` payload. This is the substantive
+    /// single-consumer accessor the treasury resolver reads (ADR-0021 §
+    /// "Consumer surface"); analogous to `source_span_index`, it projects the
+    /// payload as canonical JSON and, like `iter_rules`, stays off the
+    /// contract-test path (WASM/COMPASS only verify — they never read the
+    /// payload).
+    fn intent_spec(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+        match &self.artifact.payload {
+            ArtifactPayload::IntentSpec(spec) => {
+                let json = serde_json::to_string(spec).map_err(py_err)?;
+                Ok(Some(json_to_py(py, &json)?))
+            }
+            ArtifactPayload::Rules(_) => Ok(None),
+        }
     }
 
     /// `consistency_block` presence (the T2/T3 evidence block is platform-owned,

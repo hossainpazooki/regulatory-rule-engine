@@ -20,13 +20,20 @@ pub struct SemVer {
     pub patch: u16,
 }
 
-/// The four artifact kinds (spec § 8.2).
+/// The artifact kinds (spec § 8.2, amended by ADR-0021). Variants are
+/// **append-only**: a mid-list insert changes the encoded discriminant value of
+/// later variants, which changes the content hash of existing artifacts and
+/// mis-decodes committed goldens (ADR-0002). `IntentSpec` is therefore appended
+/// last.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ArtifactKind {
     RegimePack,
     EquivalenceMatrix,
     TestCorpus,
     PolicyBundle,
+    /// Authorization criteria for an action class (ADR-0021). Its payload is
+    /// [`crate::ir::IntentSpecIR`], not `Vec<RuleIR>`.
+    IntentSpec,
 }
 
 /// The artifact manifest (spec § 8.1). `artifact_kind` precedes
