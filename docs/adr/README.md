@@ -69,6 +69,10 @@ Treasury / IntentSpec (canonicalization-boundary gate — number TBD):
 
 - [0021 IntentSpec artifact kind — polymorphic envelope payload for non-rule artifacts](0021-intentspec-artifact-kind-polymorphic-payload.md) — spec § 8.1, § 8.2, § 8.3, § 14 — **Proposed** (amends § 8.2's four-kind list; makes `compiled_ir` a polymorphic `ArtifactPayload` sum type so non-rule kinds — IntentSpec first, then EquivalenceMatrix/TestCorpus/PolicyBundle — have an envelope representation; breaking canon bump, all goldens regenerate; adds kind↔payload dispatch + kind-aware attestation policy + `artifact_kind` on the provenance)
 
+Derived views (no gate — substrate untouched):
+
+- [0023 Graph export — a verify-gated, derived read-only view of the artifact substrate (Neo4j)](0023-graph-export-derived-view.md) — spec § 5, § 6, § 12, § 14 — **Proposed** (build-on-trigger; exporter is the third ADR-0019-disciplined consumer after COMPASS and the tic resolver — verified+`published` only, fail-closed, re-addressed; `CONFLICTS_WITH` by deterministic recompute of the unpersisted T4 report, pinned by fixture test; IntentSpec in v1 contingent on 0021/0022 merging — its consumer loop ran green live 2026-07-12; two Cypher differentials with Rust oracles + two negative controls + a vacuity guard (R7-incident lesson: equality tests must prove non-vacuity); harness is a non-gating script; not a rewire of the off-path `GraphVisualizer` page — ADR-0020 stands)
+
 Anticipated (later gates — numbers assigned when authored):
 
 - Package-manager choice (spec § 21.9) — only if pnpm is later adopted
