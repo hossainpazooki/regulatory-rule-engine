@@ -157,10 +157,16 @@ authoritative. Two mechanically-enforceable bindings are **recommended for v1**
   amendment** (the field is not in the current §10 list) and needs reviewer
   sign-off.
 - **(B) Required co-attestation for `publication_approval`:** honored only when
-  a valid, non-expired `scenario_coverage` **and** `source_fidelity`
-  attestation over the **same `artifact_hash`** already exist. Encoded purely
-  as a registry-side required-types check via `required_attestation_types` —
-  no new field.
+  the **kind-selected** co-attestation set over the **same `artifact_hash`**
+  already exists, valid and non-expired (ADR-0022, Accepted 2026-07-13):
+  - **rule-shaped kinds** (every non-`IntentSpec` kind): `scenario_coverage`
+    **and** `source_fidelity` — the original fixed pair;
+  - **`IntentSpec`**: `source_fidelity` only (`scenario_coverage` is a
+    rule-scenario concept with no meaning for authorization criteria —
+    accepted ADR-0021 § 5).
+
+  Implemented as `co_attestation_types(&ArtifactKind)` in
+  `crates/ke-artifact/src/attestation.rs`; still no new field.
 
 **Explicit limit (do not overstate).** A+B prove the expert reviewed a
 specific hash-pinned corpus and that required types are present. They **cannot**
@@ -189,7 +195,7 @@ timestamp-authority text and the lifecycle/binding rules and are flagged as
 | R4 | The attestation has **expired** (`expiration` in the past). | §10 (verbatim) |
 | R5 | The `legal_source_hash` **changed after** attestation (recomputed source hash != bound hash). | §10 (verbatim) |
 | R6 | One or more **required attestation types are missing** (per `required_attestation_types` / `minimum_attestation_count_per_type` for the environment). | §10 (verbatim) + §11 |
-| R7 | A **required co-attestation is absent** — e.g. `publication_approval` without a valid `scenario_coverage` + `source_fidelity` over the same `artifact_hash` (if recommendation B is Accepted). | §20 mitigation; **spec-derived, reviewer-confirm** |
+| R7 | A **required co-attestation is absent** — `publication_approval` without the **kind-selected** set over the same `artifact_hash`: `scenario_coverage` + `source_fidelity` for rule-shaped kinds, `source_fidelity` only for `IntentSpec` (ADR-0022). | §20 mitigation; kind-selected per **ADR-0022 (Accepted)**, implemented in `ke-artifact` `attestation.rs` |
 | R8 | The attestation is stamped by the **mock TSA under a non-local policy** (mock-stamped artifacts are rejected by non-local runtime policy). | §10 "Timestamp authority"; **spec-derived, reviewer-confirm** |
 
 Additional binding sanity checks (subsumed by the above but called out for the

@@ -210,8 +210,8 @@ validates nor depends on them.
 2. **`SUPERSEDES` edge source** — registry lifecycle transitions vs. manifest
    lineage fields; confirm which the registry actually records before wiring
    the edge.
-3. **ADR-0021 status drift — direction now known.** Hossain confirms 0021 is
-   accepted (2026-07-13); the stale side is 0021's own header and the index,
-   which still say Proposed. The header stamp (acceptance date + sign-off) is
-   his to apply — pending when the 0021/0022 PRs land, which this ADR's
-   dependency already requires.
+3. **ADR-0021 status drift — RESOLVED 2026-07-13.** 0021 and 0022 are stamped
+   Accepted (PRs #12/#14 merged to main; index rows updated; the
+   attestation-schema § 6B/§ 7 amendment required by 0022's acceptance is
+   applied). This ADR's Decision-3 dependency is satisfied on the artifact
+   side; the build itself remains trigger-gated.

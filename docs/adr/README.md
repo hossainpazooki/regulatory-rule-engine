@@ -67,7 +67,8 @@ Gate 5:
 
 Treasury / IntentSpec (canonicalization-boundary gate — number TBD):
 
-- [0021 IntentSpec artifact kind — polymorphic envelope payload for non-rule artifacts](0021-intentspec-artifact-kind-polymorphic-payload.md) — spec § 8.1, § 8.2, § 8.3, § 14 — **Proposed** (amends § 8.2's four-kind list; makes `compiled_ir` a polymorphic `ArtifactPayload` sum type so non-rule kinds — IntentSpec first, then EquivalenceMatrix/TestCorpus/PolicyBundle — have an envelope representation; breaking canon bump, all goldens regenerate; adds kind↔payload dispatch + kind-aware attestation policy + `artifact_kind` on the provenance)
+- [0021 IntentSpec artifact kind — polymorphic envelope payload for non-rule artifacts](0021-intentspec-artifact-kind-polymorphic-payload.md) — spec § 8.1, § 8.2, § 8.3, § 14 — **Accepted** (sign-off by Hossain; implemented + merged via PR #12, canon-5; amends § 8.2's four-kind list; makes `compiled_ir` a polymorphic `ArtifactPayload` sum type so non-rule kinds — IntentSpec first, then EquivalenceMatrix/TestCorpus/PolicyBundle — have an envelope representation; breaking canon bump, all goldens regenerated; adds kind↔payload dispatch + kind-aware attestation policy + `artifact_kind` on the provenance; gate number still unassigned)
+- [0022 Kind-aware R7 co-attestation — an IntentSpec approval co-attests with SourceFidelity only](0022-intentspec-r7-coattestation.md) — spec § 10, attestation-schema § 6B/§ 7 — **Accepted** (sign-off by Hossain, 2026-07-13; merged via PR #14, 26 checks green; fixes the latent contradiction where kind-aware R6 admitted the IntentSpec two-type set but unconditional R7 rejected it, making every IntentSpec unverifiable; `co_attestation_types(&ArtifactKind)` selector, two pinning tests, both arms mutation-verified non-vacuous; schema doc § 6B/§ 7 amended at acceptance)
 
 Derived views (no gate — substrate untouched):
 

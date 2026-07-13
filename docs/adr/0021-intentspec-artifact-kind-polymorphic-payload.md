@@ -1,6 +1,6 @@
 # 0021. IntentSpec artifact kind — polymorphic envelope payload for non-rule artifacts
 
-**Status:** Proposed (draft for review)
+**Status:** Accepted (sign-off by Hossain — cited as accepted by ADR-0022 since 2026-07-12; implemented and merged via PR #12 (canon-5), R7 co-attestation reconciled by ADR-0022 / PR #14; header stamped 2026-07-13)
 **Date:** 2026-07-01
 **Spec references:** § 8 (artifact contract), § 8.1 (structure), § 8.2 (kinds), § 8.3 (golden vectors), § 14 (consumer surface / bindings)
 **Amends:** § 8.2 — adds a fifth artifact kind (`IntentSpec`) to the four-kind list, which does not currently name it.
@@ -154,10 +154,15 @@ adapter live in other repos and are out of scope here.
 ## Open questions (for review before fixtures freeze)
 
 1. **Gate number and sequencing** — Hossain's call; this is a canonicalization
-   gate that re-pins every golden.
+   gate that re-pins every golden. *(Still open at acceptance: the work merged
+   via PRs #12/#14 without a gate number assigned.)*
 2. **Attestation semantics** — does IntentSpec reuse an existing `AttestationType`
    (e.g. `SourceFidelity` + `PublicationApproval`) or require a new treasury/
    authorization type? Needs the treasury attestation semantics pinned first.
+   *(Resolved: reuse — `SourceFidelity` + `PublicationApproval`, § 5 above;
+   R7 co-attestation reconciled kind-aware by ADR-0022.)*
 3. **`IntentSpecIR` field set** — confirm criteria / threshold / volatility /
    idempotency-key-definition / source-spans against the treasury design before the
-   IR shape is frozen (fixtures depend on it).
+   IR shape is frozen (fixtures depend on it). *(Resolved: frozen as built — the
+   `intentspec_payment` golden exists, passes folded verify post-ADR-0022, and its
+   live consumer — the tic treasury resolver — ran green 2026-07-12.)*
