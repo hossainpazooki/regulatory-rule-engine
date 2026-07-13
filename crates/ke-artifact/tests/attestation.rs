@@ -9,12 +9,12 @@
 use ke_artifact::sign::{test_keys, Signer};
 use ke_artifact::tsa::{MockTsa, TimestampAuthorityClass};
 use ke_artifact::{
-    sign_attestation, verify_attestation, verify_attestation_set, Artifact, Attestation,
-    AttestationRejection, AttestationScope, AuditVersions, KeyDirectory, KeyDirectoryEntry,
-    KeyStatus, PolicyContext, SignerRole,
+    sign_attestation, verify_attestation, verify_attestation_set, Artifact, ArtifactPayload,
+    Attestation, AttestationRejection, AttestationScope, AuditVersions, KeyDirectory,
+    KeyDirectoryEntry, KeyStatus, PolicyContext, SignerRole,
 };
 use ke_core::examples;
-use ke_core::ir::JurisdictionDate;
+use ke_core::ir::{IdempotencyDef, IntentSpecIR, JurisdictionDate};
 use ke_core::manifest::{
     ArtifactKind, AttestationCount, AttestationType, T2T3Mode, VerificationPolicy,
 };
@@ -391,6 +391,104 @@ fn r7_publication_approval_with_coattestations_accepted() {
     };
     verify_attestation_set(&artifact, &policy, &directory(), &local_ctx())
         .expect("approval honored with both co-attestations present");
+}
+
+/// A signed `IntentSpec` artifact assembled through the polymorphic entry
+/// point, mirroring the gen-golden path (ADR-0021).
+fn assembled_intentspec() -> Artifact {
+    let intent = IntentSpecIR {
+        action_class: "payment".to_string(),
+        criteria: Vec::new(),
+        idempotency: IdempotencyDef {
+            key_fields: Vec::new(),
+            scope: "payer".to_string(),
+        },
+        source_spans: Vec::new(),
+    };
+    let intent_bytes = postcard::to_stdvec(&intent).expect("intentspec payload encodes");
+    let manifest = examples::synthetic_manifest(
+        ArtifactKind::IntentSpec,
+        "treasury_payments",
+        JurisdictionDate::new(2025, 1, 1),
+        &intent_bytes,
+    );
+    let (artifact, _) = Artifact::assemble_payload(
+        manifest,
+        ArtifactPayload::IntentSpec(intent),
+        AuditVersions::default(),
+        &test_keys::signing_key(),
+        test_keys::TEST_KEY_ID,
+    )
+    .expect("assemble intentspec");
+    artifact
+}
+
+#[test]
+fn r7_intentspec_approval_with_source_fidelity_accepted() {
+    // ADR-0022: an IntentSpec's R7 co-attestation set is SourceFidelity only —
+    // ADR-0021 § 5 pins its attestation set to SourceFidelity +
+    // PublicationApproval, so demanding ScenarioCoverage would make every
+    // IntentSpec unpublishable and unverifiable by construction.
+    let artifact = assembled_intentspec();
+    let mut approval = payload(&artifact, AttestationType::PublicationApproval);
+    approval.signer_role = SignerRole::PublicationApprover;
+    let attestations = vec![
+        signed(payload(&artifact, AttestationType::SourceFidelity)),
+        signed(approval),
+    ];
+    let (artifact, _) = artifact
+        .clone()
+        .with_attestations(attestations)
+        .expect("append");
+    let policy = VerificationPolicy {
+        t2_t3_mode: T2T3Mode::Disabled,
+        required_attestation_types: vec![
+            AttestationType::SourceFidelity,
+            AttestationType::PublicationApproval,
+        ],
+        minimum_attestation_count_per_type: vec![],
+    };
+    verify_attestation_set(&artifact, &policy, &directory(), &local_ctx())
+        .expect("the ADR-0021 two-type set must be honorable for an IntentSpec");
+}
+
+#[test]
+fn r7_intentspec_approval_without_source_fidelity_rejected() {
+    // The IntentSpec co-attestation rule still bites: approval alone is
+    // rejected for the missing SourceFidelity — and ScenarioCoverage is NOT
+    // demanded of an IntentSpec.
+    let artifact = assembled_intentspec();
+    let mut approval = payload(&artifact, AttestationType::PublicationApproval);
+    approval.signer_role = SignerRole::PublicationApprover;
+    let (artifact, _) = artifact
+        .clone()
+        .with_attestations(vec![signed(approval)])
+        .expect("append");
+    let policy = VerificationPolicy {
+        t2_t3_mode: T2T3Mode::Disabled,
+        required_attestation_types: vec![AttestationType::PublicationApproval],
+        minimum_attestation_count_per_type: vec![],
+    };
+    let rejections = verify_attestation_set(&artifact, &policy, &directory(), &local_ctx())
+        .expect_err("approval without a source-fidelity co-attestation");
+    assert!(
+        rejections.iter().any(|r| matches!(
+            r,
+            AttestationRejection::CoAttestationAbsent {
+                missing: AttestationType::SourceFidelity
+            }
+        )),
+        "expected CoAttestationAbsent(SourceFidelity), got {rejections:?}"
+    );
+    assert!(
+        !rejections.iter().any(|r| matches!(
+            r,
+            AttestationRejection::CoAttestationAbsent {
+                missing: AttestationType::ScenarioCoverage
+            }
+        )),
+        "ScenarioCoverage must not be demanded of an IntentSpec, got {rejections:?}"
+    );
 }
 
 // ---- R8: mock TSA under non-local policy ----

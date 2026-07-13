@@ -26,7 +26,7 @@ use crate::ArtifactError;
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use ke_core::canonical::CanonicalError;
 use ke_core::ir::JurisdictionDate;
-use ke_core::manifest::{AttestationType, Manifest, SemVer, VerificationPolicy};
+use ke_core::manifest::{ArtifactKind, AttestationType, Manifest, SemVer, VerificationPolicy};
 use ke_core::version::SchemaVersion;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -189,8 +189,10 @@ pub enum AttestationRejection {
         required: usize,
         found: usize,
     },
-    /// R7: `publication_approval` without its required co-attestation
-    /// (`scenario_coverage` + `source_fidelity` over the same hash).
+    /// R7: `publication_approval` without its required co-attestation over
+    /// the same hash. The co-attestation set is kind-aware (ADR-0022):
+    /// `scenario_coverage` + `source_fidelity` for rule-shaped kinds,
+    /// `source_fidelity` only for an `IntentSpec` (ADR-0021 § 5).
     #[error("R7: publication approval without a valid {missing:?} co-attestation")]
     CoAttestationAbsent { missing: AttestationType },
     /// R8: mock-TSA-stamped attestation under a non-local policy.
@@ -378,9 +380,11 @@ pub fn verify_attestation(
 /// - **R6** — every type in `required_attestation_types` must have at least
 ///   its `minimum_attestation_count_per_type` count (default 1) of valid
 ///   attestations.
-/// - **R7** — a valid `publication_approval` is honored only when a valid,
-///   non-expired `scenario_coverage` **and** `source_fidelity` over the
-///   **same** `artifact_hash` exist.
+/// - **R7** — a valid `publication_approval` is honored only when its
+///   kind-aware co-attestation set over the **same** `artifact_hash` exists
+///   (ADR-0022): `scenario_coverage` **and** `source_fidelity` for
+///   rule-shaped kinds; `source_fidelity` only for an `IntentSpec`, whose
+///   ADR-0021 § 5 attestation set has no scenario dimension.
 ///
 /// Returns **all** rejections (per-attestation + set-level), not just the
 /// first.
@@ -428,16 +432,18 @@ pub fn verify_attestation_set(
         }
     }
 
-    // R7 — publication approval requires scenario-coverage + source-fidelity
-    // co-attestations over the same artifact hash (schema § 6B).
+    // R7 — publication approval requires its kind-aware co-attestations over
+    // the same artifact hash (schema § 6B, reconciled with ADR-0021 § 5 by
+    // ADR-0022: an IntentSpec has no scenario dimension, so demanding a
+    // ScenarioCoverage co-attestation would make every IntentSpec — whose
+    // attestation set is exactly SourceFidelity + PublicationApproval —
+    // unpublishable and unverifiable by construction).
     if let Some(approval) = valid
         .iter()
         .find(|attestation| attestation.attestation_type == AttestationType::PublicationApproval)
     {
-        for co_type in [
-            AttestationType::ScenarioCoverage,
-            AttestationType::SourceFidelity,
-        ] {
+        for co_type in co_attestation_types(&artifact.manifest.artifact_kind) {
+            let co_type = *co_type;
             let present = valid.iter().any(|attestation| {
                 attestation.attestation_type == co_type
                     && attestation.artifact_hash == approval.artifact_hash
@@ -452,6 +458,22 @@ pub fn verify_attestation_set(
         Ok(())
     } else {
         Err(rejections)
+    }
+}
+
+/// The co-attestation set R7 demands alongside a valid `publication_approval`,
+/// selected by artifact kind (ADR-0022) — the same kind-aware split
+/// `ke-cli`'s `policy_for_kind` applies to R6. Rule-shaped kinds (every
+/// non-`IntentSpec` kind) keep the schema § 6B pair; an `IntentSpec` carries
+/// authorization criteria with no scenario dimension, so only
+/// `source_fidelity` co-attests (ADR-0021 § 5).
+fn co_attestation_types(kind: &ArtifactKind) -> &'static [AttestationType] {
+    match kind {
+        ArtifactKind::IntentSpec => &[AttestationType::SourceFidelity],
+        _ => &[
+            AttestationType::ScenarioCoverage,
+            AttestationType::SourceFidelity,
+        ],
     }
 }
 
