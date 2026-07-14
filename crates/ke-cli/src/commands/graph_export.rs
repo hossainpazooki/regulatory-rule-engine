@@ -15,7 +15,6 @@
 
 use crate::commands::export_provenance::read_registry_evidence;
 use crate::graph::{conflict_edges, extract_graph, render_cypher, Graph};
-use crate::policy::policy_for_kind;
 use crate::registry::backend::RegistryBackend;
 use crate::registry::hash_hex;
 use anyhow::Result;
@@ -161,6 +160,7 @@ fn verify_outcome(
     args: &GraphExportArgs<'_>,
     evidence: ke_artifact::RegistryEvidence,
 ) -> Result<ke_artifact::VerificationOutcome> {
+    use crate::policy::policy_for_kind;
     use ke_artifact::{verify_artifact, PolicyContext};
 
     let mut supported: Vec<String> = artifact
