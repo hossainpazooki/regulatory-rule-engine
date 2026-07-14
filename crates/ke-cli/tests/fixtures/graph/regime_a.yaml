@@ -1,0 +1,23 @@
+# ADR-0023 differential-harness corpus (test-owned; NOT part of the platform
+# rule snapshot under fixtures/rules/). Regime A: one rule citing the shared
+# document, so the citation closure crosses regimes in the oracle tests.
+- rule_id: alpha_licensing
+  description: Regime A licensing rule grounded in the shared source document.
+  applies_if:
+    all:
+      - field: jurisdiction
+        operator: "=="
+        value: EU
+  decision_tree:
+    node_id: a1
+    condition:
+      field: licensed
+      operator: "=="
+      value: true
+    true_branch:
+      result: compliant
+    false_branch:
+      result: needs_review
+  source:
+    document_id: doc_shared
+    article: "12"

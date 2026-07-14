@@ -1,0 +1,50 @@
+# ADR-0023 differential-harness corpus (test-owned; NOT part of the platform
+# rule snapshot under fixtures/rules/). Regime B: an overlapping-scope,
+# review-required (publishable) conflicting pair. `beta_one` cites the shared
+# document (reachable from regime A's citation closure); `beta_two` cites its
+# own document and is surfaced only through the conflict hop.
+- rule_id: beta_one
+  applies_if:
+    all:
+      - field: jurisdiction
+        operator: "=="
+        value: EU
+      - field: instrument
+        operator: "=="
+        value: art
+  decision_tree:
+    node_id: b1
+    condition:
+      field: licensed
+      operator: "=="
+      value: true
+    true_branch:
+      result: compliant
+    false_branch:
+      result: needs_review
+  source:
+    document_id: doc_shared
+    article: "12"
+
+- rule_id: beta_two
+  applies_if:
+    all:
+      - field: jurisdiction
+        operator: "=="
+        value: EU
+      - field: activity
+        operator: "=="
+        value: trading
+  decision_tree:
+    node_id: b2
+    condition:
+      field: licensed
+      operator: "=="
+      value: true
+    true_branch:
+      result: compliant
+    false_branch:
+      result: needs_review
+  source:
+    document_id: doc_b_only
+    article: "3"

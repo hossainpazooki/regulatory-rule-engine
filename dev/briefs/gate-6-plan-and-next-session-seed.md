@@ -18,6 +18,13 @@
 
 > **Status:** APPROVED plan, not yet implemented. This doc is both the brief and
 > the seed for a fresh session to execute Gate 6. Nothing in it is built yet.
+>
+> **Renumbering note (2026-07-13):** this brief originally called the planned
+> gate-6 scope-reconciliation ADR "ADR-0021". That number was since consumed by
+> the IntentSpec track (0021 polymorphic payload, 0022 kind-aware R7 — both
+> Accepted and merged; 0023 graph export, Proposed). All references below now say
+> **ADR-0024** — the next free number at the time of this note; re-check the
+> `docs/adr/` index when authoring.
 
 ## Next-session seed (read this first)
 
@@ -25,7 +32,7 @@
 `3c5cbf0`, PR #10); the live verifier loop is closed and verified end-to-end.
 Gate 6 is the next gate. Two scope decisions are already locked (don't re-litigate):
 - **Q1 = substantive build** — ship the consumer-agnostic pieces, not a paper close.
-- **Q2 = accept ADR-0015 + add ADR-0021** (additive reconciliation, repo's
+- **Q2 = accept ADR-0015 + add ADR-0024** (additive reconciliation, repo's
   established ADR pattern).
 
 **Your job:** execute the plan below (Workstreams A–D). Suggested order: confirm
@@ -47,7 +54,7 @@ date parse `crates/ke-cli/src/cli.rs:291-299`. Regression scripts:
 
 **Invariant:** `verify` stays fail-closed; the revocation-decision layer only
 *informs* a consumer. No Temporal code enters the repo. The decision fn is honest
-groundwork (no live orchestrator consumer yet) — ADR-0021 must say so.
+groundwork (no live orchestrator consumer yet) — ADR-0024 must say so.
 
 ---
 
@@ -81,7 +88,7 @@ Two recon passes established the ground truth:
 
 **Decisions taken (this planning session):** (Q1) **substantive build** — ship the
 consumer-agnostic pieces, not a paper close; (Q2) **accept ADR-0015 + add
-ADR-0021** as an additive reconciliation (matches the ADR-0017/0019/0020 pattern).
+ADR-0024** as an additive reconciliation (matches the ADR-0017/0019/0020 pattern).
 
 **Outcome:** Gate 6 closes *as far as ATLAS legitimately can* — accepted scope
 ADRs, a pure tested revocation-decision function operationalizing already-accepted
@@ -102,7 +109,7 @@ code enters the repo.
 - **Accept ADR-0015** (`docs/adr/0015-temporal-orchestration-ownership.md`): flip
   Status Proposed→Accepted, dated. Its three-channel model + no-Rust-Temporal-
   worker non-goal still hold and govern the delivered Gate-4/5 channels.
-- **New `docs/adr/0021-gate6-scope-reconciliation.md`** (additive, cites the
+- **New `docs/adr/0024-gate6-scope-reconciliation.md`** (additive, cites the
   ADR-0020 "Amends § 19" precedent). Records: spec Gate 6 scope; what's delivered
   (pinning/rollback + verify-layer Revoked rejection); channel-3 platform pinning
   activity **deferred — no consumer (ADR-0017)**; Python KE removal + Rust Temporal
@@ -111,7 +118,7 @@ code enters the repo.
   Verification).
 - **Update the open-decisions tables**: `CLAUDE.md` "Revocation behavior | Gate 6"
   row → consumer-agnostic decision delivered, orchestration enforcement deferred to
-  a real consumer (ref ADR-0021). Mirror in spec § 21 via the ADR "Amends" line
+  a real consumer (ref ADR-0024). Mirror in spec § 21 via the ADR "Amends" line
   (do not rewrite spec prose — amend via ADR, matching ADR-0020).
 
 ## Workstream B — Revocation runtime-decision (pure, consumer-agnostic core)
@@ -164,7 +171,7 @@ Wire into **`commands/revoke.rs`** (extend, keep back-compat):
 
 ## Files
 
-- New: `docs/adr/0021-gate6-scope-reconciliation.md`,
+- New: `docs/adr/0024-gate6-scope-reconciliation.md`,
   `crates/ke-core/src/revocation.rs` (or extend `manifest.rs`),
   `docs/gate-6-implementation-log.md`
 - Edit: `docs/adr/0015-temporal-orchestration-ownership.md` (Accept),
@@ -178,10 +185,10 @@ Wire into **`commands/revoke.rs`** (extend, keep back-compat):
   (`revoke.rs:39-57`), `scripts/lifecycle-smoke.sh`,
   `scripts/serve-published-registry.sh`
 
-## Verification (re-scoped Gate-6 acceptance, recorded in ADR-0021)
+## Verification (re-scoped Gate-6 acceptance, recorded in ADR-0024)
 
 Gate 6 (ATLAS) closes when:
-1. ADR-0015 Accepted; ADR-0021 Accepted.
+1. ADR-0015 Accepted; ADR-0024 Accepted.
 2. `revocation_decision` implemented + unit-tested (matrix + floor-only-raises).
 3. `revoke --reason-class` records reason_class; `--policy` cannot lower below
    floor; legacy path intact (`lifecycle-smoke.sh` green).
@@ -210,7 +217,7 @@ gate-scope change → one branch → one PR.
 - The revocation-decision fn is **groundwork**: no live orchestrator consumer runs
   HardStop/FinishPinned/AuditOnly yet (COMPASS is verify-only). It operationalizes
   *already-accepted* policy and is fully tested, but ships ahead of its enforcer —
-  ADR-0021 states this plainly.
+  ADR-0024 states this plainly.
 - If implementation reveals the sidecar IS hashed somewhere, stop — adding
   `reason_class` would then bump canonicalization (it must not); re-confirm the
   sidecar is outside the canonical envelope before extending it.

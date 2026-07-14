@@ -1,0 +1,30 @@
+{
+  "action_class": "treasury.payment.outbound",
+  "criteria": [
+    {
+      "name": "max_single_payment",
+      "threshold": "2500.00",
+      "volatility": "stable"
+    },
+    {
+      "name": "daily_regime_cap",
+      "threshold": "1000000.00",
+      "volatility": "volatile"
+    }
+  ],
+  "idempotency": {
+    "key_fields": ["payer_account", "payee_account", "amount", "value_date"],
+    "scope": "treasury.payment.outbound"
+  },
+  "source_spans": [
+    {
+      "document_id": "doc_shared",
+      "article": "12",
+      "section": null,
+      "paragraph": null,
+      "pages": null,
+      "byte_range": null,
+      "text_hash": null
+    }
+  ]
+}

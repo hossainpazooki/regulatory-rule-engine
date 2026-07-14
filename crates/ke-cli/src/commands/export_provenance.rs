@@ -67,7 +67,7 @@ pub fn status_for(state: LifecycleState) -> RegistryStatus {
 /// log is `RegistryStatus::Unknown` with a zero head. `live_event_head` is
 /// `None`: the producer records the head as-of-export; a consumer supplies a
 /// fresh live head for staleness detection.
-fn read_registry_evidence<B: RegistryBackend>(
+pub fn read_registry_evidence<B: RegistryBackend>(
     backend: &B,
     hash: &[u8; 32],
 ) -> Result<RegistryEvidence, RegistryError> {

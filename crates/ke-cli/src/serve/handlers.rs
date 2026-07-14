@@ -214,7 +214,7 @@ fn run_verify(
 /// attestation set can verify). Mirrors `ke-artifact`'s `verify_surface` test
 /// keydir; windows are wide and `now` is supplied per request.
 #[cfg(any(test, feature = "test-keys"))]
-fn test_key_directory(artifact: &ke_artifact::Artifact) -> ke_artifact::KeyDirectory {
+pub(crate) fn test_key_directory(artifact: &ke_artifact::Artifact) -> ke_artifact::KeyDirectory {
     use ke_artifact::sign::test_keys;
     use ke_artifact::{KeyDirectory, KeyDirectoryEntry, KeyStatus, SignerRole};
 

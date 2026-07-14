@@ -1,0 +1,13 @@
+# ADR-0023 differential harness: Neo4j Community, throwaway, auth disabled.
+# Started/stopped by scripts/graph-differential.sh — not a service anything
+# else depends on. The graph is a derived read-only view; nothing here is on
+# any decision path.
+services:
+  neo4j:
+    image: neo4j:5-community
+    container_name: ke-graph-differential
+    environment:
+      - NEO4J_AUTH=none
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"

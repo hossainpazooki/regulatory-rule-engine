@@ -1,6 +1,6 @@
 # 0022. Kind-aware R7 co-attestation — an IntentSpec approval co-attests with SourceFidelity only
 
-**Status:** Proposed (draft for review)
+**Status:** Accepted (sign-off by Hossain, 2026-07-13; implemented and merged to main via PR #14, 26 checks green)
 **Date:** 2026-07-12
 **Spec references:** § 10 (attestation rules), `docs/attestation-schema.md` § 6B/§ 7 (R7)
 **Amends:** the R7 co-attestation rule in `verify_attestation_set` — from a fixed `{ScenarioCoverage, SourceFidelity}` pair to a kind-selected set.
@@ -56,5 +56,6 @@ agrees with the payload (ADR-0021 § Decision-4 kind↔payload agreement).
   for rule artifacts pass unchanged. Two new tests pin the IntentSpec arm
   (accepted with SourceFidelity; `CoAttestationAbsent { SourceFidelity }`
   without it, and ScenarioCoverage never demanded).
-- The schema doc (`docs/attestation-schema.md` § 6B) still states the fixed
-  pair; amend it to reference the kind-selected set when this ADR is accepted.
+- The schema doc (`docs/attestation-schema.md` § 6B and the § 7 R7 row) stated
+  the fixed pair; **amended 2026-07-13** alongside this acceptance to reference
+  the kind-selected set.
