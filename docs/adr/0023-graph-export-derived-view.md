@@ -1,6 +1,6 @@
 # 0023. Graph export — a verify-gated, derived read-only view of the artifact substrate (Neo4j)
 
-**Status:** Proposed (build-on-trigger; see § Trigger)
+**Status:** Proposed — **BUILT 2026-07-14** (trigger fired by Hossain; differential harness ran GREEN live, `passed=11 failed=0`; acceptance = PR merge). See § Build-time amendments.
 **Date:** 2026-07-13
 **Spec references:** § 5 (authority boundaries), § 6 (non-authoritative surfaces), § 12 (T4 conflicts), § 14 (consumer surface)
 **Related ADRs:** 0005 (T4 conflict classes), 0016 (consumer-agnostic verify + `ArtifactProvenance`), 0019 (consumer trust boundary: re-derive trust, non-`published` blocked, fail closed on `unknown`), 0020 (frontend rewire deferred; `GraphVisualizer` off the artifact path), 0021 (IntentSpec kind + `artifact_kind` on provenance), 0022 (kind-aware R7 co-attestation).
@@ -202,16 +202,62 @@ validates nor depends on them.
   changes rarely. Revisit only if the graph view acquires a real downstream
   consumer.
 
-## Open questions (deferred to build time)
+## Build-time amendments (2026-07-14)
 
-1. **Exporter output format** — direct bolt driver vs. CSV +
-   `neo4j-admin import` vs. generated Cypher statements. Mechanical choice;
-   pick at build time inside the 2–3 day cap.
-2. **`SUPERSEDES` edge source** — registry lifecycle transitions vs. manifest
-   lineage fields; confirm which the registry actually records before wiring
-   the edge.
+Recon against the real substrate amended the § Decision-2 vocabulary — every
+delta is the same shape as the `CONFLICTS_WITH` finding: **no recorded source,
+so the exporter drops or renames rather than fabricates.**
+
+- **`Jurisdiction` → `Regime`.** The manifest records `regime_id`; a
+  jurisdiction entity exists nowhere. Inferring "EU" from `mica_*` naming
+  would be exporter-side fabrication. The flagship query is cross-**regime**
+  conflict exposure.
+- **`SUPERSEDES` dropped** (resolves former open question 2). The registry
+  records deprecation with a free-text reason only — no structured hash→hash
+  lineage. Add the edge if/when the registry records one.
+- **`Premise` dropped.** Conditions live inside `decision_tree`; the recorded
+  citation substrate is `DocumentRef` + spans. Rule-side granularity rides
+  `CITES` edge properties (`article`, `section`) — the rule corpus records
+  **zero node-level spans**, so a rule-side `SPANS` family would be vacuous.
+  `SPANS` edges exist where spans are recorded: the IntentSpec payload.
+- **Conflict edges are intra-artifact** (T4 verifies one compile's rule set),
+  so the exposure query is defined as **citation-closure then one conflict
+  hop** — chosen because plain BFS reachability and Cypher var-length trail
+  reachability provably agree, where a path-predicate formulation would let
+  the two sides legally disagree (relationship-reuse semantics).
+- **Re-address is a distinct check, proven non-vacuous:** a fully-valid
+  artifact planted at another artifact's address passes folded verify
+  entirely; only address ≡ manifest-hash refuses it
+  (`export_refuses_valid_artifact_at_wrong_address`). Implemented via a new
+  `RegistryBackend::list_addresses` (addresses = what the store files under,
+  vs `list_manifests` = what the bytes claim).
+- **Fixture pin widened:** `fixtures/graph/expected_edges.json` (generated
+  only by `gen-graph-fixture`) pins the **full** edge set over the goldens,
+  not just conflicts — the goldens are small clean packs whose conflict set
+  is legitimately empty, and an all-empty pin would be vacuous. Regeneration
+  on an unchanged tree is a byte-identical no-op (verified).
+- **Output format** (resolves former open question 1): generated
+  **idempotent MERGE-only Cypher** (`graph.cypher`) + `refusals.log`, loaded
+  via `cypher-shell`. Re-loading the same export is a no-op — the read-side
+  mirror of exporter determinism.
+
+**Evidence (2026-07-14, this machine):** `cargo test --workspace` 187/0
+(11 new graph tests, each watched RED first — TDD); fmt + clippy clean;
+`scripts/graph-differential.sh` GREEN `passed=11 failed=0` — both Cypher
+differentials byte-equal to the Rust oracles under the vacuity guard, the
+kind-policy query empty on the honest export, and both negative controls
+**detected** (mutated conflict edge broke the differential; doctored
+attestation type tripped the policy query). Registry under test: the two
+harness packs + `mica_stablecoin` + an authored IntentSpec (two-node-family
+graph live) + one deliberately unpublished artifact named in the refusal log.
+
+## Open questions — all resolved
+
+1. **Exporter output format — RESOLVED at build:** generated idempotent
+   Cypher (see § Build-time amendments).
+2. **`SUPERSEDES` edge source — RESOLVED at build:** no recorded source
+   exists; edge dropped from v1 (see § Build-time amendments).
 3. **ADR-0021 status drift — RESOLVED 2026-07-13.** 0021 and 0022 are stamped
    Accepted (PRs #12/#14 merged to main; index rows updated; the
    attestation-schema § 6B/§ 7 amendment required by 0022's acceptance is
-   applied). This ADR's Decision-3 dependency is satisfied on the artifact
-   side; the build itself remains trigger-gated.
+   applied). This ADR's Decision-3 dependency was satisfied before the build.
