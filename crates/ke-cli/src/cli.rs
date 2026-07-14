@@ -15,6 +15,9 @@
 //! parses). `verify` remains a deferred exit-2 stub (standalone attestation-set
 //! verification is a later surface). `lint` (Gate 5) runs the non-authoritative
 //! T5 lint tier; it needs no registry and no `test-keys` (it signs nothing).
+//! `graph` (ADR-0023) exports the verified+published registry as a derived,
+//! read-only property graph and hosts the differential oracles; it verifies
+//! (so it needs `test-keys`) but signs/publishes nothing.
 
 use crate::commands::{
     attest, compile, deprecate, export, export_provenance, graph_export, import_kew, lint,

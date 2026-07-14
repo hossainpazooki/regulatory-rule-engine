@@ -16,9 +16,13 @@ The verified substrate is already a property graph stored as content-addressed
 artifacts: rules reference premises; source spans point into corpus documents;
 the T4 conflict gate implies rule↔rule edges; typed attestations link experts
 to artifact hashes; jurisdictions group corpora; artifact hashes form a lineage
-DAG. ADR-0021 adds a second node family — IntentSpec action classes with
-authorization criteria — and ADR-0022 makes the attestation edge set
-kind-dependent. Nothing new has to be modeled; it has to be **materialized**.
+DAG. *(That was the pre-decision framing; build-time recon found three of
+those families have no recorded source — premises, jurisdictions, and lineage —
+so the as-built vocabulary in Decision 2 uses what the substrate actually
+records. See § Build-time amendments.)* ADR-0021 adds a second node family —
+IntentSpec action classes with authorization criteria — and ADR-0022 makes the
+attestation edge set kind-dependent. Nothing new has to be modeled; it has to
+be **materialized**.
 
 The motivation is external and honest about being so: graph-database
 experience recurs as a "plus" in the roles this portfolio targets, and the gap
@@ -69,13 +73,17 @@ store as runtime backend) are recorded under Alternatives.
    rejected verdict, or re-address mismatch — live-verified 2026-07-12)
    already obey it. The graph inherits an existing trust boundary instead of
    inventing one.
-2. **Schema.** Nodes: `Rule`, `Premise`, `SourceSpan`, `CorpusDoc`,
-   `Jurisdiction`, `Attestation`, `IntentSpec`. Edges: `CITES`, `SPANS`,
-   `CONFLICTS_WITH`, `ATTESTED_BY`, `SUPERSEDES`. `ATTESTED_BY` is
-   **kind-dependent per ADR-0022**: rule-shaped kinds carry the
-   `{ScenarioCoverage, SourceFidelity}` co-attestation pair; `IntentSpec`
-   carries `SourceFidelity` only. The asymmetry is deliberately queryable
-   (see negative control (b)).
+2. **Schema — AS BUILT** (amended 2026-07-14; see § Build-time amendments for
+   why each delta exists). Nodes: `Artifact`, `Regime`, `Rule`, `CorpusDoc`,
+   `Attestation`, `IntentSpec`. Edges: `IN_REGIME`, `CONTAINS`, `CITES`
+   (article/section as properties), `SPANS`, `CONFLICTS_WITH`, `ATTESTED_BY`.
+   *(As proposed 2026-07-13 this list read `Premise`, `SourceSpan` and
+   `Jurisdiction` nodes and a `SUPERSEDES` edge; recon found none of those has
+   a recorded source in the substrate, so the exporter renames or drops
+   rather than fabricates.)* `ATTESTED_BY` is **kind-dependent per ADR-0022**:
+   rule-shaped kinds carry the `{ScenarioCoverage, SourceFidelity}`
+   co-attestation pair; `IntentSpec` carries `SourceFidelity` only. The
+   asymmetry is deliberately queryable (see negative control (b)).
 3. **IntentSpec is in v1, with a hard dependency stated.** The v1 schema
    includes IntentSpec nodes and their kind-dependent attestation edges. The
    build depends on ADR-0021 and ADR-0022 being **Accepted and merged**; if
@@ -102,12 +110,20 @@ store as runtime backend) are recorded under Alternatives.
    cost/setup for nothing at portfolio scale) rejected.
 6. **Two differential queries, each with a Rust-side oracle** — the house
    discipline (same shape as the Rust↔Python 1,326-scenario equivalence
-   harness):
-   - *Cross-jurisdiction conflict reachability* ("which EU rules transitively
-     conflict with any US stablecoin rule?") — oracle: transitive closure over
-     the recomputed T4 pairwise conflicts, computed in Rust.
-   - *Premise blast-radius* ("if this source span is amended, which rules and
-     attestations are downstream?") — oracle: a span-index walk in Rust.
+   harness). As built (amended 2026-07-14 with the schema; the proposed names
+   were "cross-jurisdiction conflict reachability" and "premise
+   blast-radius"):
+   - *Cross-regime conflict exposure* ("which regime-B rules are one conflict
+     hop off the citation closure of regime A's rules?") — oracle: BFS over
+     `CITES`/`SPANS` then one `CONFLICTS_WITH` hop, computed in Rust
+     (`ke graph oracle-exposure`). Conflicts are intra-artifact, so the
+     cross-regime reach comes from shared source documents — see
+     § Build-time amendments for why this shape (and not a path predicate)
+     keeps both sides exactly decidable.
+   - *Citation blast-radius* ("if this document — optionally one article — is
+     amended, which rules, IntentSpecs, artifacts, and attestations are
+     downstream?") — oracle: a citation walk in Rust
+     (`ke graph oracle-blast`).
 7. **Negative controls and a vacuity guard:**
    - (a) a known-bad **twin export** with one mutated edge — the conflict
      reachability differential must go red;
