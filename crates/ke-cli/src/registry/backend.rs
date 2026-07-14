@@ -98,6 +98,14 @@ pub trait RegistryBackend {
     fn list_manifests(&self)
         -> Result<Vec<([u8; 32], ke_core::manifest::Manifest)>, RegistryError>;
 
+    /// List every stored artifact **address** — the content-hash key each
+    /// artifact is filed under — without decoding the stored bytes. Distinct
+    /// from [`list_manifests`](RegistryBackend::list_manifests), which returns
+    /// the hash the stored bytes *claim*: the graph exporter re-addresses each
+    /// artifact against this key so mislabeled-but-valid content fails closed
+    /// (ADR-0023 D1).
+    fn list_addresses(&self) -> Result<Vec<[u8; 32]>, RegistryError>;
+
     /// Write the dev-stand-in T2/T3 consistency-block SIDECAR
     /// `consistency/<hash>.json` (Phase 3b). Refuses to overwrite an existing
     /// sidecar — the `ml_checked` transition runs once.
@@ -361,6 +369,30 @@ impl RegistryBackend for LocalFsBackend {
             out.push((artifact.manifest.artifact_hash, artifact.manifest));
         }
         out.sort_by(|a, b| a.0.cmp(&b.0));
+        Ok(out)
+    }
+
+    fn list_addresses(&self) -> Result<Vec<[u8; 32]>, RegistryError> {
+        let dir = self.root.join("artifacts");
+        if !dir.exists() {
+            return Ok(Vec::new());
+        }
+        let mut out = Vec::new();
+        for entry in fs::read_dir(&dir).map_err(|e| RegistryError::io("read artifacts dir", e))? {
+            let entry = entry.map_err(|e| RegistryError::io("read artifact entry", e))?;
+            if !entry.path().join("artifact.kew").exists() {
+                continue;
+            }
+            let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
+                continue;
+            };
+            // The directory name IS the address; a non-hex name is not an
+            // addressable artifact and is skipped, not decoded.
+            if let Ok(hash) = crate::registry::hash_from_hex(&name) {
+                out.push(hash);
+            }
+        }
+        out.sort();
         Ok(out)
     }
 

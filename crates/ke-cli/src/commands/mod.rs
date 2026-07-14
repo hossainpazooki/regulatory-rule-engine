@@ -18,6 +18,7 @@ pub mod compile;
 pub mod deprecate;
 pub mod export;
 pub mod export_provenance;
+pub mod graph_export;
 pub mod import_kew;
 pub mod lint;
 pub mod ml_check;

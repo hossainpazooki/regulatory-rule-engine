@@ -17,8 +17,8 @@
 //! T5 lint tier; it needs no registry and no `test-keys` (it signs nothing).
 
 use crate::commands::{
-    attest, compile, deprecate, export, export_provenance, import_kew, lint, ml_check, publish,
-    query, revoke, rollback, sql,
+    attest, compile, deprecate, export, export_provenance, graph_export, import_kew, lint,
+    ml_check, publish, query, revoke, rollback, sql,
 };
 use crate::registry::backend::LocalFsBackend;
 use crate::registry::Selector;
@@ -230,6 +230,60 @@ pub enum Command {
         /// The read-only SQL query.
         #[arg(long)]
         query: String,
+    },
+    /// [ADR-0023] Derived, read-only graph view over the verified registry.
+    /// A consumer under ADR-0019 discipline: verified + published artifacts
+    /// only, fail-closed, re-addressed. NEVER an input to a decision — the
+    /// tree-walk engine over signed artifacts stays the only decision path.
+    Graph {
+        #[command(subcommand)]
+        action: GraphAction,
+    },
+}
+
+/// `ke graph` subactions (ADR-0023).
+#[derive(Subcommand, Debug)]
+pub enum GraphAction {
+    /// Export the verified+published registry as an idempotent Cypher script
+    /// (`graph.cypher`) plus the refusal log (`refusals.log` — what is NOT in
+    /// the graph, and why).
+    Export {
+        /// Output directory.
+        #[arg(long)]
+        out: String,
+        /// Policy environment for the verification context (mock-TSA-stamped
+        /// test attestations verify only under `local`, R8).
+        #[arg(long, default_value = "local")]
+        env: String,
+    },
+    /// Rust-side differential oracle: blast radius of amending a document
+    /// (optionally a single article). Prints sorted node ids, one per line.
+    #[command(name = "oracle-blast")]
+    OracleBlast {
+        /// Document id (CorpusDoc node).
+        #[arg(long)]
+        doc: String,
+        /// Restrict to citations of one article.
+        #[arg(long)]
+        article: Option<String>,
+        /// Policy environment for the verification context.
+        #[arg(long, default_value = "local")]
+        env: String,
+    },
+    /// Rust-side differential oracle: cross-regime conflict exposure (citation
+    /// closure from `--from`, one CONFLICTS_WITH hop into `--to`). Prints
+    /// sorted rule node ids, one per line.
+    #[command(name = "oracle-exposure")]
+    OracleExposure {
+        /// Source regime id.
+        #[arg(long)]
+        from: String,
+        /// Target regime id.
+        #[arg(long)]
+        to: String,
+        /// Policy environment for the verification context.
+        #[arg(long, default_value = "local")]
+        env: String,
     },
 }
 
@@ -589,6 +643,45 @@ fn dispatch(cli: &Cli) -> Result<i32> {
             let outcome = sql::run(&backend, &sql::SqlArgs { query })?;
             println!("{}", outcome.rows_json);
             Ok(0)
+        }
+        Command::Graph { action } => {
+            let backend = open_backend(cli)?;
+            let now = now_unix(cli)?;
+            let export = |env: &str| {
+                graph_export::run(
+                    &backend,
+                    &graph_export::GraphExportArgs { env, now_unix: now },
+                )
+            };
+            match action {
+                GraphAction::Export { out, env } => {
+                    let outcome = export(env)?;
+                    graph_export::write_outputs(&outcome, out)?;
+                    println!(
+                        "graph export: {} artifacts exported, {} refused -> {out}",
+                        outcome.exported.len(),
+                        outcome.refusals.len()
+                    );
+                    for refusal in &outcome.refusals {
+                        eprintln!("refused {}: {}", refusal.artifact_hex, refusal.reason);
+                    }
+                    Ok(0)
+                }
+                GraphAction::OracleBlast { doc, article, env } => {
+                    let outcome = export(env)?;
+                    for id in crate::graph::blast_radius(&outcome.graph, doc, article.as_deref()) {
+                        println!("{id}");
+                    }
+                    Ok(0)
+                }
+                GraphAction::OracleExposure { from, to, env } => {
+                    let outcome = export(env)?;
+                    for id in crate::graph::conflict_exposure(&outcome.graph, from, to) {
+                        println!("{id}");
+                    }
+                    Ok(0)
+                }
+            }
         }
     }
 }

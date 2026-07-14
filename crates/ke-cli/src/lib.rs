@@ -15,6 +15,7 @@
 
 pub mod cli;
 pub mod commands;
+pub mod graph;
 pub mod policy;
 pub mod registry;
 pub mod serve;

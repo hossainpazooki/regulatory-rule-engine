@@ -1,0 +1,137 @@
+{
+  "goldens": {
+    "intentspec_payment": {
+      "artifact_hash": "c7a36959bfaafc03e0abfb86fce7e1c0c6efebc812b55f83313724c3d024dc51",
+      "edges": [
+        {
+          "label": "IN_REGIME",
+          "from": "c7a36959bfaafc03e0abfb86fce7e1c0c6efebc812b55f83313724c3d024dc51",
+          "to": "treasury_payments_v1",
+          "props": {}
+        },
+        {
+          "label": "ATTESTED_BY",
+          "from": "c7a36959bfaafc03e0abfb86fce7e1c0c6efebc812b55f83313724c3d024dc51",
+          "to": "c7a36959bfaafc03e0abfb86fce7e1c0c6efebc812b55f83313724c3d024dc51:att:0",
+          "props": {}
+        },
+        {
+          "label": "ATTESTED_BY",
+          "from": "c7a36959bfaafc03e0abfb86fce7e1c0c6efebc812b55f83313724c3d024dc51",
+          "to": "c7a36959bfaafc03e0abfb86fce7e1c0c6efebc812b55f83313724c3d024dc51:att:1",
+          "props": {}
+        },
+        {
+          "label": "CONTAINS",
+          "from": "c7a36959bfaafc03e0abfb86fce7e1c0c6efebc812b55f83313724c3d024dc51",
+          "to": "c7a36959bfaafc03e0abfb86fce7e1c0c6efebc812b55f83313724c3d024dc51:intent:treasury.payment.outbound",
+          "props": {}
+        },
+        {
+          "label": "SPANS",
+          "from": "c7a36959bfaafc03e0abfb86fce7e1c0c6efebc812b55f83313724c3d024dc51:intent:treasury.payment.outbound",
+          "to": "treasury_authorization_policy_2025",
+          "props": {
+            "article": "4",
+            "section": "2"
+          }
+        },
+        {
+          "label": "SPANS",
+          "from": "c7a36959bfaafc03e0abfb86fce7e1c0c6efebc812b55f83313724c3d024dc51:intent:treasury.payment.outbound",
+          "to": "treasury_authorization_policy_2025",
+          "props": {
+            "article": "7",
+            "section": "1"
+          }
+        }
+      ]
+    },
+    "rule_reserve_assets": {
+      "artifact_hash": "13a414cf7f6b25c6b6049c0953a83ff5697044aabafbd44b87e87fc4ed90f8a9",
+      "edges": [
+        {
+          "label": "IN_REGIME",
+          "from": "13a414cf7f6b25c6b6049c0953a83ff5697044aabafbd44b87e87fc4ed90f8a9",
+          "to": "mica_2023",
+          "props": {}
+        },
+        {
+          "label": "ATTESTED_BY",
+          "from": "13a414cf7f6b25c6b6049c0953a83ff5697044aabafbd44b87e87fc4ed90f8a9",
+          "to": "13a414cf7f6b25c6b6049c0953a83ff5697044aabafbd44b87e87fc4ed90f8a9:att:0",
+          "props": {}
+        },
+        {
+          "label": "ATTESTED_BY",
+          "from": "13a414cf7f6b25c6b6049c0953a83ff5697044aabafbd44b87e87fc4ed90f8a9",
+          "to": "13a414cf7f6b25c6b6049c0953a83ff5697044aabafbd44b87e87fc4ed90f8a9:att:1",
+          "props": {}
+        },
+        {
+          "label": "ATTESTED_BY",
+          "from": "13a414cf7f6b25c6b6049c0953a83ff5697044aabafbd44b87e87fc4ed90f8a9",
+          "to": "13a414cf7f6b25c6b6049c0953a83ff5697044aabafbd44b87e87fc4ed90f8a9:att:2",
+          "props": {}
+        },
+        {
+          "label": "CONTAINS",
+          "from": "13a414cf7f6b25c6b6049c0953a83ff5697044aabafbd44b87e87fc4ed90f8a9",
+          "to": "13a414cf7f6b25c6b6049c0953a83ff5697044aabafbd44b87e87fc4ed90f8a9:mica_art38_reserve_assets",
+          "props": {}
+        },
+        {
+          "label": "CITES",
+          "from": "13a414cf7f6b25c6b6049c0953a83ff5697044aabafbd44b87e87fc4ed90f8a9:mica_art38_reserve_assets",
+          "to": "mica_2023",
+          "props": {
+            "article": "38"
+          }
+        }
+      ]
+    },
+    "rule_significant_thresholds": {
+      "artifact_hash": "72a60976bcd55fc9a9b088cada4aae10cfbb4aabf066a8e85c403dbeae893d94",
+      "edges": [
+        {
+          "label": "IN_REGIME",
+          "from": "72a60976bcd55fc9a9b088cada4aae10cfbb4aabf066a8e85c403dbeae893d94",
+          "to": "mica_2023",
+          "props": {}
+        },
+        {
+          "label": "ATTESTED_BY",
+          "from": "72a60976bcd55fc9a9b088cada4aae10cfbb4aabf066a8e85c403dbeae893d94",
+          "to": "72a60976bcd55fc9a9b088cada4aae10cfbb4aabf066a8e85c403dbeae893d94:att:0",
+          "props": {}
+        },
+        {
+          "label": "ATTESTED_BY",
+          "from": "72a60976bcd55fc9a9b088cada4aae10cfbb4aabf066a8e85c403dbeae893d94",
+          "to": "72a60976bcd55fc9a9b088cada4aae10cfbb4aabf066a8e85c403dbeae893d94:att:1",
+          "props": {}
+        },
+        {
+          "label": "ATTESTED_BY",
+          "from": "72a60976bcd55fc9a9b088cada4aae10cfbb4aabf066a8e85c403dbeae893d94",
+          "to": "72a60976bcd55fc9a9b088cada4aae10cfbb4aabf066a8e85c403dbeae893d94:att:2",
+          "props": {}
+        },
+        {
+          "label": "CONTAINS",
+          "from": "72a60976bcd55fc9a9b088cada4aae10cfbb4aabf066a8e85c403dbeae893d94",
+          "to": "72a60976bcd55fc9a9b088cada4aae10cfbb4aabf066a8e85c403dbeae893d94:mica_art45_significant_thresholds",
+          "props": {}
+        },
+        {
+          "label": "CITES",
+          "from": "72a60976bcd55fc9a9b088cada4aae10cfbb4aabf066a8e85c403dbeae893d94:mica_art45_significant_thresholds",
+          "to": "mica_2023",
+          "props": {
+            "article": "45"
+          }
+        }
+      ]
+    }
+  }
+}
