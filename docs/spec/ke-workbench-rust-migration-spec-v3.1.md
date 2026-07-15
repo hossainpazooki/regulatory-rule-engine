@@ -217,6 +217,16 @@ Gate 0 must not trample active frontend work such as the credit module or `Docum
 
 ## 5. Architecture
 
+> **Amended 2026-07-15.** The consumer side of this diagram is superseded:
+> per **ADR-0017** `institutional-defi-platform-api` is decoupled and is not
+> in the artifact path. The consumers are now the three
+> **ADR-0019-disciplined** surfaces — COMPASS (in-browser WASM verify), the
+> treasury intent resolver (`ke-artifact-py` fold,
+> `treasury-intent-controller/scorer`; ADR-0021/0022), and the graph exporter
+> (`ke graph export`, read-only derived view; ADR-0023). The producer side
+> (left box) and the authority boundaries below are unchanged. The original
+> diagram is retained as the migration-era plan of record.
+
 Two repos, one artifact contract.
 
 ```text
@@ -342,7 +352,7 @@ The canonical encoding profile also covers JSON Schema emission. Field ordering,
 ```text
 Artifact {
   manifest: Manifest {
-    artifact_kind,            // RegimePack | EquivalenceMatrix | TestCorpus | PolicyBundle
+    artifact_kind,            // RegimePack | EquivalenceMatrix | TestCorpus | PolicyBundle | IntentSpec (ADR-0021)
     artifact_hash,            // BLAKE3 of canonical bytes (self-referential; computed last)
     regime_id,
     effective_from,
@@ -356,7 +366,9 @@ Artifact {
     source_corpus_hash,
     attestation_policy_version,
   },
-  compiled_ir,
+  payload,                    // ArtifactPayload: Rules(Vec<RuleIR>) | IntentSpec(IntentSpecIR)
+                              //   (was `compiled_ir` pre-canon-5; amended per ADR-0021 —
+                              //    kind↔payload agreement enforced at decode)
   source_span_index,
   consistency_block,
   compiler_signature,
@@ -367,10 +379,16 @@ Artifact {
 
 ### 8.2 Artifact kinds
 
+> **Amended 2026-07-15 (ADR-0021):** a fifth kind, **IntentSpec**, was added
+> — appended LAST for discriminant-value stability. It is the first non-rule
+> kind with an envelope payload representation (`IntentSpecIR`); the middle
+> three kinds still await payload variants.
+
 1. **Regime pack:** Rules scoped to a single `regime_id`.
 2. **Equivalence matrix:** Relational claims linking rule pairs across regimes.
 3. **Test corpus:** Scenario fixtures, expected outcomes, coverage metadata, expert attestations.
 4. **Policy bundle:** Publication and runtime-enforcement policy for a named environment.
+5. **Intent spec:** Authorization criteria for an action class (treasury payments first) — the artifact the intent-gated action loop's resolver verifies and scores against (ADR-0021; kind-selected attestation policy per ADR-0022).
 
 ### 8.3 Golden test vectors
 
@@ -433,6 +451,12 @@ draft
 ---
 
 ## 10. Typed Attestation Model
+
+> **Amended 2026-07-15 (ADR-0022):** the required attestation set and the R7
+> approval co-attestation rule are **kind-selected** — rule-shaped kinds
+> require the `{scenario_coverage, source_fidelity}` pair alongside
+> `publication_approval`; `IntentSpec` requires `source_fidelity` only. The
+> normative table lives in `docs/attestation-schema.md` § 6B / § 7.
 
 Expert signatures attest to specific claims, not vague semantic correctness.
 
@@ -598,6 +622,17 @@ Full source coverage visualization, counterexample exploration, and semantic dif
 ---
 
 ## 14. Cross-Repo Integration
+
+> **Amended 2026-07-15.** This section predates ADR-0016/0017 and describes
+> an architecture no longer in effect: `institutional-defi-platform-api` is
+> **decoupled** (ADR-0017) and does not consume artifacts. The `ke-artifact-py`
+> binding survived its original consumer and is now consumed by the
+> **treasury intent resolver** (`treasury-intent-controller/scorer` — folded
+> `verify_artifact` per hash, fail-closed; ADR-0021/0022 govern its
+> IntentSpec artifacts). The other consumers are COMPASS (WASM, ADR-0019/0020)
+> and the graph exporter (ADR-0023). The Python surface below is retained as
+> the binding's API sketch; the authoritative surface is
+> `crates/ke-artifact/src/python.rs`.
 
 The platform consumes artifacts through `ke-artifact-py`, a PyO3 binding over `ke-artifact`.
 

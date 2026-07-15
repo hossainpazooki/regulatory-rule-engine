@@ -2,7 +2,8 @@
 
 **Status:** implemented in `crates/ke-core/` — see
 [`gate-1-implementation-log.md`](gate-1-implementation-log.md) for the
-phase-by-phase record and verification evidence. Pending Hossain's review/merge.
+phase-by-phase record and verification evidence. Merged to `main` (see the
+status table in [docs/STATUS.md](STATUS.md); Gates 1–3 have long been on `main`).
 **Authoritative spec sections:** § 5, § 6, § 8, § 8.3, § 8.4, § 11, § 19 (Gate 1), § 22 (Gate 1 brief outline).
 **Predecessor:** Gate 0 (repo synthesis) — green pending CI confirmation.
 **Successor:** Gate 2 (parser, compiler, T0/T1/T4 verification).

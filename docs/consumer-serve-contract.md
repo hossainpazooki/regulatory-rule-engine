@@ -1,10 +1,19 @@
-# `ke serve` consumer contract (COMPASS-facing)
+# `ke serve` consumer contract (consumer-facing)
 
 **Status:** the surface the COMPASS consumer integrates against to close the live
 verification loop. Source of truth is the code, not this doc: request/response
 shapes live in `crates/ke-cli/src/serve/dto.rs`; the in-browser verifier exports
 live in `crates/ke-wasm/src/lib.rs`. ADR-0018 fixes the endpoint set and the
 SSE-not-WebSocket choice; ADR-0019 fixes the fail-closed trust boundary.
+
+> **Three consumers, one discipline (2026-07).** COMPASS is the consumer of
+> *this HTTP/WASM surface*; two more ADR-0019-disciplined consumers verify
+> through the same `verify_artifact` fold at the crate level instead: the
+> treasury intent resolver (`ke-artifact-py`, in
+> `treasury-intent-controller/scorer` — ADR-0021/0022) and the graph exporter
+> (`ke graph export`, ADR-0023). The fail-closed rules and the
+> `ArtifactProvenance` shape below bind all three; the endpoint table binds
+> only HTTP consumers.
 
 > **Authority boundary (hard).** `ke serve` and the WASM package are **read-only,
 > non-authoritative, preview/verify-only**. Neither signs, attests, publishes,
@@ -72,9 +81,12 @@ from this build (`scripts/serve-published-registry.sh`, fixed-seed test keys):
 
 ### `ArtifactProvenance` (in every `/verify` and `read_provenance` result)
 
-Carries `regime_id`, `artifact_hash` (byte array), the canon triplet
-(`ir_schema_version` / `codec_version` / `canonicalization_version` =
-`0.4.0` / `postcard-1` / `ke-canon-4`), `signer_key_id`, **`is_test_key`**, the
+Carries `regime_id`, `artifact_hash` (byte array), `artifact_kind`
+(ADR-0021 — an `Option`: the manifest's kind on success, `null` on a
+decode-failed provenance; the field a consumer discriminates kinds by), the
+canon triplet (`ir_schema_version` / `codec_version` /
+`canonicalization_version` = `0.5.0` / `postcard-1` / `ke-canon-5`, per
+ADR-0021), `signer_key_id`, **`is_test_key`**, the
 `attestations[]` (each with `attestation_type`, `signer_key_id`, `is_test_key`,
 `tsa_class`, `claimed_time_unix`), `registry_state`, `registry_event_head_hash`,
 and `exported_at_unix`. **`is_test_key:true`** is present on every field this

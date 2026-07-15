@@ -1,6 +1,6 @@
 # 0023. Graph export — a verify-gated, derived read-only view of the artifact substrate (Neo4j)
 
-**Status:** Proposed — **BUILT 2026-07-14** (trigger fired by Hossain; differential harness ran GREEN live, `passed=11 failed=0`; acceptance = PR merge). See § Build-time amendments.
+**Status:** **Accepted — merged to main 2026-07-15 (PR #16, `978d0bb`)**; acceptance = PR merge, per the Proposed-era criterion. Built 2026-07-14 (trigger fired by Hossain; TDD, red-green per test). Evidence at merge: the PR records a fresh independent re-verification on a clean branch extraction — `cargo test --workspace` 187/0, fmt/clippy clean, differential harness GREEN `passed=11 failed=0` (both negative controls detected) — on top of the original 2026-07-14 green run. See § Build-time amendments.
 **Date:** 2026-07-13
 **Spec references:** § 5 (authority boundaries), § 6 (non-authoritative surfaces), § 12 (T4 conflicts), § 14 (consumer surface)
 **Related ADRs:** 0005 (T4 conflict classes), 0016 (consumer-agnostic verify + `ArtifactProvenance`), 0019 (consumer trust boundary: re-derive trust, non-`published` blocked, fail closed on `unknown`), 0020 (frontend rewire deferred; `GraphVisualizer` off the artifact path), 0021 (IntentSpec kind + `artifact_kind` on provenance), 0022 (kind-aware R7 co-attestation).

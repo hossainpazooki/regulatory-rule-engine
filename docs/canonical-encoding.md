@@ -1,11 +1,14 @@
 # Canonical encoding profile
 
-**Status:** Authored in Gate 1. Authoritative for `ke-core` canonical bytes.
+**Status:** Authored in Gate 1; amended 2026-07-15 to record the ADR-0021
+canon-5 bump (the profile itself was already live at canon-5 since PR #13 —
+this doc had lagged it). Authoritative for `ke-core` canonical bytes.
 **Spec references:** § 8 (artifact contract), § 8.3 (golden test vectors),
 § 8.4 (effective dates and jurisdiction time).
 **ADRs:** [0001 jurisdiction time-zone](adr/0001-jurisdiction-time-zone.md),
 [0002 codec — postcard](adr/0002-canonical-codec-postcard.md),
-[0003 decimal scalars](adr/0003-decimal-scalar-representation.md).
+[0003 decimal scalars](adr/0003-decimal-scalar-representation.md),
+[0021 IntentSpec kind / polymorphic payload](adr/0021-intentspec-artifact-kind-polymorphic-payload.md).
 
 This document specifies the deterministic encoding `ke-core` applies before the
 bytes are content-addressed with BLAKE3 (wired in Gate 4 `ke-artifact`). Every
@@ -25,9 +28,20 @@ immediately diagnosable. Defined in `crates/ke-core/src/version.rs`:
 
 | Field | Value | Meaning |
 | ----- | ----- | ------- |
-| `ir_schema_version` | `0.4.0` | IR shape version (semver). `0.1.0`→`0.2.0` in Gate 2 (ADR 0006 made `effective_window` optional); `0.2.0`→`0.3.0` in Gate 3 (ADR 0007 made `EffectiveWindow.jurisdiction_time_zone` optional); `0.3.0`→`0.4.0` at the start of Gate 4 Phase 1 (ADR 0013 reconciled `RevocationPolicy` with spec § 15: `HardStop` / `FinishPinned` / `AuditOnly`). |
-| `codec_version` | `postcard-1` | Wire codec (ADR 0002). |
-| `canonicalization_version` | `ke-canon-4` | This profile's version. `ke-canon-1`→`ke-canon-2` in Gate 2 (ADR 0006 changed the `effective_window` byte layout); `ke-canon-2`→`ke-canon-3` in Gate 3 (ADR 0007 added an `Option` presence byte for `jurisdiction_time_zone`); `ke-canon-3`→`ke-canon-4` at the start of Gate 4 Phase 1 (ADR 0013 re-named and re-ordered the `RevocationPolicy` variants to § 15 order, changing the canonical varint discriminant layout). |
+| `ir_schema_version` | `0.5.0` | IR shape version (semver). `0.1.0`→`0.2.0` in Gate 2 (ADR 0006 made `effective_window` optional); `0.2.0`→`0.3.0` in Gate 3 (ADR 0007 made `EffectiveWindow.jurisdiction_time_zone` optional); `0.3.0`→`0.4.0` at the start of Gate 4 Phase 1 (ADR 0013 reconciled `RevocationPolicy` with spec § 15: `HardStop` / `FinishPinned` / `AuditOnly`); `0.4.0`→`0.5.0` when the `IntentSpec` artifact kind and the polymorphic `ArtifactPayload` were added (new `IntentSpecIR` type + payload variant, ADR 0021). |
+| `codec_version` | `postcard-1` | Wire codec (ADR 0002). Unchanged by ADR 0021. |
+| `canonicalization_version` | `ke-canon-5` | This profile's version. `ke-canon-1`→`ke-canon-2` in Gate 2 (ADR 0006 changed the `effective_window` byte layout); `ke-canon-2`→`ke-canon-3` in Gate 3 (ADR 0007 added an `Option` presence byte for `jurisdiction_time_zone`); `ke-canon-3`→`ke-canon-4` at the start of Gate 4 Phase 1 (ADR 0013 re-named and re-ordered the `RevocationPolicy` variants to § 15 order, changing the canonical varint discriminant layout); `ke-canon-4`→`ke-canon-5` when the envelope payload became the sum type `ArtifactPayload` (ADR 0021 — a sum type prepends a discriminant to the payload bytes, so the envelope layout changed for every artifact; all goldens regenerated). |
+
+### Envelope payload (ADR 0021, canon-5)
+
+The artifact envelope's payload is the externally-tagged sum type
+`ArtifactPayload` (`crates/ke-artifact/src/artifact.rs`):
+`Rules(Vec<RuleIR>)` for the `RegimePack` kind, `IntentSpec(IntentSpecIR)`
+for the `IntentSpec` kind. Kind↔payload agreement is enforced at decode
+(a `RegimePack` manifest with an `IntentSpec` payload is non-canonical and
+refused), which is what makes `artifact_kind` on the provenance trustworthy.
+The remaining kinds (EquivalenceMatrix / TestCorpus / PolicyBundle) gain
+variants when they gain payloads — each is a further canon bump.
 
 **Any change to the byte layout — including reordering a struct field — is a
 breaking change that requires bumping `canonicalization_version`.**

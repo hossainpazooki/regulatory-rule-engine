@@ -53,7 +53,7 @@ The article's central remedy — register each AI actor, give it credentials and
 
 - **Desirable.** Auditors and security reviewers get the trust chain in the vocabulary they expect, mapped 1:1 to accepted mechanisms, with no new code. The COMPASS federation boundary gains a normative home instead of living only in a local brief, so the post-Gate-5 rewire has an ADR to satisfy. The "valid crypto ≠ current authority" and "fail-closed on unknown" rules are stated once, canonically.
 - **Cost / undesirable.** One more ADR to keep consistent with 0009/0013/0017/0018 if those evolve. The framing table is documentation that must not drift from the code it describes (mitigated: it points at the accepted ADRs rather than restating their mechanics).
-- **Follow-ups.** (a) CLAUDE.md's open-decisions table still lists "Expert key authority → Gate 4" as open — stale since ADR 0009; correct it in a separate docs change. (b) The normative Decision 2 should be cited by the COMPASS rewire acceptance (`dev/briefs/compass-consumer-state-and-gate5-rewire.md` § 3) and by 5c/5d frontend-cutover acceptance.
+- **Follow-ups.** (a) CLAUDE.md's open-decisions table still lists "Expert key authority → Gate 4" as open — stale since ADR 0009; correct it in a separate docs change. *(Done — CLAUDE.md now shows it "✅ Resolved — ADR-0009"; noted 2026-07-15.)* (b) The normative Decision 2 should be cited by the COMPASS rewire acceptance (`dev/briefs/compass-consumer-state-and-gate5-rewire.md` § 3) and by 5c/5d frontend-cutover acceptance.
 
 ## Alternatives considered
 

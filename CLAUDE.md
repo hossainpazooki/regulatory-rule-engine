@@ -27,10 +27,15 @@ in `docs/adr/` to reconcile.
   `institutional-defi-platform-api/src/rules/data/` via `scripts/bootstrap.sh`
 - a registry of signed, content-addressed artifacts (Gate 4 onwards)
 
-**COMPASS** (`cross-border-compliance-navigator`) is the **consumer**. It
+**COMPASS** (`cross-border-compliance-navigator`) is the **primary consumer**. It
 verifies hash, signatures, registry state, and typed expert attestations
 in-browser via the `@platform/atlas-artifact` WASM verifier — consumer-only, it
 does not sign/publish or execute the rule engine, and does not link the compiler.
+Two further ADR-0019-disciplined consumers landed 2026-07: the **treasury
+intent resolver** (`treasury-intent-controller/scorer`, folds
+`ke_artifact_py.verify_artifact` per hash — ADR-0021/0022) and the **graph
+exporter** (`ke graph export`, read-only derived Neo4j view — ADR-0023). All
+three: verified + `Published` only, fail-closed on `unknown`, no authority.
 `institutional-defi-platform-api` is **decoupled** (ADR-0017, 2026-06-15) and is
 not in the ATLAS artifact path; the consumer integration is gated post-Gate-5.
 The differential/equivalence harnesses still use the platform checkout as the
@@ -171,9 +176,11 @@ whose row is still **Open**.
 | Frontend visual regression tooling | Gate 5 (5d) | ⬜ Open — §21.8; pick before the 5d visual-parity gate |
 | Package-manager migration (pnpm) | not blocking | ⬜ Open — needs ADR if pursued |
 
-The COMPASS federated-consumer trust boundary (how the consumer re-derives trust,
+The federated-consumer trust boundary (how a consumer re-derives trust,
 treats non-`published` as blocked, fails closed on `unknown`) is recorded in
-**ADR-0019 (Accepted)** — gates the post-Gate-5 COMPASS rewire, not an ATLAS gate.
+**ADR-0019 (Accepted)** — originally gating the post-Gate-5 COMPASS rewire, it
+now governs all three consumers (COMPASS, the tic treasury resolver, and the
+ADR-0023 graph exporter).
 
 Resolved in v3.1: registry persistence (S3-backed v1) and `ke-artifact-py`
 package index (S3-backed PEP 503 simple index).
