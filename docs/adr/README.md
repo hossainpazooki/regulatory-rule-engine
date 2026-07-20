@@ -77,7 +77,7 @@ Derived views (no gate — substrate untouched):
 
 Gate 6 (reconciled — the platform-cutover spec scope is unmeetable post-ADR-0017):
 
-- [0024 Gate-6 scope reconciliation: revocation runtime-decision + registry surface completion; platform cutover deferred](0024-gate6-scope-reconciliation.md) — spec § 19 (Gate 6), § 15, § 14, § 18, § 21 — **Proposed** (acceptance = PR merge, per the 0023 precedent; authored 2026-07-19 from [`dev/briefs/gate-6-plan-and-next-session-seed.md`](../../dev/briefs/gate-6-plan-and-next-session-seed.md); accepts 0015 in the same change; delivers the ADR-0009 § 4 reason-class → policy decision as pure `ke_core::revocation` — stricter-of(floor, configured), floor never lowerable — wired into `ke revoke --reason-class` with the legacy path byte-compatible; completes `serve /resolve?regime=&effective=`; surfaces the revocation sidecar on `ResolutionRecord`+`VerifyResponse` exactly when Revoked; verify stays fail-closed; platform Temporal pinning / Python KE removal / Rust Temporal worker deferred — no orchestrator consumer exists)
+- [0024 Gate-6 scope reconciliation: revocation runtime-decision + registry surface completion; platform cutover deferred](0024-gate6-scope-reconciliation.md) — spec § 19 (Gate 6), § 15, § 14, § 18, § 21 — **Accepted** (merged 2026-07-19, PR #17 — acceptance was the merge itself, per the 0023 precedent; authored 2026-07-19 from [`dev/briefs/gate-6-plan-and-next-session-seed.md`](../../dev/briefs/gate-6-plan-and-next-session-seed.md); accepts 0015 in the same change; delivers the ADR-0009 § 4 reason-class → policy decision as pure `ke_core::revocation` — stricter-of(floor, configured), floor never lowerable — wired into `ke revoke --reason-class` with the legacy path byte-compatible; completes `serve /resolve?regime=&effective=`; surfaces the revocation sidecar on `ResolutionRecord`+`VerifyResponse` exactly when Revoked; verify stays fail-closed; platform Temporal pinning / Python KE removal / Rust Temporal worker deferred — no orchestrator consumer exists)
 
 Anticipated (later gates — numbers assigned when authored):
 
@@ -138,7 +138,7 @@ mirror-image of 0021's blast radius.
 
 Reading order for a newcomer: 0002 → 0016 → 0019 → 0021 → 0023 — codec, then
 verify surface, then trust discipline, then payload polymorphism, then the
-first derived view. The still-open threads: 0024 (Proposed; Gate-6
-reconciliation, accepts on merge — it also closed 0015, which sat Proposed
-from 2026-06-11 until its channels either shipped or were formally deferred)
-and 0005's Proposed shared-scenario amendment.
+first derived view. The lone still-open thread: 0005's Proposed
+shared-scenario amendment. (0024 Accepted with its 2026-07-19 merge, PR #17 —
+closing 0015 with it, which had sat Proposed from 2026-06-11 until its
+channels either shipped or were formally deferred.)
