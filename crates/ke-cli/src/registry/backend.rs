@@ -152,6 +152,11 @@ pub struct RevocationRecord {
     /// Derived severity: `"high"` for `AuditOnly` (§ 15 emits a high-severity
     /// audit event), else `"normal"`.
     pub severity: String,
+    /// Why the artifact was revoked (ADR-0009 § 4; recorded since Gate 6/
+    /// ADR-0024). Absent on legacy records and on the `--policy`-only path —
+    /// skipped when serializing so legacy sidecar JSON stays shape-identical.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason_class: Option<ke_core::revocation::RevocationReasonClass>,
 }
 
 /// A tag pointer object (`tags/<env>/<tag>.json`): which artifact hash the tag

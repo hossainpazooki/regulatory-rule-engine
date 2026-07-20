@@ -310,6 +310,12 @@ pub struct ResolutionRecord {
     pub attestation_policy_version: String,
     /// The unix timestamp resolution ran at (caller-supplied).
     pub resolution_timestamp_unix: u64,
+    /// The revocation sidecar, present exactly when the resolved state is
+    /// `Revoked` (Gate 6/ADR-0024): the inputs a consumer feeds to
+    /// `ke_core::revocation::revocation_decision`. Informational — resolve
+    /// still reports the state, and `verify` stays fail-closed regardless.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revocation: Option<backend::RevocationRecord>,
 }
 
 /// Resolve a [`Selector`] against a backend to a `(content_hash,
@@ -394,6 +400,14 @@ pub fn resolve<B: RegistryBackend>(
     // (ADR 0012 §5 erratum — never blake3(raw .kew)).
     let manifest = verify_resolved_artifact(backend, &hash, &selector_desc)?;
 
+    // Surface the revocation sidecar exactly when the state is Revoked
+    // (Gate 6/ADR-0024) — read-only; the record informs, it never gates.
+    let revocation = if state == LifecycleState::Revoked {
+        backend.read_revocation(&hash)?
+    } else {
+        None
+    };
+
     let record = ResolutionRecord {
         artifact_hash: hash,
         registry_state_at_resolution: state,
@@ -401,6 +415,7 @@ pub fn resolve<B: RegistryBackend>(
         selector_desc,
         attestation_policy_version: manifest.attestation_policy_version,
         resolution_timestamp_unix: now_unix,
+        revocation,
     };
     Ok((hash, record))
 }

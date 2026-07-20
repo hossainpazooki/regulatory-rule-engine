@@ -1,8 +1,21 @@
 # 0015. Temporal orchestration ownership: orchestration stays Python, the work moves to Rust
 
-**Status:** Proposed
+**Status:** Accepted (Gate 6 closeout, 2026-07-19 — see ADR-0024)
 **Date:** 2026-06-11
 **Spec references:** § 2 (non-goals), § 14, § 15, § 19 (Gate 6)
+
+> **Acceptance note (2026-07-19).** Accepted as part of the Gate-6 scope
+> reconciliation (ADR-0024). Two of the three channels below shipped as
+> written (channel 1: `ke-artifact-py`, Gate 4; channel 2: `ke-cli serve`,
+> Gate 5) and the no-Rust-Temporal-worker non-goal has held throughout.
+> Channel 3 (the platform pinning startup activity) is **deferred, not
+> abandoned**: ADR-0017 (2026-06-15, after this ADR was drafted) decoupled
+> `institutional-defi-platform-api`, so no Temporal orchestrator consumer
+> currently exists to host it. The registry semantics that activity would
+> consume (ByRegime/effective-date resolve, revocation record surfacing) are
+> delivered consumer-agnostically instead — see ADR-0024. The ownership
+> decision itself — orchestration never enters this repo — is unchanged and
+> is what this acceptance ratifies.
 
 > This ADR **restates existing spec policy** so it is citable from gate briefs
 > and platform-repo work; it does not make a new decision. The decision below

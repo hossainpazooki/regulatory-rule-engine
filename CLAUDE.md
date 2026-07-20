@@ -170,7 +170,7 @@ whose row is still **Open**.
 | T2/T3 production policy | Gate 4 | ✅ Resolved — ADR-0011 (Accepted) |
 | T2/T3 sidecar deployment | Gate 4 | ✅ Resolved — ADR-0011 (Accepted) |
 | Trusted timestamp authority | Gate 4 | ✅ Resolved — ADR-0010 (Accepted) |
-| Revocation behavior | Gate 6 | ✅ Policy decided — ADR-0009 §4 + ADR-0013 (Accepted); runtime enforcement at Gate 6 |
+| Revocation behavior | Gate 6 | ✅ Resolved — ADR-0009 §4 policy operationalized as `ke_core::revocation::revocation_decision` (stricter-of floor/configured), recorded via `revoke --reason-class`, surfaced at `/resolve`+`/verify` (ADR-0024); orchestration-side *enforcement* deferred until a real orchestrator consumer exists (ref ADR-0024 deferral) |
 | Legal source text storage | document source coverage (Gate 2+ if promoted) | ⬜ Open |
 | Review UI follow-up scope | Gate 5 | ⬜ Open — minimum scope unblocked; counterexamples/semantic-diff need promotion |
 | Frontend visual regression tooling | Gate 5 (5d) | ⬜ Open — §21.8; pick before the 5d visual-parity gate |

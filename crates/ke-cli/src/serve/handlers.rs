@@ -54,19 +54,33 @@ pub fn health() -> ServeResult {
     json_response(&HealthResponse::default())
 }
 
-/// `GET /resolve?hash=<64hex>` or `?env=<e>&tag=<t>` →
+/// `GET /resolve?hash=<64hex>`, `?env=<e>&tag=<t>`, or
+/// `?regime=<r>&effective=<YYYY-MM-DD>[&env=<e>]` (Gate 6/ADR-0024) →
 /// 200 [`crate::registry::ResolutionRecord`] JSON.
 ///
 /// Thin adapter: builds a [`Selector`] from the query and delegates to
-/// [`crate::registry::resolve`] against the CANONICAL backend. `RegistryError`
-/// maps to status via [`ServeError::from`] (NotFound→404, Ambiguous→409,
-/// BadHashHex→400).
+/// [`crate::registry::resolve`] against the CANONICAL backend. The regime form
+/// mirrors the CLI's `query --regime --effective` (same
+/// [`crate::cli::parse_date`] grammar, same `env` default `local`). Pure read,
+/// non-authoritative. `RegistryError` maps to status via [`ServeError::from`]
+/// (NotFound→404, Ambiguous→409, BadHashHex→400).
 pub fn resolve(state: &AppState, query: Option<&str>) -> ServeResult {
     let query = query.unwrap_or("");
     let selector = if let Some(hash_hex) = query_param(query, "hash") {
         let hash =
             hash_from_hex(hash_hex).map_err(|e| ServeError::bad_request(format!("hash: {e}")))?;
         Selector::ByHash(hash)
+    } else if let Some(regime_id) = query_param(query, "regime") {
+        let effective = query_param(query, "effective").ok_or_else(|| {
+            ServeError::bad_request("`?regime=` requires `&effective=YYYY-MM-DD`")
+        })?;
+        let effective = crate::cli::parse_date(effective)
+            .map_err(|e| ServeError::bad_request(format!("effective: {e}")))?;
+        Selector::ByRegime {
+            regime_id: regime_id.to_string(),
+            effective,
+            env: query_param(query, "env").unwrap_or("local").to_string(),
+        }
     } else if let (Some(env), Some(tag)) = (query_param(query, "env"), query_param(query, "tag")) {
         Selector::ByTag {
             env: env.to_string(),
@@ -74,7 +88,8 @@ pub fn resolve(state: &AppState, query: Option<&str>) -> ServeResult {
         }
     } else {
         return Err(ServeError::bad_request(
-            "resolve requires either `?hash=<64hex>` or `?env=<e>&tag=<t>`",
+            "resolve requires `?hash=<64hex>`, `?env=<e>&tag=<t>`, or \
+             `?regime=<r>&effective=<YYYY-MM-DD>`",
         ));
     };
 
@@ -108,11 +123,19 @@ pub fn verify(state: &AppState, body: &str) -> ServeResult {
         Verdict::Verified => ("verified".to_string(), None),
         Verdict::Rejected(reason) => ("rejected".to_string(), Some(render_rejection(&reason))),
     };
+    // Surface the revocation sidecar exactly when the state is Revoked
+    // (Gate 6/ADR-0024) — informational; the verdict above already rejected.
+    let revocation = if outcome.registry_state == ke_artifact::RegistryStatus::Revoked {
+        state.backend.read_revocation(&hash)?
+    } else {
+        None
+    };
     json_response(&VerifyResponse {
         verdict,
         rejection,
         provenance: outcome.provenance,
         registry_state: outcome.registry_state,
+        revocation,
     })
 }
 

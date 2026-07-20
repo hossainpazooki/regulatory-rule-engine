@@ -148,8 +148,15 @@ pub enum Command {
         #[arg(long)]
         hash: String,
         /// Recorded revocation policy: hardstop | finishpinned | auditonly.
+        /// Optional with --reason-class (which supplies a floor); may only
+        /// raise strictness above that floor, never lower it (ADR-0009 § 4).
         #[arg(long)]
-        policy: String,
+        policy: Option<String>,
+        /// [Gate 6 · ADR-0024] Why the artifact is revoked: key_compromise |
+        /// legal_invalidity | routine_supersession | advisory. Recorded policy
+        /// = stricter-of(class floor, --policy).
+        #[arg(long = "reason-class")]
+        reason_class: Option<String>,
         /// Optional human reason recorded in the sidecar.
         #[arg(long)]
         reason: Option<String>,
@@ -326,8 +333,10 @@ fn now_unix(cli: &Cli) -> Result<u64> {
     Ok(secs)
 }
 
-/// Parse `YYYY-MM-DD` into a [`ke_core::ir::JurisdictionDate`].
-fn parse_date(s: &str) -> Result<ke_core::ir::JurisdictionDate> {
+/// Parse `YYYY-MM-DD` into a [`ke_core::ir::JurisdictionDate`]. Shared with the
+/// serve `/resolve?regime=&effective=` handler (Gate 6) — one date grammar for
+/// both surfaces.
+pub(crate) fn parse_date(s: &str) -> Result<ke_core::ir::JurisdictionDate> {
     let parts: Vec<&str> = s.split('-').collect();
     if parts.len() != 3 {
         anyhow::bail!("effective date must be YYYY-MM-DD, got {s:?}");
@@ -506,20 +515,28 @@ fn dispatch(cli: &Cli) -> Result<i32> {
         Command::Revoke {
             hash,
             policy,
+            reason_class,
             reason,
         } => {
             let backend = open_backend(cli)?;
             let now = now_unix(cli)?;
             let args = revoke::RevokeArgs {
                 artifact_hash: crate::registry::hash_from_hex(hash)?,
-                policy: revoke::parse_revocation_policy(policy)?,
+                policy: policy
+                    .as_deref()
+                    .map(revoke::parse_revocation_policy)
+                    .transpose()?,
+                reason_class: reason_class
+                    .as_deref()
+                    .map(revoke::parse_reason_class)
+                    .transpose()?,
                 reason: reason.as_deref(),
                 now_unix: now,
             };
             let outcome = revoke::run(&backend, &args)?;
             println!(
-                "revoke: hash={} state={:?} severity={}",
-                hash, outcome.final_state, outcome.severity
+                "revoke: hash={} state={:?} policy={:?} severity={}",
+                hash, outcome.final_state, outcome.recorded_policy, outcome.severity
             );
             Ok(0)
         }

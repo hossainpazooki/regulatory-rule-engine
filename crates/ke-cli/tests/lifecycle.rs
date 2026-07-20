@@ -248,7 +248,8 @@ fn full_lifecycle_happy_path() {
         &backend,
         &revoke::RevokeArgs {
             artifact_hash: hash,
-            policy: RevocationPolicy::HardStop,
+            policy: Some(RevocationPolicy::HardStop),
+            reason_class: None,
             reason: Some("superseded"),
             now_unix: NOW,
         },
@@ -368,7 +369,8 @@ fn rollback_to_published_ok_and_to_revoked_ineligible() {
         &backend,
         &revoke::RevokeArgs {
             artifact_hash: hash,
-            policy: RevocationPolicy::HardStop,
+            policy: Some(RevocationPolicy::HardStop),
+            reason_class: None,
             reason: None,
             now_unix: NOW,
         },
@@ -414,7 +416,8 @@ fn revoke_auditonly_records_high_severity() {
         &backend,
         &revoke::RevokeArgs {
             artifact_hash: hash,
-            policy: RevocationPolicy::AuditOnly,
+            policy: Some(RevocationPolicy::AuditOnly),
+            reason_class: None,
             reason: Some("audit"),
             now_unix: NOW,
         },
@@ -472,7 +475,8 @@ fn published_and_revoked_event_heads_are_pinned() {
         &backend,
         &revoke::RevokeArgs {
             artifact_hash: hash,
-            policy: RevocationPolicy::HardStop,
+            policy: Some(RevocationPolicy::HardStop),
+            reason_class: None,
             reason: None,
             now_unix: NOW,
         },

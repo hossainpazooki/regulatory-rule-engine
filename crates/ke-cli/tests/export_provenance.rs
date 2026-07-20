@@ -176,7 +176,8 @@ fn export_provenance_tracks_published_then_revoked() {
         &backend,
         &revoke::RevokeArgs {
             artifact_hash: hash,
-            policy: RevocationPolicy::HardStop,
+            policy: Some(RevocationPolicy::HardStop),
+            reason_class: None,
             reason: Some("superseded"),
             now_unix: NOW,
         },

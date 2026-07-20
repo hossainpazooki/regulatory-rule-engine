@@ -39,7 +39,7 @@ Start a seeded server with `scripts/serve-published-registry.sh`.
 | Method | Path | Request | Success | Notes |
 |--------|------|---------|---------|-------|
 | GET | `/healthz` | — | `{ok, surface}` | liveness + non-authoritative banner |
-| GET | `/resolve` | `?hash=<64hex>` **or** `?env=<e>&tag=<t>` | `ResolutionRecord` | 404 NotFound / 409 Ambiguous / 400 bad hash |
+| GET | `/resolve` | `?hash=<64hex>` **or** `?env=<e>&tag=<t>` **or** `?regime=<r>&effective=<YYYY-MM-DD>[&env=<e>]` | `ResolutionRecord` | 404 NotFound / 409 Ambiguous / 400 bad hash or bad/missing effective date |
 | POST | `/verify` | `{hash:<64hex>, env?, policy?}` | `VerifyResponse` | **HTTP stays 200 even when rejected** |
 | POST | `/compile/preview` | `{source:<yaml>}` | `{rules, report}` | non-authoritative; 422 on compile error |
 | POST | `/dry-run` | `{source\|hash, facts}` | `{evaluations}` | exactly one of source/hash; 422 on compile/facts error |
@@ -49,6 +49,38 @@ Start a seeded server with `scripts/serve-published-registry.sh`.
 Error bodies are uniform: `{error:<kind>, detail:<msg>}` (kinds: `not_found`,
 `ambiguous`, `bad_hash_hex`, `compile_error`, `facts_error`, `internal`).
 
+The `regime` resolve form (Gate 6/ADR-0024) is the HTTP mirror of the CLI's
+`query --regime --effective`: it resolves the single **Published** artifact for
+the regime whose effective window `[from, to)` contains the date. Because it
+intersects with `Published`, a revoked artifact is never resolvable by regime —
+the revocation block below appears only on by-hash/by-tag resolves.
+
+### Revocation block (Gate 6/ADR-0024)
+
+When — and only when — the resolved/verified artifact's registry state is
+`Revoked`, both `ResolutionRecord` and `VerifyResponse` carry an additional
+`revocation` object: the registry's `revocations/<hash>.json` sidecar verbatim.
+
+```jsonc
+"revocation": {
+  "policy": "HardStop" | "FinishPinned" | "AuditOnly",   // recorded policy
+  "reason_class": "KeyCompromise" | "LegalInvalidity"    // ADR-0009 §4; absent
+                | "RoutineSupersession" | "Advisory",    //   on legacy records
+  "reason": "<human reason>",                             // optional
+  "event_ref": "revoked@seq<N>",
+  "severity": "high" | "normal"
+}
+```
+
+**Informational, never a loosening.** `/verify` already rejects any
+non-`Published` state (fail-closed, ADR-0019) — the block exists so an
+orchestrating consumer can apply
+`ke_core::revocation::revocation_decision(reason_class, configured_policy)`
+(stricter-of floor and configured, ADR-0009 §4) to decide *how* to wind down:
+`HardStop` fail now / `FinishPinned` drain / `AuditOnly` log loudly. No such
+orchestrator consumer exists yet (ADR-0024 records this honestly); the surface
+is groundwork.
+
 ### `/verify` response (`VerifyResponse`)
 
 ```jsonc
@@ -56,7 +88,8 @@ Error bodies are uniform: `{error:<kind>, detail:<msg>}` (kinds: `not_found`,
   "verdict": "verified" | "rejected",
   "rejection": "<human reason>",          // present only when rejected
   "provenance": { /* canonical ArtifactProvenance — see below */ },
-  "registry_state": "Published" | "Deprecated" | "Revoked" | "Unknown"
+  "registry_state": "Published" | "Deprecated" | "Revoked" | "Unknown",
+  "revocation": { /* present only when Revoked — see "Revocation block" */ }
 }
 ```
 
