@@ -75,15 +75,18 @@ Derived views (no gate — substrate untouched):
 
 - [0023 Graph export — a verify-gated, derived read-only view of the artifact substrate (Neo4j)](0023-graph-export-derived-view.md) — spec § 5, § 6, § 12, § 14 — **Accepted** (merged 2026-07-15, PR #16 — the acceptance criterion was the merge itself; built 2026-07-14, trigger fired; PR records a fresh 187/0 + fmt/clippy + harness-GREEN re-verification; exporter is the third ADR-0019-disciplined consumer after COMPASS and the tic resolver — verified+`published` only, fail-closed, re-addressed via new `list_addresses`; `CONFLICTS_WITH` by deterministic recompute of the unpersisted T4 report, pinned by the tool-generated `fixtures/graph/expected_edges.json`; build-time schema amendments recorded in the ADR: `Regime` not `Jurisdiction`, `SUPERSEDES`/`Premise` dropped (no recorded source), article-granular `CITES`; `ke graph export|oracle-*` + `scripts/graph-differential.sh` ran GREEN live `passed=11 failed=0` — both Cypher↔Rust differentials byte-equal under vacuity guards, both negative controls detected; workspace 187/0, fmt/clippy clean; not a rewire of the off-path `GraphVisualizer` page — ADR-0020 stands)
 
+Gate 6 (reconciled — the platform-cutover spec scope is unmeetable post-ADR-0017):
+
+- [0024 Gate-6 scope reconciliation: revocation runtime-decision + registry surface completion; platform cutover deferred](0024-gate6-scope-reconciliation.md) — spec § 19 (Gate 6), § 15, § 14, § 18, § 21 — **Proposed** (acceptance = PR merge, per the 0023 precedent; authored 2026-07-19 from [`dev/briefs/gate-6-plan-and-next-session-seed.md`](../../dev/briefs/gate-6-plan-and-next-session-seed.md); accepts 0015 in the same change; delivers the ADR-0009 § 4 reason-class → policy decision as pure `ke_core::revocation` — stricter-of(floor, configured), floor never lowerable — wired into `ke revoke --reason-class` with the legacy path byte-compatible; completes `serve /resolve?regime=&effective=`; surfaces the revocation sidecar on `ResolutionRecord`+`VerifyResponse` exactly when Revoked; verify stays fail-closed; platform Temporal pinning / Python KE removal / Rust Temporal worker deferred — no orchestrator consumer exists)
+
 Anticipated (later gates — numbers assigned when authored):
 
-- **ADR-0024 (planned, not yet authored)** — Gate-6 scope reconciliation: revocation runtime-decision (`HardStop`/`FinishPinned`/`AuditOnly`) surfaced at `/resolve`+`/verify`. Planned in [`dev/briefs/gate-6-plan-and-next-session-seed.md`](../../dev/briefs/gate-6-plan-and-next-session-seed.md); its original "ADR-0021" number was consumed by the IntentSpec track and renumbered 2026-07-13.
 - Package-manager choice (spec § 21.9) — only if pnpm is later adopted
 - Frontend visual-regression tooling (spec § 21.8) — Playwright self-hosted chosen for 5d as **experimental / non-gating** (Linux-CI-canonical baselines); no formal ADR unless it is promoted to a required gate
 
 ## How the ADRs tie together
 
-The 23 accepted-or-proposed decisions form five clusters, drawn from which
+The 24 accepted-or-proposed decisions form five clusters, drawn from which
 ADR cites which (spot-checked against the files, not asserted as an
 exhaustive graph). One node is genuinely isolated: **0004** (source-span
 coverage) is cited by no other ADR — it binds through spec § 11 and Gate 2
@@ -106,7 +109,9 @@ contract) hang off them — and 0008's Gate-3 execution-equivalence boundary is
 carried into this cluster by 0010 and 0012, which both cite it; **0016**
 turns the whole chain into a consumer-agnostic `verify_artifact` fold with
 `ArtifactProvenance` as its export — the single surface every consumer below
-calls.
+calls. **0024** (Gate 6) closes the chain's last open loop: it turns 0009 § 4's
+reason-class table into an executable decision and surfaces the 0013 revocation
+record at the resolve/verify boundary — without touching what 0016 verifies.
 
 **3. The consumer boundary (0017–0020).** 0017 names the consumer (COMPASS,
 platform-api decoupled) → 0018 shapes the serve transport → **0019 states the
@@ -133,6 +138,7 @@ mirror-image of 0021's blast radius.
 
 Reading order for a newcomer: 0002 → 0016 → 0019 → 0021 → 0023 — codec, then
 verify surface, then trust discipline, then payload polymorphism, then the
-first derived view. The still-open threads: 0015 (Proposed; restates spec
-policy, real work deferred to planned ADR-0024) and 0005's Proposed
-shared-scenario amendment.
+first derived view. The still-open threads: 0024 (Proposed; Gate-6
+reconciliation, accepts on merge — it also closed 0015, which sat Proposed
+from 2026-06-11 until its channels either shipped or were formally deferred)
+and 0005's Proposed shared-scenario amendment.
