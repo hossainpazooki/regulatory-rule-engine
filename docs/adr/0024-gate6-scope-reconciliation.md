@@ -1,6 +1,6 @@
 # 0024. Gate-6 scope reconciliation: revocation runtime-decision + registry surface completion; platform cutover deferred
 
-**Status:** Proposed (acceptance = PR merge, per the ADR-0023 precedent)
+**Status:** **Accepted — merged to main 2026-07-19 (PR #17, `7f2c99a`)**; acceptance = PR merge, per the Proposed-era criterion (the ADR-0023 precedent). ADR-0015 Accepted in the same merge. Gate 6 closed. Evidence at merge: workspace + `test-keys` 207/0, `lifecycle-smoke.sh` PASS (whole-tree byte-diff), live serve E2E 14/0 — see `docs/gate-6-implementation-log.md`.
 **Date:** 2026-07-19
 **Spec references:** § 19 (Gate 6 acceptance), § 15 (revocation behavior, pinning), § 14 (cross-repo integration), § 18 (audit), § 21 (open decisions: revocation behavior)
 **Relates to:** ADR-0009 § 4 (reason-class → policy table), ADR-0013 (revocation-policy reconciliation), ADR-0015 (Temporal orchestration ownership — Accepted with this ADR), ADR-0017 (platform-api decoupled), ADR-0019 (fail-closed consumer trust boundary), ADR-0012 (event shape frozen; sidecars live beside the log)
