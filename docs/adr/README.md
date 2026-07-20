@@ -79,6 +79,10 @@ Gate 6 (reconciled — the platform-cutover spec scope is unmeetable post-ADR-00
 
 - [0024 Gate-6 scope reconciliation: revocation runtime-decision + registry surface completion; platform cutover deferred](0024-gate6-scope-reconciliation.md) — spec § 19 (Gate 6), § 15, § 14, § 18, § 21 — **Accepted** (merged 2026-07-19, PR #17 — acceptance was the merge itself, per the 0023 precedent; authored 2026-07-19 from [`dev/briefs/gate-6-plan-and-next-session-seed.md`](../../dev/briefs/gate-6-plan-and-next-session-seed.md); accepts 0015 in the same change; delivers the ADR-0009 § 4 reason-class → policy decision as pure `ke_core::revocation` — stricter-of(floor, configured), floor never lowerable — wired into `ke revoke --reason-class` with the legacy path byte-compatible; completes `serve /resolve?regime=&effective=`; surfaces the revocation sidecar on `ResolutionRecord`+`VerifyResponse` exactly when Revoked; verify stays fail-closed; platform Temporal pinning / Python KE removal / Rust Temporal worker deferred — no orchestrator consumer exists)
 
+Production readiness (corporate agentic pivot — `dev/briefs/2026-07-21-intent-authoring-planes-scope.md`):
+
+- [0025 Production key authority: custody split by signer role, IdP-backed tenant attesters, compromise scope](0025-production-key-authority.md) — spec § 20, § 21.1, § 21.6, § 10, § 9 — **Proposed** (authored 2026-07-21; closes ADR-0009's two post-acceptance open items: custody decided per role — registry root/compiler on KMS/HSM per 0009 § 3, tenant attesters IdP-backed with hardware-token alternative; compromise = retroactive for trust, prospective for executed history with exposure enumerated via the 0023 graph exporter; non-local policy REJECTS test keys — the ADR's one code deliverable; ed25519 pinned, custody adapts to scheme never the reverse; depends on ADR-0010 TSA operationalization, named not solved)
+
 Anticipated (later gates — numbers assigned when authored):
 
 - Package-manager choice (spec § 21.9) — only if pnpm is later adopted
