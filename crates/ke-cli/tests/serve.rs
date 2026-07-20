@@ -664,3 +664,159 @@ fn http_events_is_event_stream() {
         "SSE feed emits a first `data:` frame; got: {head}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Gate 6 (ADR-0024): /resolve?regime=&effective=&env= + revocation surfacing
+// ---------------------------------------------------------------------------
+
+/// `GET /resolve?regime=<r>&effective=<YYYY-MM-DD>&env=<e>` resolves the single
+/// Published artifact whose effective window contains the date — the HTTP
+/// mirror of the CLI's `query --regime --effective` (Selector::ByRegime).
+#[cfg(feature = "test-keys")]
+#[test]
+fn http_resolve_by_regime_effective() {
+    let tmp = TempDir::new("http_resolve_regime");
+    let (_b, hash) = published_registry(&tmp);
+    let server = TestServer::start(&tmp.root());
+
+    let resp = server.get("/resolve?regime=mica_2023&effective=2025-01-01&env=staging");
+    assert_eq!(resp.status, 200, "body: {:?}", resp.body);
+    let body = resp.json();
+    let expected: Vec<serde_json::Value> = hash.iter().map(|b| serde_json::json!(b)).collect();
+    assert_eq!(
+        body["artifact_hash"],
+        serde_json::Value::Array(expected),
+        "resolve-by-regime returns the canonical published hash"
+    );
+    assert_eq!(body["registry_state_at_resolution"], "Published");
+}
+
+/// `regime` without a parseable `effective` date is a 400, not a guess.
+#[test]
+fn http_resolve_regime_requires_effective_date() {
+    let tmp = TempDir::new("http_resolve_regime_noeff");
+    let server = TestServer::start(&tmp.root());
+
+    let resp = server.get("/resolve?regime=mica_2023");
+    assert_eq!(resp.status, 400, "missing effective: {:?}", resp.body);
+
+    let resp = server.get("/resolve?regime=mica_2023&effective=not-a-date");
+    assert_eq!(resp.status, 400, "malformed effective: {:?}", resp.body);
+}
+
+/// An unknown regime is a 404 (NotFound), same as the CLI query path.
+#[cfg(feature = "test-keys")]
+#[test]
+fn http_resolve_unknown_regime_is_404() {
+    let tmp = TempDir::new("http_resolve_regime_unknown");
+    let (_b, _hash) = published_registry(&tmp);
+    let server = TestServer::start(&tmp.root());
+
+    let resp = server.get("/resolve?regime=no_such_regime&effective=2025-01-01&env=staging");
+    assert_eq!(resp.status, 404, "body: {:?}", resp.body);
+}
+
+/// Resolving a REVOKED artifact by hash carries the revocation sidecar —
+/// `revocation.reason_class` + `revocation.policy` — giving a consumer the
+/// inputs to `revocation_decision` without loosening anything.
+#[cfg(feature = "test-keys")]
+#[test]
+fn http_resolve_revoked_artifact_carries_revocation_block() {
+    use ke_cli::commands::revoke;
+    use ke_core::revocation::RevocationReasonClass;
+
+    let tmp = TempDir::new("http_resolve_revoked");
+    let (backend, hash) = published_registry(&tmp);
+    revoke::run(
+        &backend,
+        &revoke::RevokeArgs {
+            artifact_hash: hash,
+            policy: None,
+            reason_class: Some(RevocationReasonClass::KeyCompromise),
+            reason: Some("expert key leaked"),
+            now_unix: NOW,
+        },
+    )
+    .expect("revoke");
+    let server = TestServer::start(&tmp.root());
+
+    let resp = server.get(&format!("/resolve?hash={}", hash_hex(&hash)));
+    assert_eq!(resp.status, 200, "body: {:?}", resp.body);
+    let body = resp.json();
+    assert_eq!(body["registry_state_at_resolution"], "Revoked");
+    assert_eq!(body["revocation"]["reason_class"], "KeyCompromise");
+    assert_eq!(body["revocation"]["policy"], "HardStop");
+}
+
+/// A Published artifact's resolve record carries NO `revocation` key at all —
+/// the block is present exactly when the artifact is revoked.
+#[cfg(feature = "test-keys")]
+#[test]
+fn http_resolve_published_artifact_has_no_revocation_key() {
+    let tmp = TempDir::new("http_resolve_norev");
+    let (_b, hash) = published_registry(&tmp);
+    let server = TestServer::start(&tmp.root());
+
+    let resp = server.get(&format!("/resolve?hash={}", hash_hex(&hash)));
+    assert_eq!(resp.status, 200, "body: {:?}", resp.body);
+    assert!(
+        resp.json().get("revocation").is_none(),
+        "no revocation key on a non-revoked record; body: {:?}",
+        resp.body
+    );
+}
+
+/// `POST /verify` on a revoked artifact still REJECTS (fail-closed, ADR-0019 —
+/// the decision layer informs, never loosens), and the response now carries the
+/// revocation block so the consumer can apply `revocation_decision`.
+#[cfg(feature = "test-keys")]
+#[test]
+fn http_verify_revoked_artifact_rejects_and_carries_revocation() {
+    use ke_cli::commands::revoke;
+    use ke_core::revocation::RevocationReasonClass;
+
+    let tmp = TempDir::new("http_verify_revoked");
+    let (backend, hash) = published_registry(&tmp);
+    revoke::run(
+        &backend,
+        &revoke::RevokeArgs {
+            artifact_hash: hash,
+            policy: None,
+            reason_class: Some(RevocationReasonClass::Advisory),
+            reason: None,
+            now_unix: NOW,
+        },
+    )
+    .expect("revoke");
+    let server = TestServer::start(&tmp.root());
+
+    let body = format!(r#"{{"hash":"{}","env":"local"}}"#, hash_hex(&hash));
+    let resp = server.post_json("/verify", &body);
+    assert_eq!(resp.status, 200, "a verdict, not a transport error");
+    let json = resp.json();
+    assert_eq!(
+        json["verdict"], "rejected",
+        "verify stays fail-closed on Revoked even with the decision layer present"
+    );
+    assert_eq!(json["registry_state"], "Revoked");
+    assert_eq!(json["revocation"]["reason_class"], "Advisory");
+    assert_eq!(json["revocation"]["policy"], "AuditOnly");
+}
+
+/// A verified (Published) artifact's verify response has no `revocation` key.
+#[cfg(feature = "test-keys")]
+#[test]
+fn http_verify_published_artifact_has_no_revocation_key() {
+    let tmp = TempDir::new("http_verify_norev");
+    let (_b, hash) = published_registry(&tmp);
+    let server = TestServer::start(&tmp.root());
+
+    let body = format!(r#"{{"hash":"{}","env":"local"}}"#, hash_hex(&hash));
+    let resp = server.post_json("/verify", &body);
+    assert_eq!(resp.status, 200);
+    assert!(
+        resp.json().get("revocation").is_none(),
+        "no revocation key on a non-revoked verify; body: {:?}",
+        resp.body
+    );
+}

@@ -107,6 +107,13 @@ pub struct VerifyResponse {
     /// The registry status the verdict considered
     /// (Published/Deprecated/Revoked/Unknown).
     pub registry_state: ke_artifact::RegistryStatus,
+    /// The revocation sidecar, present exactly when the registry state is
+    /// `Revoked` (Gate 6/ADR-0024). Informational only — the verdict above is
+    /// already `rejected` for any non-Published state (fail-closed); this block
+    /// gives a consumer the inputs to `revocation_decision`, it never softens
+    /// the verdict.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revocation: Option<crate::registry::RevocationRecord>,
 }
 
 /// One verification finding, projected for the preview response (the

@@ -23,6 +23,7 @@ pub mod canonical;
 pub mod examples;
 pub mod ir;
 pub mod manifest;
+pub mod revocation;
 pub mod schema;
 pub mod semantic;
 pub mod version;
